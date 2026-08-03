@@ -144,6 +144,96 @@ window.TaskTrackerAuth = (() => {
       }
     };
   }
+    async function getStartTaskOptions(sessionToken) {
+    const { data, error } = await client.rpc(
+      "get_start_task_options",
+      {
+        p_session_token: sessionToken
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The Start Task options could not be loaded."
+      );
+    }
+
+    return data || {
+      task_types: [],
+      non_productive_tasks: [],
+      placeholder_item: null
+    };
+  }
+
+  async function searchStartTaskItems(
+    sessionToken,
+    searchText,
+    resultLimit = 25
+  ) {
+    const { data, error } = await client.rpc(
+      "search_start_task_items",
+      {
+        p_session_token: sessionToken,
+        p_search_text: searchText,
+        p_result_limit: resultLimit
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The item search could not be completed."
+      );
+    }
+
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function startMyTask(
+    sessionToken,
+    taskData
+  ) {
+    const { data, error } = await client.rpc(
+      "start_my_task",
+      {
+        p_session_token: sessionToken,
+        p_task_type_id: taskData.taskTypeId,
+        p_item_id: taskData.itemId || null,
+        p_item_not_listed_detail:
+          taskData.itemNotListedDetail || null,
+        p_work_order_number:
+          taskData.workOrderNumber || null,
+        p_work_order_type:
+          taskData.workOrderType || null,
+        p_job_type:
+          taskData.jobType || null,
+        p_non_productive_task_id:
+          taskData.nonProductiveTaskId || null,
+        p_comments:
+          taskData.comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task could not be started."
+      );
+    }
+
+    const result = Array.isArray(data)
+      ? data[0]
+      : data;
+
+    if (!result?.job_id) {
+      throw new Error(
+        "The task was started, but the new job was not returned."
+      );
+    }
+
+    return result;
+  }
   async function getMyTaskState(sessionToken) {
     const { data, error } = await client.rpc(
       "get_my_task_state",
@@ -211,10 +301,13 @@ window.TaskTrackerAuth = (() => {
     }
   }
 
-    return Object.freeze({
+      return Object.freeze({
     listEmployees,
     login,
     restoreSession,
+    getStartTaskOptions,
+    searchStartTaskItems,
+    startMyTask,
     getMyTaskState,
     getPermissionContext,
     logout,
