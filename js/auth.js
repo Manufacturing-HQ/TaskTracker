@@ -144,7 +144,23 @@ window.TaskTrackerAuth = (() => {
       }
     };
   }
+  async function getMyTaskState(sessionToken) {
+    const { data, error } = await client.rpc(
+      "get_my_task_state",
+      {
+        p_session_token: sessionToken
+      }
+    );
 
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The employee task status could not be loaded."
+      );
+    }
+
+    return data || null;
+  }
   async function getPermissionContext(sessionToken) {
     const { data, error } = await client.rpc(
       "get_employee_permission_context",
@@ -195,10 +211,11 @@ window.TaskTrackerAuth = (() => {
     }
   }
 
-  return Object.freeze({
+    return Object.freeze({
     listEmployees,
     login,
     restoreSession,
+    getMyTaskState,
     getPermissionContext,
     logout,
     getStoredSessionToken,
