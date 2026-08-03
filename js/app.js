@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("employee-select");
   const pinInput = document.getElementById("pin-input");
   const loginButton = document.getElementById("login-button");
-
   const loginMessage =
     document.getElementById("login-message");
   const loginLoading =
@@ -38,24 +37,83 @@ document.addEventListener("DOMContentLoaded", () => {
   const administratorNav =
     document.getElementById("administrator-nav");
 
+  const dashboardNavButton =
+    document.getElementById("dashboard-nav-button");
+  const startTaskNavButton =
+    document.getElementById("start-task-nav-button");
+
+  const dashboardPage =
+    document.getElementById("dashboard-page");
+  const startTaskPage =
+    document.getElementById("start-task-page");
+
   const logoutButton =
     document.getElementById("logout-button");
 
   const dashboardRefreshButton =
     document.getElementById("dashboard-refresh-button");
-
   const currentTaskContent =
     document.getElementById("current-task-content");
-
   const unfinishedJobsContent =
     document.getElementById("unfinished-jobs-content");
-
   const taskStateMessage =
     document.getElementById("task-state-message");
+
+  const startTaskForm =
+    document.getElementById("start-task-form");
+  const taskTypeOptions =
+    document.getElementById("task-type-options");
+  const productiveTaskSection =
+    document.getElementById("productive-task-section");
+  const nonProductiveTaskSection =
+    document.getElementById("non-productive-task-section");
+  const commentsSection =
+    document.getElementById("start-task-comments-section");
+
+  const itemSearchInput =
+    document.getElementById("item-search-input");
+  const itemSearchResults =
+    document.getElementById("item-search-results");
+  const selectedItemDisplay =
+    document.getElementById("selected-item-display");
+  const itemNotListedField =
+    document.getElementById("item-not-listed-field");
+  const itemNotListedDetail =
+    document.getElementById("item-not-listed-detail");
+
+  const workOrderNumber =
+    document.getElementById("work-order-number");
+  const workOrderType =
+    document.getElementById("work-order-type");
+  const productiveJobType =
+    document.getElementById("productive-job-type");
+
+  const nonProductiveTaskSelect =
+    document.getElementById("non-productive-task-select");
+  const nonProductiveJobType =
+    document.getElementById("non-productive-job-type");
+  const commentRequiredNote =
+    document.getElementById("comment-required-note");
+
+  const startTaskComments =
+    document.getElementById("start-task-comments");
+  const commentsRequiredMarker =
+    document.getElementById("comments-required-marker");
+  const startTaskMessage =
+    document.getElementById("start-task-message");
+  const startTaskSubmitButton =
+    document.getElementById("start-task-submit-button");
+  const cancelStartTaskButton =
+    document.getElementById("cancel-start-task-button");
 
   let currentSession = null;
   let elapsedTimer = null;
   let activeJobStartedAt = null;
+
+  let startTaskOptionsData = null;
+  let selectedTaskType = null;
+  let selectedItem = null;
+  let itemSearchTimer = null;
 
   function setLoginLoading(isLoading) {
     loginButton.disabled = isLoading;
@@ -79,6 +137,21 @@ document.addEventListener("DOMContentLoaded", () => {
     loginMessage.hidden = true;
   }
 
+  function showStartTaskMessage(
+    message,
+    type = "error"
+  ) {
+    startTaskMessage.textContent = message;
+    startTaskMessage.className =
+      `login-message ${type}`;
+    startTaskMessage.hidden = !message;
+  }
+
+  function clearStartTaskMessage() {
+    startTaskMessage.textContent = "";
+    startTaskMessage.hidden = true;
+  }
+
   function getInitials(employeeName) {
     return String(employeeName || "")
       .trim()
@@ -92,6 +165,15 @@ document.addEventListener("DOMContentLoaded", () => {
     element.hidden = !isVisible;
   }
 
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
   function configureNavigation(permissionContext) {
     const role = permissionContext.employee_role;
 
@@ -99,15 +181,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setVisible(
       supervisorNav,
-      role === "Supervisor" ||
-      role === "Manager" ||
-      role === "Administrator"
+      ["Supervisor", "Manager", "Administrator"]
+        .includes(role)
     );
 
     setVisible(
       managerNav,
-      role === "Manager" ||
-      role === "Administrator"
+      ["Manager", "Administrator"].includes(role)
     );
 
     setVisible(
@@ -116,13 +196,21 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  function escapeHtml(value) {
-    return String(value ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  function showApplicationPage(pageName) {
+    const showDashboard = pageName === "dashboard";
+
+    dashboardPage.hidden = !showDashboard;
+    startTaskPage.hidden = showDashboard;
+
+    dashboardNavButton.classList.toggle(
+      "active",
+      showDashboard
+    );
+
+    startTaskNavButton.classList.toggle(
+      "active",
+      !showDashboard
+    );
   }
 
   function formatDateTime(value) {
@@ -182,10 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function startElapsedTimer(startedAt) {
     stopElapsedTimer();
 
-    if (!startedAt) {
-      return;
-    }
-
     const startDate = new Date(startedAt);
 
     if (Number.isNaN(startDate.getTime())) {
@@ -219,11 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function getTaskDisplayName(job) {
-    if (!job) {
-      return "Task";
-    }
-
-    if (job.task_type_name === "Non-Productive") {
+    if (job?.task_type_name === "Non-Productive") {
       return (
         job.non_productive_task_name ||
         job.job_type ||
@@ -232,9 +312,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     return (
-      job.item_name ||
-      job.item_not_listed_detail ||
-      job.job_type ||
+      job?.item_name ||
+      job?.item_not_listed_detail ||
+      job?.job_type ||
       "Productive Task"
     );
   }
@@ -242,15 +322,15 @@ document.addEventListener("DOMContentLoaded", () => {
   function getJobReference(job) {
     const parts = [];
 
-    if (job.work_order_number) {
+    if (job?.work_order_number) {
       parts.push(`WO ${job.work_order_number}`);
     }
 
-    if (job.work_order_type) {
+    if (job?.work_order_type) {
       parts.push(job.work_order_type);
     }
 
-    if (job.internal_id) {
+    if (job?.internal_id) {
       parts.push(job.internal_id);
     }
 
@@ -281,10 +361,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const taskName =
       escapeHtml(getTaskDisplayName(activeJob));
-
     const reference =
       escapeHtml(getJobReference(activeJob));
-
     const comments =
       escapeHtml(activeJob.comments || "");
 
@@ -335,7 +413,9 @@ document.addEventListener("DOMContentLoaded", () => {
               </span>
 
               <strong>
-                ${escapeHtml(activeJob.job_type || "Not specified")}
+                ${escapeHtml(
+                  activeJob.job_type || "Not specified"
+                )}
               </strong>
             </div>
 
@@ -346,7 +426,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
               <strong>
                 ${escapeHtml(
-                  formatDateTime(activeJob.session_started_at)
+                  formatDateTime(
+                    activeJob.session_started_at
+                  )
                 )}
               </strong>
             </div>
@@ -380,7 +462,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
 
         <div class="active-task-timer-panel">
-
           <span class="timer-label">
             Current session
           </span>
@@ -395,13 +476,11 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="timer-note">
             Live elapsed time
           </span>
-
         </div>
 
       </div>
 
       <div class="task-action-row">
-
         <button
           class="task-action secondary"
           type="button"
@@ -433,12 +512,11 @@ document.addEventListener("DOMContentLoaded", () => {
         >
           Complete
         </button>
-
       </div>
 
       <div class="action-preview-note">
-        Task controls are displayed for design review. They will
-        be activated individually in the next workflow rollout.
+        Task controls will be activated in the next workflow
+        rollout.
       </div>
     `;
 
@@ -507,10 +585,7 @@ document.addEventListener("DOMContentLoaded", () => {
             </div>
 
             <div class="unfinished-job-side">
-
-              <span>
-                Updated
-              </span>
+              <span>Updated</span>
 
               <strong>
                 ${escapeHtml(
@@ -525,7 +600,6 @@ document.addEventListener("DOMContentLoaded", () => {
               >
                 Resume
               </button>
-
             </div>
 
           </article>
@@ -552,16 +626,12 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
       renderActiveJob(state?.active_job || null);
-
       renderUnfinishedJobs(
         state?.unfinished_jobs || []
       );
 
       taskStateMessage.hidden = true;
-      taskStateMessage.textContent = "";
     } catch (error) {
-      console.error(error);
-
       stopElapsedTimer();
 
       taskStateMessage.hidden = false;
@@ -574,9 +644,419 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function renderTaskTypeOptions(taskTypes) {
+    taskTypeOptions.innerHTML = "";
+
+    taskTypes.forEach((taskType) => {
+      const button = document.createElement("button");
+
+      button.type = "button";
+      button.className = "task-type-option";
+      button.dataset.taskTypeId =
+        taskType.task_type_id;
+      button.dataset.taskTypeName =
+        taskType.task_type_name;
+
+      const description =
+        taskType.task_type_name === "Productive"
+          ? "Work tied to an item, work order, or production activity."
+          : "Meetings, training, cleaning, inventory support, and other indirect work.";
+
+      button.innerHTML = `
+        <span class="task-type-option-title">
+          ${escapeHtml(taskType.task_type_name)}
+        </span>
+
+        <span class="task-type-option-description">
+          ${escapeHtml(description)}
+        </span>
+      `;
+
+      button.addEventListener("click", () => {
+        selectTaskType(taskType);
+      });
+
+      taskTypeOptions.appendChild(button);
+    });
+  }
+
+  function populateNonProductiveTasks(tasks) {
+    nonProductiveTaskSelect.innerHTML = `
+      <option value="">
+        Select a non-productive task
+      </option>
+    `;
+
+    tasks.forEach((task) => {
+      const option = document.createElement("option");
+
+      option.value =
+        task.non_productive_task_id;
+      option.textContent = task.task_name;
+      option.dataset.requiresComment =
+        String(task.requires_comment);
+
+      nonProductiveTaskSelect.appendChild(option);
+    });
+  }
+
+  async function loadStartTaskOptions() {
+    if (!currentSession) {
+      return;
+    }
+
+    if (startTaskOptionsData) {
+      return;
+    }
+
+    taskTypeOptions.innerHTML =
+      `<div class="compact-empty-state">
+        Loading task options...
+      </div>`;
+
+    startTaskOptionsData =
+      await auth.getStartTaskOptions(
+        currentSession.sessionToken
+      );
+
+    renderTaskTypeOptions(
+      startTaskOptionsData.task_types || []
+    );
+
+    populateNonProductiveTasks(
+      startTaskOptionsData.non_productive_tasks || []
+    );
+  }
+
+  function selectTaskType(taskType) {
+    selectedTaskType = taskType;
+
+    document
+      .querySelectorAll(".task-type-option")
+      .forEach((button) => {
+        button.classList.toggle(
+          "selected",
+          button.dataset.taskTypeId ===
+            taskType.task_type_id
+        );
+      });
+
+    const isProductive =
+      taskType.task_type_name === "Productive";
+
+    productiveTaskSection.hidden = !isProductive;
+    nonProductiveTaskSection.hidden = isProductive;
+    commentsSection.hidden = false;
+
+    clearStartTaskMessage();
+    updateCommentRequirement();
+  }
+
+  function updateCommentRequirement() {
+    let commentsRequired = false;
+
+    if (
+      selectedTaskType?.task_type_name ===
+      "Non-Productive"
+    ) {
+      const selectedOption =
+        nonProductiveTaskSelect.selectedOptions[0];
+
+      commentsRequired =
+        selectedOption?.dataset.requiresComment ===
+        "true";
+    }
+
+    commentsRequiredMarker.hidden =
+      !commentsRequired;
+
+    commentRequiredNote.hidden =
+      !commentsRequired;
+  }
+
+  function clearSelectedItem() {
+    selectedItem = null;
+    selectedItemDisplay.hidden = true;
+    selectedItemDisplay.innerHTML = "";
+    itemNotListedField.hidden = true;
+    itemNotListedDetail.value = "";
+  }
+
+  function selectItem(item) {
+    selectedItem = item;
+
+    itemSearchInput.value = "";
+    itemSearchResults.hidden = true;
+    itemSearchResults.innerHTML = "";
+
+    selectedItemDisplay.innerHTML = `
+      <div class="selected-item-header">
+        <strong>
+          ${escapeHtml(item.item_name)}
+        </strong>
+
+        <button
+          class="clear-selected-item"
+          type="button"
+        >
+          Change
+        </button>
+      </div>
+
+      <div class="selected-item-meta">
+        ${escapeHtml(item.internal_id)}
+        ${
+          item.sku_group
+            ? ` · ${escapeHtml(item.sku_group)}`
+            : ""
+        }
+      </div>
+    `;
+
+    selectedItemDisplay.hidden = false;
+    itemNotListedField.hidden =
+      !item.is_placeholder;
+
+    selectedItemDisplay
+      .querySelector(".clear-selected-item")
+      .addEventListener("click", clearSelectedItem);
+  }
+
+  async function searchItems(searchText) {
+    if (!currentSession) {
+      return;
+    }
+
+    const cleanSearchText = searchText.trim();
+
+    if (cleanSearchText.length < 2) {
+      itemSearchResults.hidden = true;
+      itemSearchResults.innerHTML = "";
+      return;
+    }
+
+    itemSearchResults.hidden = false;
+    itemSearchResults.innerHTML = `
+      <div class="compact-empty-state">
+        Searching items...
+      </div>
+    `;
+
+    try {
+      const items =
+        await auth.searchStartTaskItems(
+          currentSession.sessionToken,
+          cleanSearchText,
+          25
+        );
+
+      if (items.length === 0) {
+        itemSearchResults.innerHTML = `
+          <div class="compact-empty-state">
+            No matching items were found.
+          </div>
+        `;
+
+        return;
+      }
+
+      itemSearchResults.innerHTML = "";
+
+      items.forEach((item) => {
+        const button =
+          document.createElement("button");
+
+        button.type = "button";
+        button.className = "item-search-result";
+
+        button.innerHTML = `
+          <span class="item-result-name">
+            ${escapeHtml(item.item_name)}
+          </span>
+
+          <span class="item-result-details">
+            ${escapeHtml(item.internal_id)}
+            ${
+              item.sku_group
+                ? ` · ${escapeHtml(item.sku_group)}`
+                : ""
+            }
+          </span>
+        `;
+
+        button.addEventListener("click", () => {
+          selectItem(item);
+        });
+
+        itemSearchResults.appendChild(button);
+      });
+    } catch (error) {
+      itemSearchResults.innerHTML = `
+        <div class="compact-empty-state">
+          ${escapeHtml(
+            error.message ||
+            "The item search could not be completed."
+          )}
+        </div>
+      `;
+    }
+  }
+
+  function resetStartTaskForm() {
+    startTaskForm.reset();
+
+    selectedTaskType = null;
+    clearSelectedItem();
+    clearStartTaskMessage();
+
+    productiveTaskSection.hidden = true;
+    nonProductiveTaskSection.hidden = true;
+    commentsSection.hidden = true;
+    commentRequiredNote.hidden = true;
+    commentsRequiredMarker.hidden = true;
+
+    document
+      .querySelectorAll(".task-type-option")
+      .forEach((button) => {
+        button.classList.remove("selected");
+      });
+  }
+
+  function validateStartTask() {
+    if (!selectedTaskType) {
+      return "Select Productive or Non-Productive work.";
+    }
+
+    if (
+      selectedTaskType.task_type_name ===
+      "Productive"
+    ) {
+      if (!selectedItem) {
+        return "Search for and select an item.";
+      }
+
+      if (
+        selectedItem.is_placeholder &&
+        !itemNotListedDetail.value.trim()
+      ) {
+        return "Enter the item details.";
+      }
+    }
+
+    if (
+      selectedTaskType.task_type_name ===
+      "Non-Productive"
+    ) {
+      if (!nonProductiveTaskSelect.value) {
+        return "Select a non-productive task.";
+      }
+
+      const selectedOption =
+        nonProductiveTaskSelect.selectedOptions[0];
+
+      if (
+        selectedOption?.dataset.requiresComment ===
+          "true" &&
+        !startTaskComments.value.trim()
+      ) {
+        return "Comments are required for the selected task.";
+      }
+    }
+
+    return null;
+  }
+
+  async function submitStartTask() {
+    const validationMessage =
+      validateStartTask();
+
+    if (validationMessage) {
+      showStartTaskMessage(validationMessage);
+      return;
+    }
+
+    startTaskSubmitButton.disabled = true;
+    startTaskSubmitButton.textContent =
+      "Starting Task...";
+
+    clearStartTaskMessage();
+
+    const isProductive =
+      selectedTaskType.task_type_name ===
+      "Productive";
+
+    try {
+      const result = await auth.startMyTask(
+        currentSession.sessionToken,
+        {
+          taskTypeId:
+            selectedTaskType.task_type_id,
+
+          itemId:
+            isProductive
+              ? selectedItem?.item_id
+              : null,
+
+          itemNotListedDetail:
+            isProductive &&
+            selectedItem?.is_placeholder
+              ? itemNotListedDetail.value.trim()
+              : null,
+
+          workOrderNumber:
+            isProductive
+              ? workOrderNumber.value.trim()
+              : null,
+
+          workOrderType:
+            isProductive
+              ? workOrderType.value.trim()
+              : null,
+
+          jobType:
+            isProductive
+              ? productiveJobType.value.trim()
+              : nonProductiveJobType.value.trim(),
+
+          nonProductiveTaskId:
+            isProductive
+              ? null
+              : nonProductiveTaskSelect.value,
+
+          comments:
+            startTaskComments.value.trim()
+        }
+      );
+
+      resetStartTaskForm();
+      showApplicationPage("dashboard");
+
+      await loadTaskState();
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        `Job #${result.job_number} started successfully.`;
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showStartTaskMessage(
+        error.message ||
+        "The task could not be started."
+      );
+    } finally {
+      startTaskSubmitButton.disabled = false;
+      startTaskSubmitButton.textContent =
+        "Start Task";
+    }
+  }
+
   async function displayApplication(session) {
     const permissions =
-      await auth.getPermissionContext(session.sessionToken);
+      await auth.getPermissionContext(
+        session.sessionToken
+      );
 
     currentSession = {
       ...session,
@@ -606,9 +1086,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loginView.hidden = true;
     appView.hidden = false;
-
     pinInput.value = "";
+
     clearLoginMessage();
+    showApplicationPage("dashboard");
 
     await loadTaskState();
   }
@@ -630,24 +1111,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const employees = await auth.listEmployees();
 
     employees.forEach((employee) => {
-      const option = document.createElement("option");
+      const option =
+        document.createElement("option");
 
       option.value = employee.employee_id;
       option.textContent = employee.employee_name;
 
       if (employee.department) {
-        option.textContent += ` — ${employee.department}`;
+        option.textContent +=
+          ` — ${employee.department}`;
       }
 
       employeeSelect.appendChild(option);
     });
-
-    if (employees.length === 0) {
-      showLoginMessage(
-        "No active employees are currently available.",
-        "warning"
-      );
-    }
   }
 
   async function initializeApplication() {
@@ -659,7 +1135,8 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     try {
-      const restoredSession = await auth.restoreSession();
+      const restoredSession =
+        await auth.restoreSession();
 
       if (restoredSession) {
         await displayApplication(restoredSession);
@@ -670,8 +1147,6 @@ document.addEventListener("DOMContentLoaded", () => {
       clearLoginMessage();
       displayLogin();
     } catch (error) {
-      console.error(error);
-
       displayLogin();
 
       showLoginMessage(
@@ -683,86 +1158,151 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    clearLoginMessage();
+  loginForm.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+      clearLoginMessage();
 
-    const employeeId = employeeSelect.value;
-    const pin = pinInput.value.trim();
+      const employeeId = employeeSelect.value;
+      const pin = pinInput.value.trim();
 
-    if (!employeeId) {
-      showLoginMessage("Select your employee name.");
-      employeeSelect.focus();
-      return;
-    }
+      if (!employeeId) {
+        showLoginMessage(
+          "Select your employee name."
+        );
 
-    if (!pin) {
-      showLoginMessage("Enter your secure PIN.");
-      pinInput.focus();
-      return;
-    }
-
-    if (!/^\d+$/.test(pin)) {
-      showLoginMessage("The PIN must contain numbers only.");
-      pinInput.focus();
-      return;
-    }
-
-    setLoginLoading(true);
-
-    try {
-      const result = await auth.login(employeeId, pin);
-
-      if (!result.successful) {
-        showLoginMessage(result.message);
-        pinInput.value = "";
-        pinInput.focus();
         return;
       }
 
-      await displayApplication({
-        sessionToken: result.sessionToken,
-        employee: result.employee
-      });
-    } catch (error) {
-      console.error(error);
+      if (!pin) {
+        showLoginMessage(
+          "Enter your secure PIN."
+        );
 
-      showLoginMessage(
-        error.message ||
-        "The login request could not be completed."
-      );
-    } finally {
-      setLoginLoading(false);
+        return;
+      }
+
+      setLoginLoading(true);
+
+      try {
+        const result =
+          await auth.login(employeeId, pin);
+
+        if (!result.successful) {
+          showLoginMessage(result.message);
+          pinInput.value = "";
+          return;
+        }
+
+        await displayApplication({
+          sessionToken: result.sessionToken,
+          employee: result.employee
+        });
+      } catch (error) {
+        showLoginMessage(
+          error.message ||
+          "The login request could not be completed."
+        );
+      } finally {
+        setLoginLoading(false);
+      }
     }
-  });
+  );
+
+  dashboardNavButton.addEventListener(
+    "click",
+    async () => {
+      showApplicationPage("dashboard");
+      await loadTaskState();
+    }
+  );
+
+  startTaskNavButton.addEventListener(
+    "click",
+    async () => {
+      showApplicationPage("start-task");
+
+      try {
+        await loadStartTaskOptions();
+      } catch (error) {
+        showStartTaskMessage(
+          error.message ||
+          "The Start Task page could not be loaded."
+        );
+      }
+    }
+  );
+
+  cancelStartTaskButton.addEventListener(
+    "click",
+    () => {
+      resetStartTaskForm();
+      showApplicationPage("dashboard");
+    }
+  );
 
   dashboardRefreshButton.addEventListener(
     "click",
     loadTaskState
   );
 
-  logoutButton.addEventListener("click", async () => {
-    logoutButton.disabled = true;
-    logoutButton.textContent = "Signing out...";
+  itemSearchInput.addEventListener(
+    "input",
+    () => {
+      window.clearTimeout(itemSearchTimer);
 
-    try {
-      await auth.logout();
-    } finally {
-      logoutButton.disabled = false;
-      logoutButton.textContent = "Sign out";
+      itemSearchTimer = window.setTimeout(
+        () => {
+          searchItems(itemSearchInput.value);
+        },
+        300
+      );
+    }
+  );
 
-      displayLogin();
+  nonProductiveTaskSelect.addEventListener(
+    "change",
+    updateCommentRequirement
+  );
+
+  startTaskForm.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+      await submitStartTask();
+    }
+  );
+
+  logoutButton.addEventListener(
+    "click",
+    async () => {
+      logoutButton.disabled = true;
+      logoutButton.textContent =
+        "Signing out...";
 
       try {
-        await loadEmployeeList();
-      } catch (error) {
-        showLoginMessage(
-          error.message ||
-          "The employee list could not be refreshed."
-        );
+        await auth.logout();
+      } finally {
+        logoutButton.disabled = false;
+        logoutButton.textContent =
+          "Sign out";
+
+        resetStartTaskForm();
+        startTaskOptionsData = null;
+        displayLogin();
+
+        try {
+          await loadEmployeeList();
+        } catch (error) {
+          showLoginMessage(
+            error.message ||
+            "The employee list could not be refreshed."
+          );
+        }
       }
     }
-  });
+  );
 
   initializeApplication();
 });
