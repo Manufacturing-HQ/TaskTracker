@@ -897,6 +897,233 @@
         text-align: left;
       }
     }
+
+    .start-task-form {
+      margin-top: 30px;
+    }
+
+    .task-type-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      padding-top: 22px;
+    }
+
+    .task-type-option {
+      position: relative;
+      padding: 22px;
+      border: 2px solid var(--slate-200);
+      border-radius: 16px;
+      color: var(--slate-900);
+      background: white;
+      text-align: left;
+      transition:
+        border-color 160ms ease,
+        background 160ms ease,
+        box-shadow 160ms ease,
+        transform 160ms ease;
+    }
+
+    .task-type-option:hover {
+      transform: translateY(-1px);
+      border-color: #a9c4ee;
+      box-shadow:
+        0 10px 24px rgba(37, 99, 235, 0.08);
+    }
+
+    .task-type-option.selected {
+      border-color: var(--blue-600);
+      background: #f4f8ff;
+      box-shadow:
+        0 0 0 4px rgba(37, 99, 235, 0.09);
+    }
+
+    .task-type-option-title {
+      display: block;
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .task-type-option-description {
+      display: block;
+      margin-top: 7px;
+      color: var(--slate-500);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .start-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      padding-top: 22px;
+    }
+
+    .form-field {
+      position: relative;
+    }
+
+    .form-field.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .form-field label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--slate-700);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+      width: 100%;
+      border: 1px solid var(--slate-300);
+      border-radius: 11px;
+      outline: none;
+      color: var(--slate-900);
+      background: white;
+    }
+
+    .form-field input,
+    .form-field select {
+      min-height: 50px;
+      padding: 0 14px;
+    }
+
+    .form-field textarea {
+      min-height: 120px;
+      padding: 13px 14px;
+      resize: vertical;
+      line-height: 1.55;
+      font: inherit;
+    }
+
+    .form-field input:focus,
+    .form-field select:focus,
+    .form-field textarea:focus {
+      border-color: var(--blue-500);
+      box-shadow:
+        0 0 0 4px rgba(59, 130, 246, 0.11);
+    }
+
+    .required-marker {
+      color: var(--danger);
+    }
+
+    .item-search-results {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 7px);
+      right: 0;
+      left: 0;
+      max-height: 330px;
+      overflow-y: auto;
+      border: 1px solid var(--slate-200);
+      border-radius: 13px;
+      background: white;
+      box-shadow:
+        0 18px 45px rgba(11, 18, 32, 0.16);
+    }
+
+    .item-search-result {
+      width: 100%;
+      display: block;
+      padding: 13px 15px;
+      border: 0;
+      border-bottom: 1px solid var(--slate-100);
+      color: var(--slate-900);
+      background: white;
+      text-align: left;
+    }
+
+    .item-search-result:last-child {
+      border-bottom: 0;
+    }
+
+    .item-search-result:hover {
+      background: var(--slate-50);
+    }
+
+    .item-result-name {
+      display: block;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .item-result-details {
+      display: block;
+      margin-top: 4px;
+      color: var(--slate-500);
+      font-size: 11px;
+    }
+
+    .selected-item-display {
+      margin-top: 10px;
+      padding: 13px 14px;
+      border: 1px solid #bfd4f7;
+      border-radius: 11px;
+      color: #244a83;
+      background: #f1f6ff;
+      font-size: 13px;
+    }
+
+    .selected-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .clear-selected-item {
+      border: 0;
+      color: #2456a1;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .selected-item-meta {
+      margin-top: 5px;
+      color: #58739b;
+      font-size: 11px;
+    }
+
+    .comment-required-note {
+      margin-top: 9px;
+      color: #8a5410;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .start-task-submit-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 22px;
+    }
+
+    .start-task-submit-button {
+      width: auto;
+      min-width: 180px;
+      padding: 0 28px;
+    }
+
+    @media (max-width: 720px) {
+      .task-type-options,
+      .start-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-field.full-width {
+        grid-column: auto;
+      }
+
+      .start-task-submit-button {
+        width: 100%;
+      }
+    }
+
     @media (max-width: 900px) {
       .page-shell {
         display: block;
@@ -1122,11 +1349,19 @@
       <section id="employee-nav" class="sidebar-section">
         <div class="sidebar-label">My Workspace</div>
 
-        <button class="nav-link active" type="button">
+                <button
+          id="dashboard-nav-button"
+          class="nav-link active"
+          type="button"
+        >
           Dashboard
         </button>
 
-        <button class="nav-link" type="button">
+        <button
+          id="start-task-nav-button"
+          class="nav-link"
+          type="button"
+        >
           Start Task
         </button>
 
@@ -1223,83 +1458,357 @@
       </div>
 
     </aside>
-
+      
     <section class="app-main">
 
-      <header class="app-header">
-        <div>
-          <h1>
-            Welcome,
-            <span id="welcome-name">Employee</span>
-          </h1>
+      <div id="dashboard-page">
 
-          <p>
-            Your Task Tracker workspace is securely connected.
-          </p>
+        <header class="app-header">
+          <div>
+            <h1>
+              Welcome,
+              <span id="welcome-name">Employee</span>
+            </h1>
+
+            <p>
+              Your Task Tracker workspace is securely connected.
+            </p>
+          </div>
+
+          <div id="role-badge" class="role-badge">
+            Employee
+          </div>
+        </header>
+
+        <div class="dashboard-toolbar">
+
+          <div>
+            <h2>My Work</h2>
+
+            <p>
+              Current work and unfinished tasks assigned to you.
+            </p>
+          </div>
+
+          <button
+            id="dashboard-refresh-button"
+            class="refresh-button"
+            type="button"
+          >
+            Refresh
+          </button>
+
         </div>
 
-        <div id="role-badge" class="role-badge">
-          Employee
-        </div>
-      </header>
+        <div
+          id="task-state-message"
+          class="task-state-message"
+          hidden
+        ></div>
 
-            <div class="dashboard-toolbar">
+        <section class="workspace-card">
 
-        <div>
-          <h2>My Work</h2>
+          <div class="workspace-card-header">
+            <div>
+              <span class="section-eyebrow">
+                Current Task
+              </span>
 
-          <p>
-            Current work and unfinished tasks assigned to you.
-          </p>
-        </div>
+              <h2>Active work session</h2>
+            </div>
+          </div>
 
-        <button
-          id="dashboard-refresh-button"
-          class="refresh-button"
-          type="button"
-        >
-          Refresh
-        </button>
+          <div id="current-task-content"></div>
+
+        </section>
+
+        <section class="workspace-card">
+
+          <div class="workspace-card-header">
+            <div>
+              <span class="section-eyebrow">
+                Resume Work
+              </span>
+
+              <h2>Paused and blocked jobs</h2>
+            </div>
+          </div>
+
+          <div id="unfinished-jobs-content"></div>
+
+        </section>
 
       </div>
 
-      <div
-        id="task-state-message"
-        class="task-state-message"
-        hidden
-      ></div>
 
-      <section class="workspace-card">
+      <div id="start-task-page" hidden>
 
-        <div class="workspace-card-header">
+        <header class="app-header">
           <div>
-            <span class="section-eyebrow">
-              Current Task
-            </span>
+            <h1>Start Task</h1>
 
-            <h2>Active work session</h2>
+            <p>
+              Start productive or non-productive work and begin
+              tracking the session immediately.
+            </p>
           </div>
-        </div>
 
-        <div id="current-task-content"></div>
+          <button
+            id="cancel-start-task-button"
+            class="refresh-button"
+            type="button"
+          >
+            Cancel
+          </button>
+        </header>
 
-      </section>
+        <form
+          id="start-task-form"
+          class="start-task-form"
+        >
 
-      <section class="workspace-card">
+          <section class="workspace-card">
 
-        <div class="workspace-card-header">
-          <div>
-            <span class="section-eyebrow">
-              Resume Work
-            </span>
+            <div class="workspace-card-header">
+              <div>
+                <span class="section-eyebrow">
+                  Step 1
+                </span>
 
-            <h2>Paused and blocked jobs</h2>
-          </div>
-        </div>
+                <h2>Select the type of work</h2>
+              </div>
+            </div>
 
-        <div id="unfinished-jobs-content"></div>
+            <div
+              id="task-type-options"
+              class="task-type-options"
+            ></div>
 
-      </section>
+          </section>
+
+
+          <section
+            id="productive-task-section"
+            class="workspace-card"
+            hidden
+          >
+
+            <div class="workspace-card-header">
+              <div>
+                <span class="section-eyebrow">
+                  Productive Work
+                </span>
+
+                <h2>Work order and item details</h2>
+              </div>
+            </div>
+
+            <div class="start-form-grid">
+
+              <div class="form-field full-width">
+                <label for="item-search-input">
+                  Search Item
+                  <span class="required-marker">*</span>
+                </label>
+
+                <input
+                  id="item-search-input"
+                  type="search"
+                  autocomplete="off"
+                  placeholder="Search by item name, internal ID, or SKU group"
+                >
+
+                <div
+                  id="item-search-results"
+                  class="item-search-results"
+                  hidden
+                ></div>
+
+                <div
+                  id="selected-item-display"
+                  class="selected-item-display"
+                  hidden
+                ></div>
+              </div>
+
+              <div
+                id="item-not-listed-field"
+                class="form-field full-width"
+                hidden
+              >
+                <label for="item-not-listed-detail">
+                  Item Details
+                  <span class="required-marker">*</span>
+                </label>
+
+                <input
+                  id="item-not-listed-detail"
+                  type="text"
+                  maxlength="250"
+                  placeholder="Enter the item name or identifying details"
+                >
+              </div>
+
+              <div class="form-field">
+                <label for="work-order-number">
+                  Work Order Number
+                </label>
+
+                <input
+                  id="work-order-number"
+                  type="text"
+                  maxlength="100"
+                  placeholder="Example: WO-12345"
+                >
+              </div>
+
+              <div class="form-field">
+                <label for="work-order-type">
+                  Work Order Type
+                </label>
+
+                <input
+                  id="work-order-type"
+                  type="text"
+                  maxlength="100"
+                  placeholder="Example: Build Line"
+                >
+              </div>
+
+              <div class="form-field full-width">
+                <label for="productive-job-type">
+                  Job Type
+                </label>
+
+                <input
+                  id="productive-job-type"
+                  type="text"
+                  maxlength="150"
+                  placeholder="Optional job classification"
+                >
+              </div>
+
+            </div>
+
+          </section>
+
+
+          <section
+            id="non-productive-task-section"
+            class="workspace-card"
+            hidden
+          >
+
+            <div class="workspace-card-header">
+              <div>
+                <span class="section-eyebrow">
+                  Non-Productive Work
+                </span>
+
+                <h2>Select the activity</h2>
+              </div>
+            </div>
+
+            <div class="start-form-grid">
+
+              <div class="form-field full-width">
+                <label for="non-productive-task-select">
+                  Non-Productive Task
+                  <span class="required-marker">*</span>
+                </label>
+
+                <select id="non-productive-task-select">
+                  <option value="">
+                    Select a non-productive task
+                  </option>
+                </select>
+
+                <div
+                  id="comment-required-note"
+                  class="comment-required-note"
+                  hidden
+                >
+                  Comments are required for this activity.
+                </div>
+              </div>
+
+              <div class="form-field full-width">
+                <label for="non-productive-job-type">
+                  Job Type
+                </label>
+
+                <input
+                  id="non-productive-job-type"
+                  type="text"
+                  maxlength="150"
+                  placeholder="Optional additional classification"
+                >
+              </div>
+
+            </div>
+
+          </section>
+
+
+          <section
+            id="start-task-comments-section"
+            class="workspace-card"
+            hidden
+          >
+
+            <div class="workspace-card-header">
+              <div>
+                <span class="section-eyebrow">
+                  Final Details
+                </span>
+
+                <h2>Comments</h2>
+              </div>
+            </div>
+
+            <div class="form-field">
+              <label for="start-task-comments">
+                Comments
+                <span
+                  id="comments-required-marker"
+                  class="required-marker"
+                  hidden
+                >
+                  *
+                </span>
+              </label>
+
+              <textarea
+                id="start-task-comments"
+                rows="4"
+                maxlength="2000"
+                placeholder="Add relevant details, instructions, or context"
+              ></textarea>
+            </div>
+
+            <div
+              id="start-task-message"
+              class="login-message"
+              hidden
+            ></div>
+
+            <div class="start-task-submit-row">
+
+              <button
+                id="start-task-submit-button"
+                class="login-button start-task-submit-button"
+                type="submit"
+              >
+                Start Task
+              </button>
+
+            </div>
+
+          </section>
+
+        </form>
+
+      </div>
 
     </section>
 
