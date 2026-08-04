@@ -877,7 +877,117 @@
       background: var(--blue-600);
       font-weight: 800;
     }
+    .task-action-modal-backdrop {
+      position: fixed;
+      z-index: 1000;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.62);
+      backdrop-filter: blur(3px);
+    }
 
+    .task-action-modal-backdrop[hidden] {
+      display: none;
+    }
+
+    .task-action-modal {
+      width: min(100%, 520px);
+      max-height: calc(100vh - 48px);
+      overflow-y: auto;
+      border: 1px solid var(--slate-200);
+      border-radius: 18px;
+      background: white;
+      box-shadow:
+        0 28px 70px rgba(15, 23, 42, 0.28);
+    }
+
+    .task-action-modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 24px 26px 18px;
+      border-bottom: 1px solid var(--slate-200);
+    }
+
+    .task-action-modal-header h2 {
+      margin: 4px 0 0;
+      color: var(--slate-900);
+      font-size: 22px;
+    }
+
+    .task-action-modal-header p {
+      margin: 8px 0 0;
+      color: var(--slate-500);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .task-action-modal-close {
+      flex: 0 0 auto;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--slate-200);
+      border-radius: 10px;
+      color: var(--slate-600);
+      background: white;
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .task-action-modal-body {
+      padding: 24px 26px 26px;
+    }
+
+    .task-action-modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .task-action-cancel-button,
+    .task-action-confirm-button {
+      min-height: 46px;
+      padding: 0 20px;
+      border-radius: 10px;
+      font-weight: 800;
+    }
+
+    .task-action-cancel-button {
+      border: 1px solid var(--slate-300);
+      color: var(--slate-700);
+      background: white;
+    }
+
+    .task-action-confirm-button {
+      border: 0;
+      color: white;
+      background: var(--blue-600);
+    }
+
+    .task-action-confirm-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.65;
+    }
+
+    .task-action-message {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      color: #991b1b;
+      background: #fef2f2;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .task-action-message.success {
+      color: #166534;
+      background: #f0fdf4;
+    }
     @media (max-width: 720px) {
       .active-task-layout,
       .unfinished-job {
@@ -1814,7 +1924,158 @@
 
   </main>
 
+  <div
+    id="task-action-modal-backdrop"
+    class="task-action-modal-backdrop"
+    hidden
+  >
 
+    <section
+      class="task-action-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="task-action-modal-title"
+    >
+
+      <header class="task-action-modal-header">
+
+        <div>
+          <span
+            id="task-action-modal-eyebrow"
+            class="section-eyebrow"
+          >
+            Task Action
+          </span>
+
+          <h2 id="task-action-modal-title">
+            Update Task
+          </h2>
+
+          <p id="task-action-modal-description">
+            Select the appropriate option and confirm the change.
+          </p>
+        </div>
+
+        <button
+          id="task-action-modal-close"
+          class="task-action-modal-close"
+          type="button"
+          aria-label="Close task action"
+        >
+          ×
+        </button>
+
+      </header>
+
+
+      <form id="task-action-form">
+
+        <div class="task-action-modal-body">
+
+          <div
+            id="task-action-reason-field"
+            class="form-field"
+          >
+            <label for="task-action-reason-select">
+              Reason
+              <span class="required-marker">*</span>
+            </label>
+
+            <select id="task-action-reason-select">
+              <option value="">
+                Select a reason
+              </option>
+            </select>
+
+            <div
+              id="task-action-comment-required-note"
+              class="comment-required-note"
+              hidden
+            >
+              Comments are required for this reason.
+            </div>
+          </div>
+
+
+          <div
+            id="task-action-quantity-field"
+            class="form-field"
+            hidden
+          >
+            <label for="task-action-completed-quantity">
+              Completed Quantity
+              <span class="required-marker">*</span>
+            </label>
+
+            <input
+              id="task-action-completed-quantity"
+              type="number"
+              min="0.01"
+              step="any"
+              inputmode="decimal"
+              placeholder="Enter completed quantity"
+            >
+          </div>
+
+
+          <div
+            class="form-field"
+            style="margin-top: 18px;"
+          >
+            <label for="task-action-comments">
+              Comments
+              <span
+                id="task-action-comments-required-marker"
+                class="required-marker"
+                hidden
+              >
+                *
+              </span>
+            </label>
+
+            <textarea
+              id="task-action-comments"
+              rows="4"
+              maxlength="2000"
+              placeholder="Add relevant details or context"
+            ></textarea>
+          </div>
+
+
+          <div
+            id="task-action-message"
+            class="task-action-message"
+            hidden
+          ></div>
+
+
+          <div class="task-action-modal-footer">
+
+            <button
+              id="task-action-cancel-button"
+              class="task-action-cancel-button"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="task-action-confirm-button"
+              class="task-action-confirm-button"
+              type="submit"
+            >
+              Confirm
+            </button>
+
+          </div>
+
+        </div>
+
+      </form>
+
+    </section>
+
+  </div>
   <script
     src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
   ></script>
