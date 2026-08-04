@@ -228,8 +228,10 @@ document.addEventListener("DOMContentLoaded", () => {
     taskActionMessage.hidden = true;
   }
 
-  function closeTaskActionModal() {
+    function closeTaskActionModal() {
     currentTaskAction = null;
+
+    delete taskActionModalBackdrop.dataset.jobId;
 
     taskActionForm.reset();
     clearTaskActionMessage();
@@ -242,6 +244,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     taskActionConfirmButton.disabled = false;
     taskActionConfirmButton.textContent = "Confirm";
+
+    taskActionComments.placeholder =
+      "Add relevant details or context";
 
     taskActionModalBackdrop.hidden = true;
   }
@@ -344,7 +349,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  async function submitPauseTask() {
+    async function submitPauseTask() {
     if (!currentActiveJob) {
       showTaskActionMessage(
         "There is no active task to pause."
@@ -422,6 +427,125 @@ document.addEventListener("DOMContentLoaded", () => {
         "Pause Task";
     }
   }
+
+  function openResumeModal(job) {
+    if (!job?.job_id) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "The selected job could not be resumed.";
+
+      return;
+    }
+
+    if (currentActiveJob) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "You already have a job in progress. Pause or complete it before resuming another job.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+
+      return;
+    }
+
+    currentTaskAction = "resume";
+
+    taskActionModalBackdrop.dataset.jobId =
+      job.job_id;
+
+    taskActionModalEyebrow.textContent =
+      "Resume Task";
+
+    taskActionModalTitle.textContent =
+      `Resume Job #${job.job_number}`;
+
+    taskActionModalDescription.textContent =
+      "Resume this paused or blocked task and begin a new working session.";
+
+    taskActionReasonField.hidden = true;
+    taskActionQuantityField.hidden = true;
+
+    taskActionCommentRequiredNote.hidden = true;
+    taskActionCommentsRequiredMarker.hidden = true;
+
+    taskActionComments.value = "";
+    taskActionComments.placeholder =
+      "Optional details about resuming this task";
+
+    taskActionConfirmButton.textContent =
+      "Resume Task";
+
+    clearTaskActionMessage();
+
+    taskActionModalBackdrop.hidden = false;
+  }
+
+  async function submitResumeTask() {
+    const jobId =
+      taskActionModalBackdrop.dataset.jobId;
+
+    if (!jobId) {
+      showTaskActionMessage(
+        "The selected job could not be identified."
+      );
+
+      return;
+    }
+
+    if (currentActiveJob) {
+      showTaskActionMessage(
+        "You already have a job in progress."
+      );
+
+      return;
+    }
+
+    const comments =
+      taskActionComments.value.trim();
+
+    taskActionConfirmButton.disabled = true;
+    taskActionConfirmButton.textContent =
+      "Resuming Task...";
+
+    clearTaskActionMessage();
+
+    try {
+      const state = await auth.resumeMyTask(
+        currentSession.sessionToken,
+        jobId,
+        comments || null
+      );
+
+      closeTaskActionModal();
+
+      renderActiveJob(
+        state?.active_job || null
+      );
+
+      renderUnfinishedJobs(
+        state?.unfinished_jobs || []
+      );
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "The task was resumed successfully.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The task could not be resumed."
+      );
+
+      taskActionConfirmButton.disabled = false;
+      taskActionConfirmButton.textContent =
+        "Resume Task";
+    }
+  }
+
   function getInitials(employeeName) {
     return String(employeeName || "")
       .trim()
@@ -803,7 +927,7 @@ document.addEventListener("DOMContentLoaded", () => {
     startElapsedTimer(activeJob.session_started_at);
   }
 
-  function renderUnfinishedJobs(unfinishedJobs) {
+    function renderUnfinishedJobs(unfinishedJobs) {
     const jobs = Array.isArray(unfinishedJobs)
       ? unfinishedJobs
       : [];
@@ -874,9 +998,9 @@ document.addEventListener("DOMContentLoaded", () => {
               </strong>
 
               <button
-                class="resume-preview-button"
+                class="resume-preview-button resume-task-button"
                 type="button"
-                disabled
+                data-job-id="${escapeHtml(job.job_id)}"
               >
                 Resume
               </button>
@@ -886,6 +1010,23 @@ document.addEventListener("DOMContentLoaded", () => {
         `;
       })
       .join("");
+
+    unfinishedJobsContent
+      .querySelectorAll(".resume-task-button")
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => {
+            const selectedJob = jobs.find(
+              (job) =>
+                String(job.job_id) ===
+                String(button.dataset.jobId)
+            );
+
+            openResumeModal(selectedJob);
+          }
+        );
+      });
   }
 
   async function loadTaskState() {
@@ -1592,13 +1733,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  taskActionForm.addEventListener(
+    taskActionForm.addEventListener(
     "submit",
     async (event) => {
       event.preventDefault();
 
       if (currentTaskAction === "pause") {
         await submitPauseTask();
+        return;
+      }
+
+      if (currentTaskAction === "resume") {
+        await submitResumeTask();
       }
     }
   );
