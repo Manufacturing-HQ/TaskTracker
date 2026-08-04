@@ -234,6 +234,159 @@ window.TaskTrackerAuth = (() => {
 
     return result;
   }
+    async function getTaskActionOptions(sessionToken) {
+    const { data, error } = await client.rpc(
+      "get_task_action_options",
+      {
+        p_session_token: sessionToken
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task action options could not be loaded."
+      );
+    }
+
+    return data || {
+      pause_reasons: [],
+      block_reasons: [],
+      return_reasons: []
+    };
+  }
+
+  async function pauseMyTask(
+    sessionToken,
+    jobId,
+    stopReasonId,
+    comments = null
+  ) {
+    const { data, error } = await client.rpc(
+      "pause_my_task",
+      {
+        p_session_token: sessionToken,
+        p_job_id: jobId,
+        p_stop_reason_id: stopReasonId,
+        p_comments: comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task could not be paused."
+      );
+    }
+
+    return data || null;
+  }
+
+  async function blockMyTask(
+    sessionToken,
+    jobId,
+    stopReasonId,
+    comments = null
+  ) {
+    const { data, error } = await client.rpc(
+      "block_my_task",
+      {
+        p_session_token: sessionToken,
+        p_job_id: jobId,
+        p_stop_reason_id: stopReasonId,
+        p_comments: comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task could not be blocked."
+      );
+    }
+
+    return data || null;
+  }
+
+  async function returnMyTask(
+    sessionToken,
+    jobId,
+    stopReasonId,
+    comments = null
+  ) {
+    const { data, error } = await client.rpc(
+      "return_my_task",
+      {
+        p_session_token: sessionToken,
+        p_job_id: jobId,
+        p_stop_reason_id: stopReasonId,
+        p_comments: comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task could not be returned."
+      );
+    }
+
+    return data || null;
+  }
+
+  async function completeMyTask(
+    sessionToken,
+    jobId,
+    completedQuantity = null,
+    comments = null
+  ) {
+    const { data, error } = await client.rpc(
+      "complete_my_task",
+      {
+        p_session_token: sessionToken,
+        p_job_id: jobId,
+        p_completed_quantity:
+          completedQuantity === null ||
+          completedQuantity === ""
+            ? null
+            : Number(completedQuantity),
+        p_comments: comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task could not be completed."
+      );
+    }
+
+    return data || null;
+  }
+
+  async function resumeMyTask(
+    sessionToken,
+    jobId,
+    comments = null
+  ) {
+    const { data, error } = await client.rpc(
+      "resume_my_task",
+      {
+        p_session_token: sessionToken,
+        p_job_id: jobId,
+        p_comments: comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The task could not be resumed."
+      );
+    }
+
+    return data || null;
+  }
   async function getMyTaskState(sessionToken) {
     const { data, error } = await client.rpc(
       "get_my_task_state",
@@ -301,13 +454,19 @@ window.TaskTrackerAuth = (() => {
     }
   }
 
-      return Object.freeze({
+        return Object.freeze({
     listEmployees,
     login,
     restoreSession,
     getStartTaskOptions,
     searchStartTaskItems,
     startMyTask,
+    getTaskActionOptions,
+    pauseMyTask,
+    blockMyTask,
+    returnMyTask,
+    completeMyTask,
+    resumeMyTask,
     getMyTaskState,
     getPermissionContext,
     logout,
