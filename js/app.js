@@ -103,12 +103,79 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("start-task-message");
   const startTaskSubmitButton =
     document.getElementById("start-task-submit-button");
-  const cancelStartTaskButton =
+    const cancelStartTaskButton =
     document.getElementById("cancel-start-task-button");
 
-  let currentSession = null;
+  const taskActionModalBackdrop =
+    document.getElementById(
+      "task-action-modal-backdrop"
+    );
+  const taskActionModalEyebrow =
+    document.getElementById(
+      "task-action-modal-eyebrow"
+    );
+  const taskActionModalTitle =
+    document.getElementById(
+      "task-action-modal-title"
+    );
+  const taskActionModalDescription =
+    document.getElementById(
+      "task-action-modal-description"
+    );
+  const taskActionModalClose =
+    document.getElementById(
+      "task-action-modal-close"
+    );
+  const taskActionForm =
+    document.getElementById("task-action-form");
+  const taskActionReasonField =
+    document.getElementById(
+      "task-action-reason-field"
+    );
+  const taskActionReasonSelect =
+    document.getElementById(
+      "task-action-reason-select"
+    );
+  const taskActionCommentRequiredNote =
+    document.getElementById(
+      "task-action-comment-required-note"
+    );
+  const taskActionQuantityField =
+    document.getElementById(
+      "task-action-quantity-field"
+    );
+  const taskActionCompletedQuantity =
+    document.getElementById(
+      "task-action-completed-quantity"
+    );
+  const taskActionComments =
+    document.getElementById(
+      "task-action-comments"
+    );
+  const taskActionCommentsRequiredMarker =
+    document.getElementById(
+      "task-action-comments-required-marker"
+    );
+  const taskActionMessage =
+    document.getElementById(
+      "task-action-message"
+    );
+  const taskActionCancelButton =
+    document.getElementById(
+      "task-action-cancel-button"
+    );
+  const taskActionConfirmButton =
+    document.getElementById(
+      "task-action-confirm-button"
+    );
+
+    let currentSession = null;
   let elapsedTimer = null;
   let activeJobStartedAt = null;
+  let currentActiveJob = null;
+
+  let taskActionOptionsData = null;
+  let currentTaskAction = null;
 
   let startTaskOptionsData = null;
   let selectedTaskType = null;
@@ -151,7 +218,210 @@ document.addEventListener("DOMContentLoaded", () => {
     startTaskMessage.textContent = "";
     startTaskMessage.hidden = true;
   }
+  function showTaskActionMessage(message) {
+    taskActionMessage.textContent = message;
+    taskActionMessage.hidden = !message;
+  }
 
+  function clearTaskActionMessage() {
+    taskActionMessage.textContent = "";
+    taskActionMessage.hidden = true;
+  }
+
+  function closeTaskActionModal() {
+    currentTaskAction = null;
+
+    taskActionForm.reset();
+    clearTaskActionMessage();
+
+    taskActionReasonField.hidden = false;
+    taskActionQuantityField.hidden = true;
+
+    taskActionCommentRequiredNote.hidden = true;
+    taskActionCommentsRequiredMarker.hidden = true;
+
+    taskActionConfirmButton.disabled = false;
+    taskActionConfirmButton.textContent = "Confirm";
+
+    taskActionModalBackdrop.hidden = true;
+  }
+
+  function updateTaskActionCommentRequirement() {
+    const selectedOption =
+      taskActionReasonSelect.selectedOptions[0];
+
+    const commentsRequired =
+      selectedOption?.dataset.requiresComment ===
+      "true";
+
+    taskActionCommentRequiredNote.hidden =
+      !commentsRequired;
+
+    taskActionCommentsRequiredMarker.hidden =
+      !commentsRequired;
+  }
+
+  function populateTaskActionReasons(reasons) {
+    taskActionReasonSelect.innerHTML = `
+      <option value="">
+        Select a reason
+      </option>
+    `;
+
+    reasons.forEach((reason) => {
+      const option =
+        document.createElement("option");
+
+      option.value = reason.stop_reason_id;
+      option.textContent = reason.reason_name;
+      option.dataset.requiresComment =
+        String(reason.requires_comment);
+
+      taskActionReasonSelect.appendChild(option);
+    });
+  }
+
+  async function loadTaskActionOptions() {
+    if (!currentSession) {
+      return;
+    }
+
+    if (taskActionOptionsData) {
+      return;
+    }
+
+    taskActionOptionsData =
+      await auth.getTaskActionOptions(
+        currentSession.sessionToken
+      );
+  }
+
+  async function openPauseModal() {
+    if (!currentActiveJob) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "There is no active task to pause.";
+
+      return;
+    }
+
+    currentTaskAction = "pause";
+
+    taskActionModalEyebrow.textContent =
+      "Pause Task";
+    taskActionModalTitle.textContent =
+      `Pause Job #${currentActiveJob.job_number}`;
+    taskActionModalDescription.textContent =
+      "Select why you are pausing this task. You can resume it later.";
+
+    taskActionReasonField.hidden = false;
+    taskActionQuantityField.hidden = true;
+
+    taskActionReasonSelect.innerHTML = `
+      <option value="">
+        Loading Pause reasons...
+      </option>
+    `;
+
+    taskActionComments.value = "";
+    clearTaskActionMessage();
+
+    taskActionModalBackdrop.hidden = false;
+
+    try {
+      await loadTaskActionOptions();
+
+      populateTaskActionReasons(
+        taskActionOptionsData?.pause_reasons || []
+      );
+
+      updateTaskActionCommentRequirement();
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The Pause reasons could not be loaded."
+      );
+    }
+  }
+
+  async function submitPauseTask() {
+    if (!currentActiveJob) {
+      showTaskActionMessage(
+        "There is no active task to pause."
+      );
+
+      return;
+    }
+
+    const stopReasonId =
+      taskActionReasonSelect.value;
+
+    if (!stopReasonId) {
+      showTaskActionMessage(
+        "Select a reason for pausing the task."
+      );
+
+      return;
+    }
+
+    const selectedOption =
+      taskActionReasonSelect.selectedOptions[0];
+
+    const comments =
+      taskActionComments.value.trim();
+
+    if (
+      selectedOption?.dataset.requiresComment ===
+        "true" &&
+      !comments
+    ) {
+      showTaskActionMessage(
+        "Comments are required for this reason."
+      );
+
+      return;
+    }
+
+    taskActionConfirmButton.disabled = true;
+    taskActionConfirmButton.textContent =
+      "Pausing Task...";
+
+    clearTaskActionMessage();
+
+    try {
+      const state = await auth.pauseMyTask(
+        currentSession.sessionToken,
+        currentActiveJob.job_id,
+        stopReasonId,
+        comments || null
+      );
+
+      closeTaskActionModal();
+
+      renderActiveJob(state?.active_job || null);
+
+      renderUnfinishedJobs(
+        state?.unfinished_jobs || []
+      );
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "The task was paused successfully.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The task could not be paused."
+      );
+
+      taskActionConfirmButton.disabled = false;
+      taskActionConfirmButton.textContent =
+        "Pause Task";
+    }
+  }
   function getInitials(employeeName) {
     return String(employeeName || "")
       .trim()
@@ -337,8 +607,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return parts.join(" · ");
   }
 
-  function renderActiveJob(activeJob) {
+    function renderActiveJob(activeJob) {
     stopElapsedTimer();
+
+    currentActiveJob = activeJob || null;
 
     if (!activeJob) {
       currentTaskContent.innerHTML = `
@@ -482,9 +754,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       <div class="task-action-row">
         <button
+          id="pause-task-button"
           class="task-action secondary"
           type="button"
-          disabled
         >
           Pause
         </button>
@@ -514,11 +786,19 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
       </div>
 
-      <div class="action-preview-note">
-        Task controls will be activated in the next workflow
-        rollout.
+            <div class="action-preview-note">
+        Block, Return, and Complete will be activated after
+        Pause is tested successfully.
       </div>
     `;
+
+    const pauseTaskButton =
+      document.getElementById("pause-task-button");
+
+    pauseTaskButton.addEventListener(
+      "click",
+      openPauseModal
+    );
 
     startElapsedTimer(activeJob.session_started_at);
   }
@@ -1218,9 +1498,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  startTaskNavButton.addEventListener(
+    startTaskNavButton.addEventListener(
     "click",
     async () => {
+      if (currentActiveJob) {
+        showApplicationPage("dashboard");
+
+        taskStateMessage.hidden = false;
+        taskStateMessage.textContent =
+          "You already have a job in progress. Pause or complete it before starting another task.";
+
+        window.setTimeout(() => {
+          taskStateMessage.hidden = true;
+        }, 5000);
+
+        return;
+      }
+
       showApplicationPage("start-task");
 
       try {
@@ -1266,11 +1560,46 @@ document.addEventListener("DOMContentLoaded", () => {
     updateCommentRequirement
   );
 
-  startTaskForm.addEventListener(
+    startTaskForm.addEventListener(
     "submit",
     async (event) => {
       event.preventDefault();
       await submitStartTask();
+    }
+  );
+
+  taskActionReasonSelect.addEventListener(
+    "change",
+    updateTaskActionCommentRequirement
+  );
+
+  taskActionModalClose.addEventListener(
+    "click",
+    closeTaskActionModal
+  );
+
+  taskActionCancelButton.addEventListener(
+    "click",
+    closeTaskActionModal
+  );
+
+  taskActionModalBackdrop.addEventListener(
+    "click",
+    (event) => {
+      if (event.target === taskActionModalBackdrop) {
+        closeTaskActionModal();
+      }
+    }
+  );
+
+  taskActionForm.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+
+      if (currentTaskAction === "pause") {
+        await submitPauseTask();
+      }
     }
   );
 
