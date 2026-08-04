@@ -422,7 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "The task could not be paused."
       );
 
-            taskActionConfirmButton.disabled = false;
+      taskActionConfirmButton.disabled = false;
       taskActionConfirmButton.textContent =
         "Pause Task";
     }
@@ -559,12 +559,149 @@ document.addEventListener("DOMContentLoaded", () => {
         "The task could not be blocked."
       );
 
-      taskActionConfirmButton.disabled = false;
+            taskActionConfirmButton.disabled = false;
       taskActionConfirmButton.textContent =
         "Block Task";
     }
   }
-  
+
+  async function openReturnModal() {
+    if (!currentActiveJob) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "There is no active task to return.";
+
+      return;
+    }
+
+    currentTaskAction = "return";
+
+    taskActionModalEyebrow.textContent =
+      "Return Task";
+
+    taskActionModalTitle.textContent =
+      `Return Job #${currentActiveJob.job_number}`;
+
+    taskActionModalDescription.textContent =
+      "Return this task for reassignment. It will no longer remain in your active or unfinished work.";
+
+    taskActionReasonField.hidden = false;
+    taskActionQuantityField.hidden = true;
+
+    taskActionReasonSelect.innerHTML = `
+      <option value="">
+        Loading Return reasons...
+      </option>
+    `;
+
+    taskActionComments.value = "";
+    taskActionComments.placeholder =
+      "Optional details about why this task is being returned";
+
+    taskActionConfirmButton.textContent =
+      "Return Task";
+
+    clearTaskActionMessage();
+
+    taskActionModalBackdrop.hidden = false;
+
+    try {
+      await loadTaskActionOptions();
+
+      populateTaskActionReasons(
+        taskActionOptionsData?.return_reasons || []
+      );
+
+      updateTaskActionCommentRequirement();
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The Return reasons could not be loaded."
+      );
+    }
+  }
+
+  async function submitReturnTask() {
+    if (!currentActiveJob) {
+      showTaskActionMessage(
+        "There is no active task to return."
+      );
+
+      return;
+    }
+
+    const stopReasonId =
+      taskActionReasonSelect.value;
+
+    if (!stopReasonId) {
+      showTaskActionMessage(
+        "Select a reason for returning the task."
+      );
+
+      return;
+    }
+
+    const selectedOption =
+      taskActionReasonSelect.selectedOptions[0];
+
+    const comments =
+      taskActionComments.value.trim();
+
+    if (
+      selectedOption?.dataset.requiresComment ===
+        "true" &&
+      !comments
+    ) {
+      showTaskActionMessage(
+        "Comments are required for this reason."
+      );
+
+      return;
+    }
+
+    taskActionConfirmButton.disabled = true;
+    taskActionConfirmButton.textContent =
+      "Returning Task...";
+
+    clearTaskActionMessage();
+
+    try {
+      const state = await auth.returnMyTask(
+        currentSession.sessionToken,
+        currentActiveJob.job_id,
+        stopReasonId,
+        comments || null
+      );
+
+      closeTaskActionModal();
+
+      renderActiveJob(
+        state?.active_job || null
+      );
+
+      renderUnfinishedJobs(
+        state?.unfinished_jobs || []
+      );
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "The task was returned successfully.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The task could not be returned."
+      );
+
+      taskActionConfirmButton.disabled = false;
+      taskActionConfirmButton.textContent =
+        "Return Task";
+    }
+  }
+
   function openResumeModal(job) {
     if (!job?.job_id) {
       taskStateMessage.hidden = false;
@@ -1031,9 +1168,9 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
 
         <button
+          id="return-task-button"
           class="task-action secondary"
           type="button"
-          disabled
         >
           Return
         </button>
@@ -1047,17 +1184,20 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
       </div>
 
-            <div class="action-preview-note">
-        Block, Return, and Complete will be activated after
-        Pause is tested successfully.
+                  <div class="action-preview-note">
+        Complete will be activated after Return is tested
+        successfully.
       </div>
     `;
 
         const pauseTaskButton =
       document.getElementById("pause-task-button");
 
-    const blockTaskButton =
+        const blockTaskButton =
       document.getElementById("block-task-button");
+
+    const returnTaskButton =
+      document.getElementById("return-task-button");
 
     pauseTaskButton.addEventListener(
       "click",
@@ -1067,6 +1207,11 @@ document.addEventListener("DOMContentLoaded", () => {
     blockTaskButton.addEventListener(
       "click",
       openBlockModal
+    );
+
+    returnTaskButton.addEventListener(
+      "click",
+      openReturnModal
     );
 
     startElapsedTimer(activeJob.session_started_at);
@@ -1890,6 +2035,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (currentTaskAction === "block") {
         await submitBlockTask();
+        return;
+      }
+
+      if (currentTaskAction === "return") {
+        await submitReturnTask();
         return;
       }
 
