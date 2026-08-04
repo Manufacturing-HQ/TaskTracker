@@ -564,9 +564,7 @@ document.addEventListener("DOMContentLoaded", () => {
         "Block Task";
     }
   }
-
-  function openResumeModal(job) {
-
+  
   function openResumeModal(job) {
     if (!job?.job_id) {
       taskStateMessage.hidden = false;
