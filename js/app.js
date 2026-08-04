@@ -696,9 +696,135 @@ document.addEventListener("DOMContentLoaded", () => {
         "The task could not be returned."
       );
 
-      taskActionConfirmButton.disabled = false;
+            taskActionConfirmButton.disabled = false;
       taskActionConfirmButton.textContent =
         "Return Task";
+    }
+  }
+
+  function openCompleteModal() {
+    if (!currentActiveJob) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "There is no active task to complete.";
+
+      return;
+    }
+
+    const isProductive =
+      currentActiveJob.task_type_name ===
+      "Productive";
+
+    currentTaskAction = "complete";
+
+    taskActionModalEyebrow.textContent =
+      "Complete Task";
+
+    taskActionModalTitle.textContent =
+      `Complete Job #${currentActiveJob.job_number}`;
+
+    taskActionModalDescription.textContent =
+      isProductive
+        ? "Enter the completed quantity. This job will move to Ready for QA."
+        : "Confirm completion of this non-productive task.";
+
+    taskActionReasonField.hidden = true;
+    taskActionQuantityField.hidden =
+      !isProductive;
+
+    taskActionCommentRequiredNote.hidden = true;
+    taskActionCommentsRequiredMarker.hidden = true;
+
+    taskActionCompletedQuantity.value = "";
+
+    taskActionComments.value = "";
+    taskActionComments.placeholder =
+      "Optional completion notes or details";
+
+    taskActionConfirmButton.textContent =
+      "Complete Task";
+
+    clearTaskActionMessage();
+
+    taskActionModalBackdrop.hidden = false;
+  }
+
+  async function submitCompleteTask() {
+    if (!currentActiveJob) {
+      showTaskActionMessage(
+        "There is no active task to complete."
+      );
+
+      return;
+    }
+
+    const isProductive =
+      currentActiveJob.task_type_name ===
+      "Productive";
+
+    let completedQuantity = null;
+
+    if (isProductive) {
+      completedQuantity =
+        Number(taskActionCompletedQuantity.value);
+
+      if (
+        !Number.isFinite(completedQuantity) ||
+        completedQuantity <= 0
+      ) {
+        showTaskActionMessage(
+          "Enter a completed quantity greater than zero."
+        );
+
+        return;
+      }
+    }
+
+    const comments =
+      taskActionComments.value.trim();
+
+    taskActionConfirmButton.disabled = true;
+    taskActionConfirmButton.textContent =
+      "Completing Task...";
+
+    clearTaskActionMessage();
+
+    try {
+      const state = await auth.completeMyTask(
+        currentSession.sessionToken,
+        currentActiveJob.job_id,
+        completedQuantity,
+        comments || null
+      );
+
+      closeTaskActionModal();
+
+      renderActiveJob(
+        state?.active_job || null
+      );
+
+      renderUnfinishedJobs(
+        state?.unfinished_jobs || []
+      );
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        isProductive
+          ? "The task was completed and sent to Ready for QA."
+          : "The task was completed successfully.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The task could not be completed."
+      );
+
+      taskActionConfirmButton.disabled = false;
+      taskActionConfirmButton.textContent =
+        "Complete Task";
     }
   }
 
@@ -1176,18 +1302,15 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
 
         <button
+          id="complete-task-button"
           class="task-action primary"
           type="button"
-          disabled
         >
           Complete
         </button>
       </div>
 
-                  <div class="action-preview-note">
-        Complete will be activated after Return is tested
-        successfully.
-      </div>
+             
     `;
 
         const pauseTaskButton =
@@ -1196,8 +1319,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const blockTaskButton =
       document.getElementById("block-task-button");
 
-    const returnTaskButton =
+        const returnTaskButton =
       document.getElementById("return-task-button");
+
+    const completeTaskButton =
+      document.getElementById("complete-task-button");
 
     pauseTaskButton.addEventListener(
       "click",
@@ -1212,6 +1338,11 @@ document.addEventListener("DOMContentLoaded", () => {
     returnTaskButton.addEventListener(
       "click",
       openReturnModal
+    );
+
+    completeTaskButton.addEventListener(
+      "click",
+      openCompleteModal
     );
 
     startElapsedTimer(activeJob.session_started_at);
@@ -2040,6 +2171,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (currentTaskAction === "return") {
         await submitReturnTask();
+        return;
+      }
+
+      if (currentTaskAction === "complete") {
+        await submitCompleteTask();
         return;
       }
 
