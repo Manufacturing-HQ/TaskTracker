@@ -422,11 +422,150 @@ document.addEventListener("DOMContentLoaded", () => {
         "The task could not be paused."
       );
 
-      taskActionConfirmButton.disabled = false;
+            taskActionConfirmButton.disabled = false;
       taskActionConfirmButton.textContent =
         "Pause Task";
     }
   }
+
+  async function openBlockModal() {
+    if (!currentActiveJob) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "There is no active task to block.";
+
+      return;
+    }
+
+    currentTaskAction = "block";
+
+    taskActionModalEyebrow.textContent =
+      "Block Task";
+
+    taskActionModalTitle.textContent =
+      `Block Job #${currentActiveJob.job_number}`;
+
+    taskActionModalDescription.textContent =
+      "Select the issue preventing this task from continuing.";
+
+    taskActionReasonField.hidden = false;
+    taskActionQuantityField.hidden = true;
+
+    taskActionReasonSelect.innerHTML = `
+      <option value="">
+        Loading Block reasons...
+      </option>
+    `;
+
+    taskActionComments.value = "";
+    taskActionComments.placeholder =
+      "Describe the blocker and any important details";
+
+    taskActionConfirmButton.textContent =
+      "Block Task";
+
+    clearTaskActionMessage();
+
+    taskActionModalBackdrop.hidden = false;
+
+    try {
+      await loadTaskActionOptions();
+
+      populateTaskActionReasons(
+        taskActionOptionsData?.block_reasons || []
+      );
+
+      updateTaskActionCommentRequirement();
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The Block reasons could not be loaded."
+      );
+    }
+  }
+
+  async function submitBlockTask() {
+    if (!currentActiveJob) {
+      showTaskActionMessage(
+        "There is no active task to block."
+      );
+
+      return;
+    }
+
+    const stopReasonId =
+      taskActionReasonSelect.value;
+
+    if (!stopReasonId) {
+      showTaskActionMessage(
+        "Select a reason for blocking the task."
+      );
+
+      return;
+    }
+
+    const selectedOption =
+      taskActionReasonSelect.selectedOptions[0];
+
+    const comments =
+      taskActionComments.value.trim();
+
+    if (
+      selectedOption?.dataset.requiresComment ===
+        "true" &&
+      !comments
+    ) {
+      showTaskActionMessage(
+        "Comments are required for this blocker."
+      );
+
+      return;
+    }
+
+    taskActionConfirmButton.disabled = true;
+    taskActionConfirmButton.textContent =
+      "Blocking Task...";
+
+    clearTaskActionMessage();
+
+    try {
+      const state = await auth.blockMyTask(
+        currentSession.sessionToken,
+        currentActiveJob.job_id,
+        stopReasonId,
+        comments || null
+      );
+
+      closeTaskActionModal();
+
+      renderActiveJob(
+        state?.active_job || null
+      );
+
+      renderUnfinishedJobs(
+        state?.unfinished_jobs || []
+      );
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "The task was blocked successfully.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showTaskActionMessage(
+        error.message ||
+        "The task could not be blocked."
+      );
+
+      taskActionConfirmButton.disabled = false;
+      taskActionConfirmButton.textContent =
+        "Block Task";
+    }
+  }
+
+  function openResumeModal(job) {
 
   function openResumeModal(job) {
     if (!job?.job_id) {
@@ -886,9 +1025,9 @@ document.addEventListener("DOMContentLoaded", () => {
         </button>
 
         <button
+          id="block-task-button"
           class="task-action warning"
           type="button"
-          disabled
         >
           Block
         </button>
@@ -916,12 +1055,20 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
-    const pauseTaskButton =
+        const pauseTaskButton =
       document.getElementById("pause-task-button");
+
+    const blockTaskButton =
+      document.getElementById("block-task-button");
 
     pauseTaskButton.addEventListener(
       "click",
       openPauseModal
+    );
+
+    blockTaskButton.addEventListener(
+      "click",
+      openBlockModal
     );
 
     startElapsedTimer(activeJob.session_started_at);
@@ -1738,8 +1885,13 @@ document.addEventListener("DOMContentLoaded", () => {
     async (event) => {
       event.preventDefault();
 
-      if (currentTaskAction === "pause") {
+            if (currentTaskAction === "pause") {
         await submitPauseTask();
+        return;
+      }
+
+      if (currentTaskAction === "block") {
+        await submitBlockTask();
         return;
       }
 
