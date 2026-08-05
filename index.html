@@ -1219,9 +1219,27 @@
       padding: 0 28px;
     }
 
-    @media (max-width: 720px) {
+        @media (max-width: 1200px) {
+      .app-shell {
+        grid-template-columns:
+          230px minmax(0, 1fr);
+      }
+
+      .app-main {
+        min-width: 0;
+        padding: 28px;
+      }
+
+      .dashboard-grid {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+    }
+
+        @media (max-width: 720px) {
       .task-type-options,
-      .start-form-grid {
+      .start-form-grid,
+      .dashboard-grid {
         grid-template-columns: 1fr;
       }
 
@@ -1229,12 +1247,35 @@
         grid-column: auto;
       }
 
+      .app-header,
+      .dashboard-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .role-badge,
+      .refresh-button {
+        align-self: flex-start;
+      }
+
+      .sidebar-footer {
+        grid-template-columns: 1fr;
+      }
+
+      .logout-button {
+        width: 100%;
+      }
+
       .start-task-submit-button {
         width: 100%;
       }
+
+      .task-action-row button {
+        flex: 1 1 140px;
+      }
     }
 
-    @media (max-width: 900px) {
+        @media (max-width: 900px) {
       .page-shell {
         display: block;
       }
@@ -1248,15 +1289,71 @@
       }
 
       .app-shell {
-        grid-template-columns: 1fr;
+        display: block;
       }
 
       .sidebar {
         min-height: auto;
+        padding: 16px;
+      }
+
+      .sidebar-brand {
+        padding: 0 4px 14px;
+      }
+
+      .sidebar-section {
+        margin-top: 12px;
+      }
+
+      .sidebar-section:not([hidden]) {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .sidebar-label {
+        width: 100%;
+        padding: 0 4px 4px;
+      }
+
+      .nav-link {
+        width: auto;
+        min-height: 44px;
+        padding: 10px 14px;
+      }
+
+      .sidebar-footer {
+        display: grid;
+        grid-template-columns:
+          minmax(0, 1fr) 140px;
+        gap: 10px;
+        align-items: end;
+        margin-top: 16px;
+        padding-top: 0;
+      }
+
+      .logout-button {
+        min-height: 52px;
+        margin-top: 0;
+      }
+
+      .app-main {
+        min-width: 0;
+        padding: 26px;
       }
 
       .dashboard-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+
+      .app-header,
+      .dashboard-toolbar {
+        align-items: center;
+      }
+
+      .task-action-row {
+        flex-wrap: wrap;
       }
     }
 
