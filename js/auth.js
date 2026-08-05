@@ -387,6 +387,47 @@ window.TaskTrackerAuth = (() => {
 
     return data || null;
   }
+    async function editPermittedActiveJob(
+    sessionToken,
+    jobId,
+    editData
+  ) {
+    const { data, error } = await client.rpc(
+      "edit_permitted_active_job",
+      {
+        p_session_token: sessionToken,
+        p_job_id: jobId,
+        p_correction_reason:
+          editData.correctionReason,
+        p_task_type_id:
+          editData.taskTypeId,
+        p_item_id:
+          editData.itemId || null,
+        p_item_not_listed_detail:
+          editData.itemNotListedDetail || null,
+        p_non_productive_task_id:
+          editData.nonProductiveTaskId || null,
+        p_work_order_number:
+          editData.workOrderNumber || null,
+        p_work_order_type:
+          editData.workOrderType || null,
+        p_job_type:
+          editData.jobType || null,
+        p_job_comments:
+          editData.comments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The active job details could not be updated."
+      );
+    }
+
+    return data || null;
+  }
+
   async function getMyTaskState(sessionToken) {
     const { data, error } = await client.rpc(
       "get_my_task_state",
@@ -467,6 +508,7 @@ window.TaskTrackerAuth = (() => {
     returnMyTask,
     completeMyTask,
     resumeMyTask,
+    editPermittedActiveJob,
     getMyTaskState,
     getPermissionContext,
     logout,
