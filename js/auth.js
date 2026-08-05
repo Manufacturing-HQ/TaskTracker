@@ -471,6 +471,105 @@ window.TaskTrackerAuth = (() => {
     return result;
   }
 
+    async function getMemoCreationOptions(sessionToken) {
+    const { data, error } = await client.rpc(
+      "get_memo_creation_options",
+      {
+        p_session_token: sessionToken
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The memo creation options could not be loaded."
+      );
+    }
+
+    return data || {
+      memo_categories: [],
+      employees: []
+    };
+  }
+
+  async function createAndAssignMemo(
+    sessionToken,
+    memoData
+  ) {
+    const { data, error } = await client.rpc(
+      "create_and_assign_memo",
+      {
+        p_session_token: sessionToken,
+        p_memo_category_id:
+          memoData.memoCategoryId,
+        p_memo_title:
+          memoData.memoTitle,
+        p_memo_body:
+          memoData.memoBody,
+        p_assigned_employee_ids:
+          memoData.assignedEmployeeIds
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The memo could not be created."
+      );
+    }
+
+    return data || null;
+  }
+
+  async function getMyMemos(
+    sessionToken,
+    includeAcknowledged = false
+  ) {
+    const { data, error } = await client.rpc(
+      "get_my_memos",
+      {
+        p_session_token: sessionToken,
+        p_include_acknowledged:
+          Boolean(includeAcknowledged)
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The employee memos could not be loaded."
+      );
+    }
+
+    return Array.isArray(data) ? data : [];
+  }
+
+  async function acknowledgeMyMemo(
+    sessionToken,
+    memoAssignmentId,
+    acknowledgmentComments = null
+  ) {
+    const { data, error } = await client.rpc(
+      "acknowledge_my_memo",
+      {
+        p_session_token: sessionToken,
+        p_memo_assignment_id:
+          memoAssignmentId,
+        p_acknowledgment_comments:
+          acknowledgmentComments || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The memo could not be acknowledged."
+      );
+    }
+
+    return data || null;
+  }
+
   async function logout() {
     const sessionToken = getStoredSessionToken();
 
@@ -511,6 +610,10 @@ window.TaskTrackerAuth = (() => {
     editPermittedActiveJob,
     getMyTaskState,
     getPermissionContext,
+    getMemoCreationOptions,
+    createAndAssignMemo,
+    getMyMemos,
+    acknowledgeMyMemo,
     logout,
     getStoredSessionToken,
     clearStoredSessionToken
