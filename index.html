@@ -2075,13 +2075,272 @@
 
     </section>
 
+    </div>
+
+
+  <div
+    id="edit-job-modal-backdrop"
+    class="task-action-modal-backdrop"
+    hidden
+  >
+
+    <section
+      class="task-action-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-job-modal-title"
+    >
+
+      <header class="task-action-modal-header">
+
+        <div>
+          <span class="section-eyebrow">
+            Authorized Correction
+          </span>
+
+          <h2 id="edit-job-modal-title">
+            Edit Active Job
+          </h2>
+
+          <p>
+            Update the active job details and provide a
+            required correction reason.
+          </p>
+        </div>
+
+        <button
+          id="edit-job-modal-close"
+          class="task-action-modal-close"
+          type="button"
+          aria-label="Close active job editor"
+        >
+          ×
+        </button>
+
+      </header>
+
+
+      <form id="edit-job-form">
+
+        <div class="task-action-modal-body">
+
+          <div class="form-field">
+            <label for="edit-job-task-type">
+              Task Type
+              <span class="required-marker">*</span>
+            </label>
+
+            <select id="edit-job-task-type" required>
+              <option value="">
+                Select a task type
+              </option>
+            </select>
+          </div>
+
+
+          <div
+            id="edit-job-productive-fields"
+            style="margin-top: 18px;"
+          >
+
+            <div class="form-field">
+              <label for="edit-job-item-search">
+                Item
+                <span class="required-marker">*</span>
+              </label>
+
+              <input
+                id="edit-job-item-search"
+                type="search"
+                autocomplete="off"
+                placeholder="Search by item name or internal ID"
+              >
+
+              <div
+                id="edit-job-item-results"
+                class="item-search-results"
+                hidden
+              ></div>
+
+              <div
+                id="edit-job-selected-item"
+                class="selected-item-display"
+                hidden
+              ></div>
+            </div>
+
+
+            <div
+              id="edit-job-item-not-listed-field"
+              class="form-field"
+              style="margin-top: 18px;"
+              hidden
+            >
+              <label for="edit-job-item-not-listed-detail">
+                Item Description
+                <span class="required-marker">*</span>
+              </label>
+
+              <input
+                id="edit-job-item-not-listed-detail"
+                type="text"
+                maxlength="500"
+                placeholder="Describe the item"
+              >
+            </div>
+
+
+            <div class="start-form-grid">
+
+              <div class="form-field">
+                <label for="edit-job-work-order-number">
+                  Work Order Number
+                  <span class="required-marker">*</span>
+                </label>
+
+                <input
+                  id="edit-job-work-order-number"
+                  type="text"
+                  maxlength="100"
+                  placeholder="Enter work order number"
+                >
+              </div>
+
+              <div class="form-field">
+                <label for="edit-job-work-order-type">
+                  Work Order Type
+                  <span class="required-marker">*</span>
+                </label>
+
+                <input
+                  id="edit-job-work-order-type"
+                  type="text"
+                  maxlength="100"
+                  placeholder="Enter work order type"
+                >
+              </div>
+
+              <div class="form-field full-width">
+                <label for="edit-job-job-type">
+                  Job Type
+                  <span class="required-marker">*</span>
+                </label>
+
+                <input
+                  id="edit-job-job-type"
+                  type="text"
+                  maxlength="200"
+                  placeholder="Enter job type"
+                >
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            id="edit-job-non-productive-fields"
+            class="form-field"
+            style="margin-top: 18px;"
+            hidden
+          >
+            <label for="edit-job-non-productive-task">
+              Non-Productive Task
+              <span class="required-marker">*</span>
+            </label>
+
+            <select id="edit-job-non-productive-task">
+              <option value="">
+                Select a non-productive task
+              </option>
+            </select>
+          </div>
+
+
+          <div
+            class="form-field"
+            style="margin-top: 18px;"
+          >
+            <label for="edit-job-comments">
+              Job Comments
+            </label>
+
+            <textarea
+              id="edit-job-comments"
+              rows="4"
+              maxlength="2000"
+              placeholder="Add job details or comments"
+            ></textarea>
+          </div>
+
+
+          <div
+            class="form-field"
+            style="margin-top: 18px;"
+          >
+            <label for="edit-job-correction-reason">
+              Correction Reason
+              <span class="required-marker">*</span>
+            </label>
+
+            <textarea
+              id="edit-job-correction-reason"
+              rows="3"
+              maxlength="1000"
+              required
+              placeholder="Explain why these job details are being changed"
+            ></textarea>
+
+            <div class="comment-required-note">
+              This reason will be saved in the correction
+              audit history.
+            </div>
+          </div>
+
+
+          <div
+            id="edit-job-message"
+            class="task-action-message"
+            hidden
+          ></div>
+
+
+          <div class="task-action-modal-footer">
+
+            <button
+              id="edit-job-cancel-button"
+              class="task-action-cancel-button"
+              type="button"
+            >
+              Cancel
+            </button>
+
+            <button
+              id="edit-job-save-button"
+              class="task-action-confirm-button"
+              type="submit"
+            >
+              Save Changes
+            </button>
+
+          </div>
+
+        </div>
+
+      </form>
+
+    </section>
+
   </div>
+
+
     <script
     src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
   ></script>
 
   <script src="js/config.js?v=20260804-1430"></script>
-  <script src="js/auth.js?v=20260804-1430"></script>
+  <script src="js/auth.js?v=20260805-0925"></script>
   <script src="js/app.js?v=20260804-1630"></script>
 
 </body>
