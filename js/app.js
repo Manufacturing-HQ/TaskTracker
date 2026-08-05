@@ -522,6 +522,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     delete editJobModalBackdrop.dataset.jobId;
 
+    editJobSaveButton.disabled = false;
+    editJobSaveButton.textContent =
+      "Save Changes";
+
     editJobModalBackdrop.hidden = true;
   }
 
@@ -573,6 +577,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentActiveJob
       );
 
+      editJobSaveButton.disabled = false;
       editJobSaveButton.textContent =
         "Save Changes";
     } catch (error) {
@@ -2009,6 +2014,213 @@ document.addEventListener("DOMContentLoaded", () => {
     itemNotListedDetail.value = "";
   }
 
+    async function submitEditJob() {
+    if (!currentActiveJob) {
+      showEditJobMessage(
+        "There is no active job to edit."
+      );
+
+      return;
+    }
+
+    const jobId =
+      editJobModalBackdrop.dataset.jobId;
+
+    if (
+      !jobId ||
+      jobId !== currentActiveJob.job_id
+    ) {
+      showEditJobMessage(
+        "The active job changed. Close the editor and try again."
+      );
+
+      return;
+    }
+
+    const selectedTaskTypeOption =
+      editJobTaskType.selectedOptions[0];
+
+    const taskTypeId =
+      editJobTaskType.value;
+
+    const taskTypeName =
+      selectedTaskTypeOption
+        ?.dataset.taskTypeName || "";
+
+    const correctionReason =
+      editJobCorrectionReason.value.trim();
+
+    if (!taskTypeId) {
+      showEditJobMessage(
+        "Select a task type."
+      );
+
+      return;
+    }
+
+    if (!correctionReason) {
+      showEditJobMessage(
+        "A correction reason is required."
+      );
+
+      return;
+    }
+
+    const isProductive =
+      taskTypeName === "Productive";
+
+    const isNonProductive =
+      taskTypeName === "Non-Productive";
+
+    if (!isProductive && !isNonProductive) {
+      showEditJobMessage(
+        "Select a supported task type."
+      );
+
+      return;
+    }
+
+    let itemId = null;
+    let itemNotListedDetail = null;
+    let nonProductiveTaskId = null;
+    let workOrderNumber = null;
+    let workOrderTypeValue = null;
+    let jobType = null;
+
+    if (isProductive) {
+      if (!selectedEditItem?.item_id) {
+        showEditJobMessage(
+          "Select an item for the Productive job."
+        );
+
+        return;
+      }
+
+      itemId =
+        selectedEditItem.item_id;
+
+      const placeholderItemId =
+        startTaskOptionsData
+          ?.placeholder_item
+          ?.item_id;
+
+      if (itemId === placeholderItemId) {
+        itemNotListedDetail =
+          editJobItemNotListedDetail
+            .value
+            .trim();
+
+        if (!itemNotListedDetail) {
+          showEditJobMessage(
+            "Enter an Item Description when Item Not Listed is selected."
+          );
+
+          return;
+        }
+      }
+
+      workOrderNumber =
+        editJobWorkOrderNumber.value.trim();
+
+      workOrderTypeValue =
+        editJobWorkOrderType.value.trim();
+
+      jobType =
+        editJobJobType.value.trim();
+
+      if (!workOrderNumber) {
+        showEditJobMessage(
+          "Enter a Work Order Number."
+        );
+
+        return;
+      }
+
+      if (!workOrderTypeValue) {
+        showEditJobMessage(
+          "Enter a Work Order Type."
+        );
+
+        return;
+      }
+
+      if (!jobType) {
+        showEditJobMessage(
+          "Enter a Job Type."
+        );
+
+        return;
+      }
+    }
+
+    if (isNonProductive) {
+      nonProductiveTaskId =
+        editJobNonProductiveTask.value;
+
+      if (!nonProductiveTaskId) {
+        showEditJobMessage(
+          "Select a Non-Productive Task."
+        );
+
+        return;
+      }
+    }
+
+    clearEditJobMessage();
+
+    editJobSaveButton.disabled = true;
+    editJobSaveButton.textContent =
+      "Saving Changes...";
+
+    try {
+      const state =
+        await auth.editPermittedActiveJob(
+          currentSession.sessionToken,
+          jobId,
+          {
+            correctionReason,
+            taskTypeId,
+            itemId,
+            itemNotListedDetail,
+            nonProductiveTaskId,
+            workOrderNumber,
+            workOrderType:
+              workOrderTypeValue,
+            jobType,
+            comments:
+              editJobComments.value.trim()
+          }
+        );
+
+      closeEditJobModal();
+
+      renderActiveJob(
+        state?.active_job || null
+      );
+
+      renderUnfinishedJobs(
+        state?.unfinished_jobs || []
+      );
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "The active job details were updated successfully.";
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+    } catch (error) {
+      showEditJobMessage(
+        error.message ||
+        "The active job details could not be updated."
+      );
+
+      editJobSaveButton.disabled = false;
+      editJobSaveButton.textContent =
+        "Save Changes";
+    }
+  }
+
     function renderEditItemSearchResults(items) {
     editJobItemResults.innerHTML = "";
 
@@ -2661,14 +2873,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  editJobForm.addEventListener(
+    editJobForm.addEventListener(
     "submit",
     (event) => {
       event.preventDefault();
-
-      showEditJobMessage(
-        "The form is loaded correctly. Saving will be connected in the next step."
-      );
+      submitEditJob();
     }
   );
 
