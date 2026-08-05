@@ -42,10 +42,57 @@ document.addEventListener("DOMContentLoaded", () => {
   const startTaskNavButton =
     document.getElementById("start-task-nav-button");
 
-  const dashboardPage =
+    const dashboardPage =
     document.getElementById("dashboard-page");
   const startTaskPage =
     document.getElementById("start-task-page");
+  const myMemosPage =
+    document.getElementById("my-memos-page");
+  const createMemoPage =
+    document.getElementById("create-memo-page");
+
+  const myMemosNavButton =
+    document.getElementById("my-memos-nav-button");
+  const createMemoNavButton =
+    document.getElementById("create-memo-nav-button");
+  const pendingMemoCount =
+    document.getElementById("pending-memo-count");
+
+  const refreshMemosButton =
+    document.getElementById("refresh-memos-button");
+  const includeAcknowledgedMemos =
+    document.getElementById(
+      "include-acknowledged-memos"
+    );
+  const myMemosMessage =
+    document.getElementById("my-memos-message");
+  const myMemosContent =
+    document.getElementById("my-memos-content");
+
+  const createMemoForm =
+    document.getElementById("create-memo-form");
+  const memoCategorySelect =
+    document.getElementById("memo-category-select");
+  const memoTitleInput =
+    document.getElementById("memo-title-input");
+  const memoBodyInput =
+    document.getElementById("memo-body-input");
+  const memoEmployeeOptions =
+    document.getElementById("memo-employee-options");
+  const selectAllMemoEmployees =
+    document.getElementById(
+      "select-all-memo-employees"
+    );
+  const createMemoMessage =
+    document.getElementById("create-memo-message");
+  const createMemoSubmitButton =
+    document.getElementById(
+      "create-memo-submit-button"
+    );
+  const cancelCreateMemoButton =
+    document.getElementById(
+      "cancel-create-memo-button"
+    );
 
   const logoutButton =
     document.getElementById("logout-button");
@@ -272,6 +319,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let selectedEditItem = null;
   let editItemSearchTimer = null;
+
+  let memoCreationOptionsData = null;
+  let currentMemos = [];
 
   function setLoginLoading(isLoading) {
     loginButton.disabled = isLoading;
@@ -1350,11 +1400,20 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   }
 
-  function showApplicationPage(pageName) {
-    const showDashboard = pageName === "dashboard";
+    function showApplicationPage(pageName) {
+    const showDashboard =
+      pageName === "dashboard";
+    const showStartTask =
+      pageName === "start-task";
+    const showMyMemos =
+      pageName === "my-memos";
+    const showCreateMemo =
+      pageName === "create-memo";
 
     dashboardPage.hidden = !showDashboard;
-    startTaskPage.hidden = showDashboard;
+    startTaskPage.hidden = !showStartTask;
+    myMemosPage.hidden = !showMyMemos;
+    createMemoPage.hidden = !showCreateMemo;
 
     dashboardNavButton.classList.toggle(
       "active",
@@ -1363,7 +1422,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     startTaskNavButton.classList.toggle(
       "active",
-      !showDashboard
+      showStartTask
+    );
+
+    myMemosNavButton.classList.toggle(
+      "active",
+      showMyMemos
+    );
+
+    createMemoNavButton.classList.toggle(
+      "active",
+      showCreateMemo
     );
   }
 
@@ -2567,6 +2636,512 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+    function showMyMemosMessage(message) {
+    myMemosMessage.textContent = message;
+    myMemosMessage.hidden = !message;
+  }
+
+  function clearMyMemosMessage() {
+    myMemosMessage.textContent = "";
+    myMemosMessage.hidden = true;
+  }
+
+  function showCreateMemoMessage(
+    message,
+    type = "error"
+  ) {
+    createMemoMessage.textContent = message;
+    createMemoMessage.className =
+      `login-message ${type}`;
+    createMemoMessage.hidden = !message;
+  }
+
+  function clearCreateMemoMessage() {
+    createMemoMessage.textContent = "";
+    createMemoMessage.hidden = true;
+  }
+
+  function updatePendingMemoCount(memos) {
+    const pendingCount = memos.filter(
+      (memo) => !memo.acknowledged_at
+    ).length;
+
+    pendingMemoCount.textContent =
+      String(pendingCount);
+
+    pendingMemoCount.hidden =
+      pendingCount === 0;
+  }
+
+  function renderMyMemos(memos) {
+    currentMemos = Array.isArray(memos)
+      ? memos
+      : [];
+
+    updatePendingMemoCount(currentMemos);
+
+    if (currentMemos.length === 0) {
+      myMemosContent.innerHTML = `
+        <section class="workspace-card">
+          <div class="task-empty-state">
+            <div class="task-empty-icon">✓</div>
+
+            <div>
+              <h3>No memos to display</h3>
+
+              <p>
+                You do not currently have any memos matching
+                this view.
+              </p>
+            </div>
+          </div>
+        </section>
+      `;
+
+      return;
+    }
+
+    myMemosContent.innerHTML = currentMemos
+      .map((memo) => {
+        const acknowledged =
+          Boolean(memo.acknowledged_at);
+
+        return `
+          <article
+            class="memo-card ${
+              acknowledged
+                ? "acknowledged"
+                : ""
+            }"
+          >
+            <div class="memo-card-header">
+              <div>
+                <span class="memo-category-badge">
+                  ${escapeHtml(
+                    memo.category_name ||
+                    "General"
+                  )}
+                </span>
+
+                <h2 class="memo-card-title">
+                  ${escapeHtml(
+                    memo.memo_title || "Memo"
+                  )}
+                </h2>
+              </div>
+
+              <span
+                class="memo-status-badge ${
+                  acknowledged
+                    ? "acknowledged"
+                    : ""
+                }"
+              >
+                ${
+                  acknowledged
+                    ? "Acknowledged"
+                    : "Action Required"
+                }
+              </span>
+            </div>
+
+            <div class="memo-card-body">${
+              escapeHtml(memo.memo_body || "")
+            }</div>
+
+            <div class="memo-card-meta">
+              <span>
+                From:
+                ${escapeHtml(
+                  memo.created_by_employee_name ||
+                  "Task Tracker"
+                )}
+              </span>
+
+              <span>
+                Assigned:
+                ${escapeHtml(
+                  formatDateTime(memo.assigned_at)
+                )}
+              </span>
+
+              ${
+                acknowledged
+                  ? `
+                    <span>
+                      Acknowledged:
+                      ${escapeHtml(
+                        formatDateTime(
+                          memo.acknowledged_at
+                        )
+                      )}
+                    </span>
+                  `
+                  : ""
+              }
+            </div>
+
+            ${
+              acknowledged
+                ? memo.acknowledgment_comments
+                  ? `
+                    <div class="memo-acknowledgment">
+                      <strong>
+                        Your acknowledgment comments
+                      </strong>
+
+                      <div class="memo-card-body">
+                        ${escapeHtml(
+                          memo.acknowledgment_comments
+                        )}
+                      </div>
+                    </div>
+                  `
+                  : ""
+                : `
+                  <div class="memo-acknowledgment">
+                    <div class="form-field">
+                      <label
+                        for="memo-comments-${
+                          memo.assignment_id
+                        }"
+                      >
+                        Acknowledgment Comments
+                      </label>
+
+                      <textarea
+                        id="memo-comments-${
+                          memo.assignment_id
+                        }"
+                        class="memo-acknowledgment-comments"
+                        maxlength="2000"
+                        placeholder="Optional comments or response"
+                      ></textarea>
+                    </div>
+
+                    <div class="memo-acknowledge-row">
+                      <button
+                        class="memo-acknowledge-button"
+                        type="button"
+                        data-assignment-id="${escapeHtml(
+                          memo.assignment_id
+                        )}"
+                      >
+                        Acknowledge Memo
+                      </button>
+                    </div>
+                  </div>
+                `
+            }
+          </article>
+        `;
+      })
+      .join("");
+
+    myMemosContent
+      .querySelectorAll(
+        ".memo-acknowledge-button"
+      )
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          async () => {
+            const assignmentId =
+              button.dataset.assignmentId;
+
+            const commentsInput =
+              document.getElementById(
+                `memo-comments-${assignmentId}`
+              );
+
+            button.disabled = true;
+            button.textContent =
+              "Acknowledging...";
+
+            clearMyMemosMessage();
+
+            try {
+              await auth.acknowledgeMyMemo(
+                currentSession.sessionToken,
+                assignmentId,
+                commentsInput?.value.trim() || null
+              );
+
+              await loadMyMemos();
+
+              showMyMemosMessage(
+                "The memo was acknowledged successfully."
+              );
+
+              window.setTimeout(() => {
+                clearMyMemosMessage();
+              }, 5000);
+            } catch (error) {
+              showMyMemosMessage(
+                error.message ||
+                "The memo could not be acknowledged."
+              );
+
+              button.disabled = false;
+              button.textContent =
+                "Acknowledge Memo";
+            }
+          }
+        );
+      });
+  }
+
+  async function loadMyMemos() {
+    if (!currentSession) {
+      return;
+    }
+
+    refreshMemosButton.disabled = true;
+    refreshMemosButton.textContent =
+      "Refreshing...";
+
+    showMyMemosMessage(
+      "Loading employee memos..."
+    );
+
+    try {
+      const memos = await auth.getMyMemos(
+        currentSession.sessionToken,
+        includeAcknowledgedMemos.checked
+      );
+
+      renderMyMemos(memos);
+      clearMyMemosMessage();
+    } catch (error) {
+      showMyMemosMessage(
+        error.message ||
+        "The employee memos could not be loaded."
+      );
+    } finally {
+      refreshMemosButton.disabled = false;
+      refreshMemosButton.textContent =
+        "Refresh";
+    }
+  }
+
+  async function refreshPendingMemoCount() {
+    if (!currentSession) {
+      return;
+    }
+
+    try {
+      const pendingMemos =
+        await auth.getMyMemos(
+          currentSession.sessionToken,
+          false
+        );
+
+      updatePendingMemoCount(pendingMemos);
+    } catch (error) {
+      console.warn(
+        "The pending memo count could not be loaded:",
+        error.message
+      );
+    }
+  }
+
+  function populateMemoCategories(categories) {
+    memoCategorySelect.innerHTML = `
+      <option value="">
+        Select a memo category
+      </option>
+    `;
+
+    categories.forEach((category) => {
+      const option =
+        document.createElement("option");
+
+      option.value = category.id;
+      option.textContent =
+        category.category_name;
+
+      memoCategorySelect.appendChild(option);
+    });
+  }
+
+  function renderMemoEmployeeOptions(employees) {
+    memoEmployeeOptions.innerHTML = "";
+
+    if (!employees.length) {
+      memoEmployeeOptions.innerHTML = `
+        <div class="compact-empty-state">
+          No employees are available for memo assignment.
+        </div>
+      `;
+
+      return;
+    }
+
+    employees.forEach((employee) => {
+      const label =
+        document.createElement("label");
+
+      label.className = "memo-employee-option";
+
+      label.innerHTML = `
+        <input
+          type="checkbox"
+          class="memo-employee-checkbox"
+          value="${escapeHtml(employee.id)}"
+        >
+
+        <span>
+          <span class="memo-employee-name">
+            ${escapeHtml(
+              employee.employee_name
+            )}
+          </span>
+
+          <span class="memo-employee-details">
+            ${escapeHtml(
+              [
+                employee.department,
+                employee.role
+              ]
+                .filter(Boolean)
+                .join(" · ")
+            )}
+          </span>
+        </span>
+      `;
+
+      memoEmployeeOptions.appendChild(label);
+    });
+  }
+
+  async function loadMemoCreationOptions() {
+    if (!currentSession) {
+      return;
+    }
+
+    if (!memoCreationOptionsData) {
+      memoEmployeeOptions.innerHTML = `
+        <div class="compact-empty-state">
+          Loading employees and memo categories...
+        </div>
+      `;
+
+      memoCreationOptionsData =
+        await auth.getMemoCreationOptions(
+          currentSession.sessionToken
+        );
+    }
+
+    populateMemoCategories(
+      memoCreationOptionsData.memo_categories || []
+    );
+
+    renderMemoEmployeeOptions(
+      memoCreationOptionsData.employees || []
+    );
+  }
+
+  function resetCreateMemoForm() {
+    createMemoForm.reset();
+    clearCreateMemoMessage();
+
+    memoEmployeeOptions
+      .querySelectorAll(
+        ".memo-employee-checkbox"
+      )
+      .forEach((checkbox) => {
+        checkbox.checked = false;
+      });
+
+    selectAllMemoEmployees.textContent =
+      "Select All";
+  }
+
+  async function submitCreateMemo() {
+    const memoCategoryId =
+      memoCategorySelect.value;
+    const memoTitle =
+      memoTitleInput.value.trim();
+    const memoBody =
+      memoBodyInput.value.trim();
+
+    const assignedEmployeeIds = Array.from(
+      memoEmployeeOptions.querySelectorAll(
+        ".memo-employee-checkbox:checked"
+      )
+    ).map((checkbox) => checkbox.value);
+
+    if (!memoCategoryId) {
+      showCreateMemoMessage(
+        "Select a memo category."
+      );
+      return;
+    }
+
+    if (!memoTitle) {
+      showCreateMemoMessage(
+        "Enter a memo title."
+      );
+      return;
+    }
+
+    if (!memoBody) {
+      showCreateMemoMessage(
+        "Enter the memo message."
+      );
+      return;
+    }
+
+    if (assignedEmployeeIds.length === 0) {
+      showCreateMemoMessage(
+        "Select at least one employee."
+      );
+      return;
+    }
+
+    createMemoSubmitButton.disabled = true;
+    createMemoSubmitButton.textContent =
+      "Creating Memo...";
+
+    clearCreateMemoMessage();
+
+    try {
+      const result =
+        await auth.createAndAssignMemo(
+          currentSession.sessionToken,
+          {
+            memoCategoryId,
+            memoTitle,
+            memoBody,
+            assignedEmployeeIds
+          }
+        );
+
+      resetCreateMemoForm();
+      showApplicationPage("dashboard");
+
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        `The memo was assigned to ${
+          result?.assignment_count || 0
+        } employee(s).`;
+
+      window.setTimeout(() => {
+        taskStateMessage.hidden = true;
+      }, 5000);
+
+      await refreshPendingMemoCount();
+    } catch (error) {
+      showCreateMemoMessage(
+        error.message ||
+        "The memo could not be created."
+      );
+    } finally {
+      createMemoSubmitButton.disabled = false;
+      createMemoSubmitButton.textContent =
+        "Create and Assign Memo";
+    }
+  }
   async function displayApplication(session) {
     const permissions =
       await auth.getPermissionContext(
@@ -2604,9 +3179,10 @@ document.addEventListener("DOMContentLoaded", () => {
     pinInput.value = "";
 
     clearLoginMessage();
-    showApplicationPage("dashboard");
+        showApplicationPage("dashboard");
 
     await loadTaskState();
+    await refreshPendingMemoCount();
   }
 
   function displayLogin() {
@@ -2763,11 +3339,87 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  cancelStartTaskButton.addEventListener(
+    cancelStartTaskButton.addEventListener(
     "click",
     () => {
       resetStartTaskForm();
       showApplicationPage("dashboard");
+    }
+  );
+
+  myMemosNavButton.addEventListener(
+    "click",
+    async () => {
+      showApplicationPage("my-memos");
+      await loadMyMemos();
+    }
+  );
+
+  createMemoNavButton.addEventListener(
+    "click",
+    async () => {
+      showApplicationPage("create-memo");
+      clearCreateMemoMessage();
+
+      try {
+        await loadMemoCreationOptions();
+      } catch (error) {
+        showCreateMemoMessage(
+          error.message ||
+          "The Create Memo page could not be loaded."
+        );
+      }
+    }
+  );
+
+  refreshMemosButton.addEventListener(
+    "click",
+    loadMyMemos
+  );
+
+  includeAcknowledgedMemos.addEventListener(
+    "change",
+    loadMyMemos
+  );
+
+  cancelCreateMemoButton.addEventListener(
+    "click",
+    () => {
+      resetCreateMemoForm();
+      showApplicationPage("dashboard");
+    }
+  );
+
+  selectAllMemoEmployees.addEventListener(
+    "click",
+    () => {
+      const checkboxes = Array.from(
+        memoEmployeeOptions.querySelectorAll(
+          ".memo-employee-checkbox"
+        )
+      );
+
+      const shouldSelectAll =
+        checkboxes.some(
+          (checkbox) => !checkbox.checked
+        );
+
+      checkboxes.forEach((checkbox) => {
+        checkbox.checked = shouldSelectAll;
+      });
+
+      selectAllMemoEmployees.textContent =
+        shouldSelectAll
+          ? "Clear All"
+          : "Select All";
+    }
+  );
+
+  createMemoForm.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+      await submitCreateMemo();
     }
   );
 
@@ -2941,7 +3593,15 @@ document.addEventListener("DOMContentLoaded", () => {
           "Sign out";
 
         resetStartTaskForm();
+        resetCreateMemoForm();
+
         startTaskOptionsData = null;
+        memoCreationOptionsData = null;
+        currentMemos = [];
+
+        pendingMemoCount.hidden = true;
+        pendingMemoCount.textContent = "";
+
         displayLogin();
 
         try {
