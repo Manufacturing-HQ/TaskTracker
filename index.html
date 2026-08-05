@@ -1258,6 +1258,194 @@
       padding: 0 28px;
     }
 
+        .nav-count-badge {
+      min-width: 22px;
+      margin-left: auto;
+      padding: 2px 7px;
+      border-radius: 999px;
+      color: white;
+      background: var(--danger);
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .memo-page-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 18px;
+    }
+
+    .memo-history-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--slate-700);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .memo-history-toggle input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .memo-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .memo-card {
+      padding: 24px;
+      border: 1px solid var(--slate-200);
+      border-radius: var(--radius-medium);
+      background: white;
+      box-shadow:
+        0 10px 30px rgba(11, 18, 32, 0.06);
+    }
+
+    .memo-card.acknowledged {
+      background: var(--slate-50);
+    }
+
+    .memo-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .memo-card-title {
+      margin: 5px 0 0;
+      overflow-wrap: anywhere;
+      font-size: 20px;
+    }
+
+    .memo-category-badge {
+      display: inline-flex;
+      padding: 5px 9px;
+      border-radius: 999px;
+      color: #2456a1;
+      background: var(--blue-100);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .memo-status-badge {
+      flex: 0 0 auto;
+      padding: 6px 10px;
+      border-radius: 999px;
+      color: #8a5410;
+      background: #fff3d6;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .memo-status-badge.acknowledged {
+      color: var(--success);
+      background: #e7f7ee;
+    }
+
+    .memo-card-body {
+      margin-top: 18px;
+      overflow-wrap: anywhere;
+      color: var(--slate-700);
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .memo-card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 18px;
+      color: var(--slate-500);
+      font-size: 12px;
+    }
+
+    .memo-acknowledgment {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--slate-200);
+    }
+
+    .memo-acknowledgment textarea {
+      width: 100%;
+      min-height: 95px;
+      padding: 12px 14px;
+      border: 1px solid var(--slate-300);
+      border-radius: 11px;
+      outline: none;
+      font: inherit;
+      resize: vertical;
+    }
+
+    .memo-acknowledgment textarea:focus {
+      border-color: var(--blue-500);
+      box-shadow:
+        0 0 0 4px rgba(59, 130, 246, 0.11);
+    }
+
+    .memo-acknowledge-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 12px;
+    }
+
+    .memo-acknowledge-button {
+      min-height: 44px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 11px;
+      color: white;
+      background: var(--blue-600);
+      font-weight: 800;
+    }
+
+    .memo-employee-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .memo-employee-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      padding: 14px;
+      border: 1px solid var(--slate-200);
+      border-radius: 12px;
+      background: var(--slate-50);
+      cursor: pointer;
+    }
+
+    .memo-employee-option:hover {
+      border-color: #a9c6ff;
+      background: #f3f7ff;
+    }
+
+    .memo-employee-option input {
+      flex: 0 0 auto;
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+    }
+
+    .memo-employee-name {
+      display: block;
+      overflow-wrap: anywhere;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .memo-employee-details {
+      display: block;
+      margin-top: 4px;
+      color: var(--slate-500);
+      font-size: 11px;
+    }
         @media (max-width: 1200px) {
       .app-shell {
         grid-template-columns:
@@ -1278,10 +1466,10 @@
         @media (max-width: 720px) {
       .task-type-options,
       .start-form-grid,
-      .dashboard-grid {
+      .dashboard-grid,
+      .memo-employee-grid {
         grid-template-columns: 1fr;
       }
-
       .form-field.full-width {
         grid-column: auto;
       }
@@ -1444,6 +1632,17 @@
     }
 
     @media (max-width: 520px) {
+      .memo-card-header {
+        flex-direction: column;
+      }
+
+      .memo-status-badge {
+        align-self: flex-start;
+      }
+
+      .memo-acknowledge-button {
+        width: 100%;
+      }
             .task-action-row {
         grid-template-columns: 1fr;
       }
@@ -1666,12 +1865,25 @@
           Dashboard
         </button>
 
-        <button
+                <button
           id="start-task-nav-button"
           class="nav-link"
           type="button"
         >
           Start Task
+        </button>
+
+        <button
+          id="my-memos-nav-button"
+          class="nav-link"
+          type="button"
+        >
+          My Memos
+          <span
+            id="pending-memo-count"
+            class="nav-count-badge"
+            hidden
+          ></span>
         </button>
 
         <button class="nav-link" type="button">
@@ -1696,6 +1908,14 @@
 
         <button class="nav-link" type="button">
           Corrections
+        </button>
+
+        <button
+          id="create-memo-nav-button"
+          class="nav-link"
+          type="button"
+        >
+          Create Memo
         </button>
       </section>
 
@@ -2111,6 +2331,196 @@
                 Start Task
               </button>
 
+            </div>
+
+          </section>
+
+        </form>
+
+            </div>
+
+
+      <div id="my-memos-page" hidden>
+
+        <header class="app-header">
+          <div>
+            <h1>My Memos</h1>
+
+            <p>
+              Review assigned announcements, instructions,
+              and employee communications.
+            </p>
+          </div>
+
+          <button
+            id="refresh-memos-button"
+            class="refresh-button"
+            type="button"
+          >
+            Refresh
+          </button>
+        </header>
+
+        <div class="memo-page-toolbar">
+          <label class="memo-history-toggle">
+            <input
+              id="include-acknowledged-memos"
+              type="checkbox"
+            >
+
+            <span>Show acknowledged memos</span>
+          </label>
+        </div>
+
+        <div
+          id="my-memos-message"
+          class="task-state-message"
+          hidden
+        ></div>
+
+        <div
+          id="my-memos-content"
+          class="memo-list"
+        ></div>
+
+      </div>
+
+
+      <div id="create-memo-page" hidden>
+
+        <header class="app-header">
+          <div>
+            <h1>Create Memo</h1>
+
+            <p>
+              Create one memo and assign it to one or more
+              employees.
+            </p>
+          </div>
+
+          <button
+            id="cancel-create-memo-button"
+            class="refresh-button"
+            type="button"
+          >
+            Cancel
+          </button>
+        </header>
+
+        <form
+          id="create-memo-form"
+          class="start-task-form"
+        >
+
+          <section class="workspace-card">
+
+            <div class="workspace-card-header">
+              <div>
+                <span class="section-eyebrow">
+                  Memo Details
+                </span>
+
+                <h2>Message and category</h2>
+              </div>
+            </div>
+
+            <div class="start-form-grid">
+
+              <div class="form-field">
+                <label for="memo-category-select">
+                  Memo Category
+                  <span class="required-marker">*</span>
+                </label>
+
+                <select
+                  id="memo-category-select"
+                  required
+                >
+                  <option value="">
+                    Loading memo categories...
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="memo-title-input">
+                  Memo Title
+                  <span class="required-marker">*</span>
+                </label>
+
+                <input
+                  id="memo-title-input"
+                  type="text"
+                  maxlength="200"
+                  placeholder="Enter a clear memo title"
+                  required
+                >
+              </div>
+
+              <div class="form-field full-width">
+                <label for="memo-body-input">
+                  Memo
+                  <span class="required-marker">*</span>
+                </label>
+
+                <textarea
+                  id="memo-body-input"
+                  rows="7"
+                  maxlength="5000"
+                  placeholder="Enter the memo instructions or message"
+                  required
+                ></textarea>
+              </div>
+
+            </div>
+
+          </section>
+
+
+          <section class="workspace-card">
+
+            <div class="workspace-card-header">
+              <div>
+                <span class="section-eyebrow">
+                  Assign Employees
+                </span>
+
+                <h2>Select recipients</h2>
+              </div>
+
+              <button
+                id="select-all-memo-employees"
+                class="refresh-button"
+                type="button"
+              >
+                Select All
+              </button>
+            </div>
+
+            <div
+              id="memo-employee-options"
+              class="memo-employee-grid"
+            ></div>
+
+          </section>
+
+
+          <section class="workspace-card">
+
+            <div
+              id="create-memo-message"
+              class="login-message"
+              hidden
+            ></div>
+
+            <div class="start-task-submit-row">
+              <button
+                id="create-memo-submit-button"
+                class="login-button start-task-submit-button"
+                type="submit"
+              >
+                Create and Assign Memo
+              </button>
             </div>
 
           </section>
