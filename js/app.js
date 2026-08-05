@@ -189,9 +189,72 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById(
       "edit-job-modal-title"
     );
-  const editJobMessage =
+    const editJobMessage =
     document.getElementById(
       "edit-job-message"
+    );
+
+  const editJobTaskType =
+    document.getElementById(
+      "edit-job-task-type"
+    );
+  const editJobProductiveFields =
+    document.getElementById(
+      "edit-job-productive-fields"
+    );
+  const editJobNonProductiveFields =
+    document.getElementById(
+      "edit-job-non-productive-fields"
+    );
+  const editJobNonProductiveTask =
+    document.getElementById(
+      "edit-job-non-productive-task"
+    );
+
+  const editJobItemSearch =
+    document.getElementById(
+      "edit-job-item-search"
+    );
+  const editJobItemResults =
+    document.getElementById(
+      "edit-job-item-results"
+    );
+  const editJobSelectedItem =
+    document.getElementById(
+      "edit-job-selected-item"
+    );
+  const editJobItemNotListedField =
+    document.getElementById(
+      "edit-job-item-not-listed-field"
+    );
+  const editJobItemNotListedDetail =
+    document.getElementById(
+      "edit-job-item-not-listed-detail"
+    );
+
+  const editJobWorkOrderNumber =
+    document.getElementById(
+      "edit-job-work-order-number"
+    );
+  const editJobWorkOrderType =
+    document.getElementById(
+      "edit-job-work-order-type"
+    );
+  const editJobJobType =
+    document.getElementById(
+      "edit-job-job-type"
+    );
+  const editJobComments =
+    document.getElementById(
+      "edit-job-comments"
+    );
+  const editJobCorrectionReason =
+    document.getElementById(
+      "edit-job-correction-reason"
+    );
+  const editJobSaveButton =
+    document.getElementById(
+      "edit-job-save-button"
     );
 
     let currentSession = null;
@@ -203,9 +266,12 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentTaskAction = null;
 
   let startTaskOptionsData = null;
-  let selectedTaskType = null;
+    let selectedTaskType = null;
   let selectedItem = null;
   let itemSearchTimer = null;
+
+  let selectedEditItem = null;
+  let editItemSearchTimer = null;
 
   function setLoginLoading(isLoading) {
     loginButton.disabled = isLoading;
@@ -253,21 +319,213 @@ document.addEventListener("DOMContentLoaded", () => {
     taskActionMessage.hidden = true;
   }
 
-  function clearEditJobMessage() {
+    function clearEditJobMessage() {
     editJobMessage.textContent = "";
     editJobMessage.hidden = true;
   }
 
-  function closeEditJobModal() {
+  function showEditJobMessage(message) {
+    editJobMessage.textContent = message;
+    editJobMessage.hidden = !message;
+  }
+
+  function populateEditTaskTypes(taskTypes) {
+    editJobTaskType.innerHTML = `
+      <option value="">
+        Select a task type
+      </option>
+    `;
+
+    taskTypes.forEach((taskType) => {
+      const option =
+        document.createElement("option");
+
+      option.value = taskType.task_type_id;
+      option.textContent =
+        taskType.task_type_name;
+      option.dataset.taskTypeName =
+        taskType.task_type_name;
+
+      editJobTaskType.appendChild(option);
+    });
+  }
+
+  function populateEditNonProductiveTasks(tasks) {
+    editJobNonProductiveTask.innerHTML = `
+      <option value="">
+        Select a non-productive task
+      </option>
+    `;
+
+    tasks.forEach((task) => {
+      const option =
+        document.createElement("option");
+
+      option.value =
+        task.non_productive_task_id;
+      option.textContent =
+        task.task_name;
+
+      editJobNonProductiveTask.appendChild(
+        option
+      );
+    });
+  }
+
+  function renderEditSelectedItem(item) {
+    selectedEditItem = item || null;
+
+    if (!selectedEditItem) {
+      editJobSelectedItem.innerHTML = "";
+      editJobSelectedItem.hidden = true;
+      editJobItemNotListedField.hidden = true;
+      editJobItemNotListedDetail.value = "";
+
+      return;
+    }
+
+    editJobSelectedItem.innerHTML = `
+      <div class="selected-item-header">
+        <div>
+          <strong>
+            ${escapeHtml(
+              selectedEditItem.item_name || ""
+            )}
+          </strong>
+
+          <div class="selected-item-meta">
+            ${escapeHtml(
+              selectedEditItem.internal_id || ""
+            )}
+          </div>
+        </div>
+
+        <button
+          id="clear-edit-selected-item"
+          class="clear-selected-item"
+          type="button"
+        >
+          Change
+        </button>
+      </div>
+    `;
+
+    editJobSelectedItem.hidden = false;
+
+    const placeholderItemId =
+      startTaskOptionsData
+        ?.placeholder_item
+        ?.item_id;
+
+    editJobItemNotListedField.hidden =
+      selectedEditItem.item_id !==
+      placeholderItemId;
+
+    const clearButton =
+      document.getElementById(
+        "clear-edit-selected-item"
+      );
+
+    clearButton.addEventListener(
+      "click",
+      () => {
+        renderEditSelectedItem(null);
+        editJobItemSearch.focus();
+      }
+    );
+  }
+
+  function updateEditJobFieldVisibility() {
+    const selectedOption =
+      editJobTaskType.selectedOptions[0];
+
+    const taskTypeName =
+      selectedOption?.dataset.taskTypeName ||
+      "";
+
+    const isProductive =
+      taskTypeName === "Productive";
+
+    const isNonProductive =
+      taskTypeName === "Non-Productive";
+
+    editJobProductiveFields.hidden =
+      !isProductive;
+
+    editJobNonProductiveFields.hidden =
+      !isNonProductive;
+  }
+
+  function populateEditJobForm(activeJob) {
+    populateEditTaskTypes(
+      startTaskOptionsData?.task_types || []
+    );
+
+    populateEditNonProductiveTasks(
+      startTaskOptionsData
+        ?.non_productive_tasks || []
+    );
+
+    editJobTaskType.value =
+      activeJob.task_type_id || "";
+
+    editJobNonProductiveTask.value =
+      activeJob.non_productive_task_id || "";
+
+    editJobWorkOrderNumber.value =
+      activeJob.work_order_number || "";
+
+    editJobWorkOrderType.value =
+      activeJob.work_order_type || "";
+
+    editJobJobType.value =
+      activeJob.job_type || "";
+
+    editJobComments.value =
+      activeJob.comments || "";
+
+    editJobCorrectionReason.value = "";
+
+    editJobItemSearch.value = "";
+    editJobItemResults.innerHTML = "";
+    editJobItemResults.hidden = true;
+
+    if (activeJob.item_id) {
+      renderEditSelectedItem({
+        item_id: activeJob.item_id,
+        item_name: activeJob.item_name,
+        internal_id: activeJob.internal_id
+      });
+
+      editJobItemNotListedDetail.value =
+        activeJob.item_not_listed_detail || "";
+    } else {
+      renderEditSelectedItem(null);
+    }
+
+    updateEditJobFieldVisibility();
+  }
+
+    function closeEditJobModal() {
     editJobForm.reset();
     clearEditJobMessage();
+
+    selectedEditItem = null;
+
+    editJobItemResults.innerHTML = "";
+    editJobItemResults.hidden = true;
+
+    editJobSelectedItem.innerHTML = "";
+    editJobSelectedItem.hidden = true;
+
+    editJobItemNotListedField.hidden = true;
 
     delete editJobModalBackdrop.dataset.jobId;
 
     editJobModalBackdrop.hidden = true;
   }
 
-  function openEditJobModal() {
+    async function openEditJobModal() {
     if (!currentActiveJob) {
       taskStateMessage.hidden = false;
       taskStateMessage.textContent =
@@ -302,7 +560,27 @@ document.addEventListener("DOMContentLoaded", () => {
     editJobModalTitle.textContent =
       `Edit Active Job #${currentActiveJob.job_number}`;
 
+    editJobSaveButton.disabled = true;
+    editJobSaveButton.textContent =
+      "Loading Job...";
+
     editJobModalBackdrop.hidden = false;
+
+    try {
+      await loadStartTaskOptions();
+
+      populateEditJobForm(
+        currentActiveJob
+      );
+
+      editJobSaveButton.textContent =
+        "Save Changes";
+    } catch (error) {
+      showEditJobMessage(
+        error.message ||
+        "The active job details could not be loaded."
+      );
+    }
   }
 
     function closeTaskActionModal() {
@@ -1731,6 +2009,82 @@ document.addEventListener("DOMContentLoaded", () => {
     itemNotListedDetail.value = "";
   }
 
+    function renderEditItemSearchResults(items) {
+    editJobItemResults.innerHTML = "";
+
+    if (!items.length) {
+      editJobItemResults.innerHTML = `
+        <div class="item-search-empty">
+          No matching items were found.
+        </div>
+      `;
+
+      editJobItemResults.hidden = false;
+      return;
+    }
+
+    items.forEach((item) => {
+      const button =
+        document.createElement("button");
+
+      button.type = "button";
+      button.className =
+        "item-search-result";
+
+      button.innerHTML = `
+        <strong>
+          ${escapeHtml(item.item_name || "")}
+        </strong>
+
+        <span>
+          ${escapeHtml(item.internal_id || "")}
+        </span>
+      `;
+
+      button.addEventListener(
+        "click",
+        () => {
+          renderEditSelectedItem(item);
+
+          editJobItemSearch.value = "";
+          editJobItemResults.innerHTML = "";
+          editJobItemResults.hidden = true;
+        }
+      );
+
+      editJobItemResults.appendChild(button);
+    });
+
+    editJobItemResults.hidden = false;
+  }
+
+  async function searchEditJobItems() {
+    const searchText =
+      editJobItemSearch.value.trim();
+
+    if (searchText.length < 2) {
+      editJobItemResults.innerHTML = "";
+      editJobItemResults.hidden = true;
+      return;
+    }
+
+    try {
+      const items =
+        await auth.searchStartTaskItems(
+          currentSession.sessionToken,
+          searchText,
+          25
+        );
+
+      renderEditItemSearchResults(items);
+    } catch (error) {
+      showEditJobMessage(
+        error.message ||
+        "The item search could not be completed."
+      );
+    }
+  }
+
   function selectItem(item) {
     selectedItem = item;
 
@@ -2257,12 +2611,64 @@ document.addEventListener("DOMContentLoaded", () => {
     closeEditJobModal
   );
 
-  editJobModalBackdrop.addEventListener(
+    editJobModalBackdrop.addEventListener(
     "click",
     (event) => {
       if (event.target === editJobModalBackdrop) {
         closeEditJobModal();
       }
+    }
+  );
+
+  editJobTaskType.addEventListener(
+    "change",
+    () => {
+      updateEditJobFieldVisibility();
+
+      const selectedOption =
+        editJobTaskType.selectedOptions[0];
+
+      const taskTypeName =
+        selectedOption?.dataset.taskTypeName ||
+        "";
+
+      if (taskTypeName === "Productive") {
+        editJobNonProductiveTask.value = "";
+      }
+
+      if (taskTypeName === "Non-Productive") {
+        renderEditSelectedItem(null);
+
+        editJobWorkOrderNumber.value = "";
+        editJobWorkOrderType.value = "";
+        editJobJobType.value = "";
+      }
+    }
+  );
+
+  editJobItemSearch.addEventListener(
+    "input",
+    () => {
+      window.clearTimeout(
+        editItemSearchTimer
+      );
+
+      editItemSearchTimer =
+        window.setTimeout(
+          searchEditJobItems,
+          300
+        );
+    }
+  );
+
+  editJobForm.addEventListener(
+    "submit",
+    (event) => {
+      event.preventDefault();
+
+      showEditJobMessage(
+        "The form is loaded correctly. Saving will be connected in the next step."
+      );
     }
   );
 
