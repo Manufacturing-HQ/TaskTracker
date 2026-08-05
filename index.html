@@ -693,8 +693,16 @@
 
     .active-task-reference {
       margin-top: 8px;
+      overflow-wrap: anywhere;
       color: var(--slate-500);
       font-size: 13px;
+    }
+
+    .active-task-title,
+    .unfinished-job h3,
+    .unfinished-job p,
+    .task-comments p {
+      overflow-wrap: anywhere;
     }
 
     .task-detail-grid {
@@ -721,6 +729,9 @@
     }
 
     .task-detail strong {
+      display: block;
+      min-width: 0;
+      overflow-wrap: anywhere;
       font-size: 13px;
     }
 
@@ -1201,7 +1212,17 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      min-width: 0;
       gap: 14px;
+    }
+
+    .selected-item-header > div {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .clear-selected-item {
+      flex: 0 0 auto;
     }
 
     .clear-selected-item {
@@ -1423,6 +1444,22 @@
     }
 
     @media (max-width: 520px) {
+            .task-action-row {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace-card {
+        padding: 18px;
+      }
+
+      .active-task-timer {
+        font-size: 30px;
+      }
+
+      .task-empty-state {
+        align-items: flex-start;
+        flex-direction: column;
+      }
       .login-panel {
         padding: 24px 18px;
       }
