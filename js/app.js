@@ -164,9 +164,34 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById(
       "task-action-cancel-button"
     );
-  const taskActionConfirmButton =
+    const taskActionConfirmButton =
     document.getElementById(
       "task-action-confirm-button"
+    );
+
+  const editJobModalBackdrop =
+    document.getElementById(
+      "edit-job-modal-backdrop"
+    );
+  const editJobModalClose =
+    document.getElementById(
+      "edit-job-modal-close"
+    );
+  const editJobForm =
+    document.getElementById(
+      "edit-job-form"
+    );
+  const editJobCancelButton =
+    document.getElementById(
+      "edit-job-cancel-button"
+    );
+  const editJobModalTitle =
+    document.getElementById(
+      "edit-job-modal-title"
+    );
+  const editJobMessage =
+    document.getElementById(
+      "edit-job-message"
     );
 
     let currentSession = null;
@@ -223,9 +248,61 @@ document.addEventListener("DOMContentLoaded", () => {
     taskActionMessage.hidden = !message;
   }
 
-  function clearTaskActionMessage() {
+    function clearTaskActionMessage() {
     taskActionMessage.textContent = "";
     taskActionMessage.hidden = true;
+  }
+
+  function clearEditJobMessage() {
+    editJobMessage.textContent = "";
+    editJobMessage.hidden = true;
+  }
+
+  function closeEditJobModal() {
+    editJobForm.reset();
+    clearEditJobMessage();
+
+    delete editJobModalBackdrop.dataset.jobId;
+
+    editJobModalBackdrop.hidden = true;
+  }
+
+  function openEditJobModal() {
+    if (!currentActiveJob) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "There is no active job to edit.";
+
+      return;
+    }
+
+    const role =
+      currentSession?.employee?.role || "";
+
+    if (
+      ![
+        "Supervisor",
+        "Manager",
+        "Administrator"
+      ].includes(role)
+    ) {
+      taskStateMessage.hidden = false;
+      taskStateMessage.textContent =
+        "You do not have permission to edit job details.";
+
+      return;
+    }
+
+    editJobForm.reset();
+    clearEditJobMessage();
+
+    editJobModalBackdrop.dataset.jobId =
+      currentActiveJob.job_id;
+
+    editJobModalTitle.textContent =
+      `Edit Active Job #${currentActiveJob.job_number}`;
+
+    editJobModalBackdrop.hidden = false;
   }
 
     function closeTaskActionModal() {
@@ -1276,7 +1353,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
       </div>
 
-      <div class="task-action-row">
+            <div class="task-action-row">
+        ${
+          [
+            "Supervisor",
+            "Manager",
+            "Administrator"
+          ].includes(
+            currentSession?.employee?.role || ""
+          )
+            ? `
+              <button
+                id="edit-task-button"
+                class="task-action secondary"
+                type="button"
+              >
+                Edit Task
+              </button>
+            `
+            : ""
+        }
+
         <button
           id="pause-task-button"
           class="task-action secondary"
@@ -1322,8 +1419,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const returnTaskButton =
       document.getElementById("return-task-button");
 
-    const completeTaskButton =
+        const completeTaskButton =
       document.getElementById("complete-task-button");
+
+    const editTaskButton =
+      document.getElementById("edit-task-button");
+
+    if (editTaskButton) {
+      editTaskButton.addEventListener(
+        "click",
+        openEditJobModal
+      );
+    }
 
     pauseTaskButton.addEventListener(
       "click",
@@ -2135,9 +2242,28 @@ document.addEventListener("DOMContentLoaded", () => {
     updateTaskActionCommentRequirement
   );
 
-  taskActionModalClose.addEventListener(
+    taskActionModalClose.addEventListener(
     "click",
     closeTaskActionModal
+  );
+
+  editJobModalClose.addEventListener(
+    "click",
+    closeEditJobModal
+  );
+
+  editJobCancelButton.addEventListener(
+    "click",
+    closeEditJobModal
+  );
+
+  editJobModalBackdrop.addEventListener(
+    "click",
+    (event) => {
+      if (event.target === editJobModalBackdrop) {
+        closeEditJobModal();
+      }
+    }
   );
 
   taskActionCancelButton.addEventListener(
