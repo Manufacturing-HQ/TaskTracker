@@ -176,11 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById(
       "employee-admin-supervisor"
     );
-  const employeeAdminDisplayOrder =
-    document.getElementById(
-      "employee-admin-display-order"
-    );
-  const employeeAdminPin =
+    const employeeAdminPin =
     document.getElementById(
       "employee-admin-pin"
     );
@@ -325,14 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const dropdownAdminReasonTypeField =
     document.getElementById(
       "dropdown-admin-reason-type-field"
-    );
-  const dropdownAdminDisplayOrder =
-    document.getElementById(
-      "dropdown-admin-display-order"
-    );
-  const dropdownAdminDisplayOrderField =
-    document.getElementById(
-      "dropdown-admin-display-order-field"
     );
   const dropdownAdminRequiresComment =
     document.getElementById(
@@ -3624,7 +3612,6 @@ document.addEventListener("DOMContentLoaded", () => {
                   employee.supervisor_name
                 }`
               : "No supervisor",
-            `Order: ${employee.display_order}`,
             employee.has_pin
               ? "PIN configured"
               : "PIN not configured"
@@ -3774,9 +3761,6 @@ document.addEventListener("DOMContentLoaded", () => {
     employeeAdminSupervisor.value =
       employee?.supervisor_id || "";
 
-    employeeAdminDisplayOrder.value =
-      String(employee?.display_order ?? 0);
-
     employeeAdminActive.checked =
       employee
         ? Boolean(employee.is_active)
@@ -3864,10 +3848,14 @@ document.addEventListener("DOMContentLoaded", () => {
           supervisorId:
             employeeAdminSupervisor.value || null,
           employeeRole,
-          isActive:
+                    isActive:
             employeeAdminActive.checked,
           displayOrder:
-            employeeAdminDisplayOrder.value,
+            currentAdminEmployees.find(
+              (employee) =>
+                employee.id ===
+                employeeAdminId.value
+            )?.display_order ?? 0,
           newPin: newPin || null
         }
       );
@@ -4035,32 +4023,28 @@ document.addEventListener("DOMContentLoaded", () => {
       ];
     }
 
-    if (recordType === "stop_reasons") {
+        if (recordType === "stop_reasons") {
       return [
         record.reason_type,
         record.resulting_job_status,
         record.requires_comment
           ? "Comments required"
-          : "Comments optional",
-        `Order: ${record.display_order}`
+          : "Comments optional"
       ];
     }
 
-    if (
+        if (
       recordType ===
       "non_productive_tasks"
     ) {
       return [
         record.requires_comment
           ? "Comments required"
-          : "Comments optional",
-        `Order: ${record.display_order}`
+          : "Comments optional"
       ];
     }
 
-    return [
-      `Order: ${record.display_order}`
-    ];
+    return [];
   }
 
   function renderDropdownAdminRecords(result) {
@@ -4274,9 +4258,6 @@ document.addEventListener("DOMContentLoaded", () => {
         isStopReason ||
         isNonProductive
       );
-
-    dropdownAdminDisplayOrderField.hidden =
-      isItem;
   }
 
   function closeDropdownAdminModal() {
@@ -4330,8 +4311,6 @@ document.addEventListener("DOMContentLoaded", () => {
     dropdownAdminReasonType.value =
       record?.reason_type || "";
 
-    dropdownAdminDisplayOrder.value =
-      String(record?.display_order ?? 0);
 
     dropdownAdminRequiresComment.checked =
       Boolean(record?.requires_comment);
@@ -4421,10 +4400,13 @@ document.addEventListener("DOMContentLoaded", () => {
         dropdownAdminBuildType.value.trim(),
       item_cycle_time_minutes:
         dropdownAdminCycleTime.value,
-      reason_type:
+            reason_type:
         dropdownAdminReasonType.value,
       display_order:
-        dropdownAdminDisplayOrder.value,
+        currentDropdownRecords.find(
+          (record) =>
+            record.id === recordId
+        )?.display_order ?? 0,
       requires_comment:
         dropdownAdminRequiresComment.checked,
       is_placeholder:
