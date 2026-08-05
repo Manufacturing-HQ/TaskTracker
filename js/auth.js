@@ -570,6 +570,195 @@ window.TaskTrackerAuth = (() => {
     return data || null;
   }
 
+    async function getEmployeeAdminOptions(
+    sessionToken
+  ) {
+    const { data, error } = await client.rpc(
+      "get_employee_admin_options",
+      {
+        p_session_token: sessionToken
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The employee administration options could not be loaded."
+      );
+    }
+
+    return data || {
+      roles: [],
+      departments: [],
+      supervisors: []
+    };
+  }
+
+  async function searchAdminEmployees(
+    sessionToken,
+    {
+      searchText = null,
+      includeInactive = true,
+      resultLimit = 100,
+      resultOffset = 0
+    } = {}
+  ) {
+    const { data, error } = await client.rpc(
+      "search_admin_employees",
+      {
+        p_session_token: sessionToken,
+        p_search_text:
+          searchText?.trim() || null,
+        p_include_inactive:
+          Boolean(includeInactive),
+        p_result_limit:
+          Number(resultLimit) || 100,
+        p_result_offset:
+          Number(resultOffset) || 0
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The employee records could not be loaded."
+      );
+    }
+
+    return data || {
+      records: [],
+      total_count: 0
+    };
+  }
+
+  async function saveAdminEmployee(
+    sessionToken,
+    employeeData
+  ) {
+    const { data, error } = await client.rpc(
+      "save_admin_employee",
+      {
+        p_session_token: sessionToken,
+        p_employee_id:
+          employeeData.employeeId || null,
+        p_employee_name:
+          employeeData.employeeName,
+        p_department:
+          employeeData.department || null,
+        p_supervisor_id:
+          employeeData.supervisorId || null,
+        p_employee_role:
+          employeeData.employeeRole,
+        p_is_active:
+          Boolean(employeeData.isActive),
+        p_display_order:
+          Number(employeeData.displayOrder) || 0,
+        p_new_pin:
+          employeeData.newPin?.trim() || null
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The employee record could not be saved."
+      );
+    }
+
+    return data || null;
+  }
+
+  async function getDropdownAdminConfiguration(
+    sessionToken
+  ) {
+    const { data, error } = await client.rpc(
+      "get_dropdown_admin_configuration",
+      {
+        p_session_token: sessionToken
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The dropdown administration configuration could not be loaded."
+      );
+    }
+
+    return data || {
+      record_types: [],
+      stop_reason_types: []
+    };
+  }
+
+  async function searchAdminDropdownRecords(
+    sessionToken,
+    {
+      recordType,
+      searchText = null,
+      includeInactive = true,
+      resultLimit = 100,
+      resultOffset = 0
+    } = {}
+  ) {
+    const { data, error } = await client.rpc(
+      "search_admin_dropdown_records",
+      {
+        p_session_token: sessionToken,
+        p_record_type: recordType,
+        p_search_text:
+          searchText?.trim() || null,
+        p_include_inactive:
+          Boolean(includeInactive),
+        p_result_limit:
+          Number(resultLimit) || 100,
+        p_result_offset:
+          Number(resultOffset) || 0
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The administration records could not be loaded."
+      );
+    }
+
+    return data || {
+      record_type: recordType,
+      records: [],
+      total_count: 0,
+      result_limit: resultLimit,
+      result_offset: resultOffset
+    };
+  }
+
+  async function saveAdminDropdownRecord(
+    sessionToken,
+    recordType,
+    recordId,
+    recordData
+  ) {
+    const { data, error } = await client.rpc(
+      "save_admin_dropdown_record",
+      {
+        p_session_token: sessionToken,
+        p_record_type: recordType,
+        p_record_id: recordId || null,
+        p_record_data: recordData
+      }
+    );
+
+    if (error) {
+      throw new Error(
+        error.message ||
+        "The administration record could not be saved."
+      );
+    }
+
+    return data || null;
+  }
+
   async function logout() {
     const sessionToken = getStoredSessionToken();
 
@@ -614,6 +803,12 @@ window.TaskTrackerAuth = (() => {
     createAndAssignMemo,
     getMyMemos,
     acknowledgeMyMemo,
+    getEmployeeAdminOptions,
+    searchAdminEmployees,
+    saveAdminEmployee,
+    getDropdownAdminConfiguration,
+    searchAdminDropdownRecords,
+    saveAdminDropdownRecord,
     logout,
     getStoredSessionToken,
     clearStoredSessionToken
