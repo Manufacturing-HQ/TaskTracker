@@ -48,8 +48,21 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("start-task-page");
   const myMemosPage =
     document.getElementById("my-memos-page");
-  const createMemoPage =
+    const createMemoPage =
     document.getElementById("create-memo-page");
+  const employeeAdminPage =
+    document.getElementById("employee-admin-page");
+  const dropdownAdminPage =
+    document.getElementById("dropdown-admin-page");
+
+  const employeeAdminNavButton =
+    document.getElementById(
+      "employee-admin-nav-button"
+    );
+  const dropdownAdminNavButton =
+    document.getElementById(
+      "dropdown-admin-nav-button"
+    );
 
   const myMemosNavButton =
     document.getElementById("my-memos-nav-button");
@@ -89,9 +102,269 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById(
       "create-memo-submit-button"
     );
-  const cancelCreateMemoButton =
+    const cancelCreateMemoButton =
     document.getElementById(
       "cancel-create-memo-button"
+    );
+
+  const newEmployeeButton =
+    document.getElementById(
+      "new-employee-button"
+    );
+  const employeeAdminSearch =
+    document.getElementById(
+      "employee-admin-search"
+    );
+  const employeeAdminIncludeInactive =
+    document.getElementById(
+      "employee-admin-include-inactive"
+    );
+  const employeeAdminRefreshButton =
+    document.getElementById(
+      "employee-admin-refresh-button"
+    );
+  const employeeAdminMessage =
+    document.getElementById(
+      "employee-admin-message"
+    );
+  const employeeAdminSummary =
+    document.getElementById(
+      "employee-admin-summary"
+    );
+  const employeeAdminRecords =
+    document.getElementById(
+      "employee-admin-records"
+    );
+
+  const employeeAdminModalBackdrop =
+    document.getElementById(
+      "employee-admin-modal-backdrop"
+    );
+  const employeeAdminModalClose =
+    document.getElementById(
+      "employee-admin-modal-close"
+    );
+  const employeeAdminModalTitle =
+    document.getElementById(
+      "employee-admin-modal-title"
+    );
+  const employeeAdminForm =
+    document.getElementById(
+      "employee-admin-form"
+    );
+  const employeeAdminId =
+    document.getElementById(
+      "employee-admin-id"
+    );
+  const employeeAdminName =
+    document.getElementById(
+      "employee-admin-name"
+    );
+  const employeeAdminDepartment =
+    document.getElementById(
+      "employee-admin-department"
+    );
+  const employeeDepartmentOptions =
+    document.getElementById(
+      "employee-department-options"
+    );
+  const employeeAdminRole =
+    document.getElementById(
+      "employee-admin-role"
+    );
+  const employeeAdminSupervisor =
+    document.getElementById(
+      "employee-admin-supervisor"
+    );
+  const employeeAdminDisplayOrder =
+    document.getElementById(
+      "employee-admin-display-order"
+    );
+  const employeeAdminPin =
+    document.getElementById(
+      "employee-admin-pin"
+    );
+  const employeeAdminPinLabel =
+    document.getElementById(
+      "employee-admin-pin-label"
+    );
+  const employeeAdminPinNote =
+    document.getElementById(
+      "employee-admin-pin-note"
+    );
+  const employeeAdminActive =
+    document.getElementById(
+      "employee-admin-active"
+    );
+  const employeeAdminFormMessage =
+    document.getElementById(
+      "employee-admin-form-message"
+    );
+  const employeeAdminCancelButton =
+    document.getElementById(
+      "employee-admin-cancel-button"
+    );
+  const employeeAdminSaveButton =
+    document.getElementById(
+      "employee-admin-save-button"
+    );
+
+    const dropdownRecordTypeSelect =
+    document.getElementById(
+      "dropdown-record-type-select"
+    );
+  const dropdownAdminSearch =
+    document.getElementById(
+      "dropdown-admin-search"
+    );
+  const dropdownAdminIncludeInactive =
+    document.getElementById(
+      "dropdown-admin-include-inactive"
+    );
+  const dropdownAdminRefreshButton =
+    document.getElementById(
+      "dropdown-admin-refresh-button"
+    );
+  const newDropdownRecordButton =
+    document.getElementById(
+      "new-dropdown-record-button"
+    );
+  const dropdownAdminMessage =
+    document.getElementById(
+      "dropdown-admin-message"
+    );
+  const dropdownAdminSummary =
+    document.getElementById(
+      "dropdown-admin-summary"
+    );
+  const dropdownAdminRecords =
+    document.getElementById(
+      "dropdown-admin-records"
+    );
+
+  const dropdownAdminModalBackdrop =
+    document.getElementById(
+      "dropdown-admin-modal-backdrop"
+    );
+  const dropdownAdminModalClose =
+    document.getElementById(
+      "dropdown-admin-modal-close"
+    );
+  const dropdownAdminModalTitle =
+    document.getElementById(
+      "dropdown-admin-modal-title"
+    );
+  const dropdownAdminForm =
+    document.getElementById(
+      "dropdown-admin-form"
+    );
+  const dropdownAdminRecordId =
+    document.getElementById(
+      "dropdown-admin-record-id"
+    );
+  const dropdownAdminName =
+    document.getElementById(
+      "dropdown-admin-name"
+    );
+  const dropdownAdminNameField =
+    document.getElementById(
+      "dropdown-admin-name-field"
+    );
+  const dropdownAdminInternalId =
+    document.getElementById(
+      "dropdown-admin-internal-id"
+    );
+  const dropdownAdminInternalIdField =
+    document.getElementById(
+      "dropdown-admin-internal-id-field"
+    );
+  const dropdownAdminSkuGroup =
+    document.getElementById(
+      "dropdown-admin-sku-group"
+    );
+  const dropdownAdminSkuGroupField =
+    document.getElementById(
+      "dropdown-admin-sku-group-field"
+    );
+  const dropdownAdminDepartment =
+    document.getElementById(
+      "dropdown-admin-department"
+    );
+  const dropdownAdminDepartmentField =
+    document.getElementById(
+      "dropdown-admin-department-field"
+    );
+  const dropdownAdminMake =
+    document.getElementById(
+      "dropdown-admin-make"
+    );
+  const dropdownAdminMakeField =
+    document.getElementById(
+      "dropdown-admin-make-field"
+    );
+  const dropdownAdminBuildType =
+    document.getElementById(
+      "dropdown-admin-build-type"
+    );
+  const dropdownAdminBuildTypeField =
+    document.getElementById(
+      "dropdown-admin-build-type-field"
+    );
+  const dropdownAdminCycleTime =
+    document.getElementById(
+      "dropdown-admin-cycle-time"
+    );
+  const dropdownAdminCycleTimeField =
+    document.getElementById(
+      "dropdown-admin-cycle-time-field"
+    );
+  const dropdownAdminReasonType =
+    document.getElementById(
+      "dropdown-admin-reason-type"
+    );
+  const dropdownAdminReasonTypeField =
+    document.getElementById(
+      "dropdown-admin-reason-type-field"
+    );
+  const dropdownAdminDisplayOrder =
+    document.getElementById(
+      "dropdown-admin-display-order"
+    );
+  const dropdownAdminDisplayOrderField =
+    document.getElementById(
+      "dropdown-admin-display-order-field"
+    );
+  const dropdownAdminRequiresComment =
+    document.getElementById(
+      "dropdown-admin-requires-comment"
+    );
+  const dropdownAdminRequiresCommentField =
+    document.getElementById(
+      "dropdown-admin-requires-comment-field"
+    );
+  const dropdownAdminPlaceholder =
+    document.getElementById(
+      "dropdown-admin-placeholder"
+    );
+  const dropdownAdminPlaceholderField =
+    document.getElementById(
+      "dropdown-admin-placeholder-field"
+    );
+  const dropdownAdminActive =
+    document.getElementById(
+      "dropdown-admin-active"
+    );
+  const dropdownAdminFormMessage =
+    document.getElementById(
+      "dropdown-admin-form-message"
+    );
+  const dropdownAdminCancelButton =
+    document.getElementById(
+      "dropdown-admin-cancel-button"
+    );
+  const dropdownAdminSaveButton =
+    document.getElementById(
+      "dropdown-admin-save-button"
     );
 
   const logoutButton =
@@ -320,8 +593,16 @@ document.addEventListener("DOMContentLoaded", () => {
   let selectedEditItem = null;
   let editItemSearchTimer = null;
 
-  let memoCreationOptionsData = null;
+    let memoCreationOptionsData = null;
   let currentMemos = [];
+
+  let employeeAdminOptionsData = null;
+  let currentAdminEmployees = [];
+  let employeeAdminSearchTimer = null;
+
+  let dropdownAdminConfigurationData = null;
+  let currentDropdownRecords = [];
+  let dropdownAdminSearchTimer = null;
 
   function setLoginLoading(isLoading) {
     loginButton.disabled = isLoading;
@@ -1378,7 +1659,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .replaceAll("'", "&#039;");
   }
 
-  function configureNavigation(permissionContext) {
+    function configureNavigation(permissionContext) {
     const role = permissionContext.employee_role;
 
     setVisible(employeeNav, true);
@@ -1394,13 +1675,33 @@ document.addEventListener("DOMContentLoaded", () => {
       ["Manager", "Administrator"].includes(role)
     );
 
+    const canManageEmployees =
+      Boolean(
+        permissionContext.can_manage_employees
+      );
+
+    const canManageDropdowns =
+      Boolean(
+        permissionContext.can_manage_dropdowns
+      );
+
     setVisible(
       administratorNav,
-      role === "Administrator"
+      canManageEmployees || canManageDropdowns
+    );
+
+    setVisible(
+      employeeAdminNavButton,
+      canManageEmployees
+    );
+
+    setVisible(
+      dropdownAdminNavButton,
+      canManageDropdowns
     );
   }
 
-    function showApplicationPage(pageName) {
+      function showApplicationPage(pageName) {
     const showDashboard =
       pageName === "dashboard";
     const showStartTask =
@@ -1409,11 +1710,19 @@ document.addEventListener("DOMContentLoaded", () => {
       pageName === "my-memos";
     const showCreateMemo =
       pageName === "create-memo";
+    const showEmployeeAdmin =
+      pageName === "employee-admin";
+    const showDropdownAdmin =
+      pageName === "dropdown-admin";
 
     dashboardPage.hidden = !showDashboard;
     startTaskPage.hidden = !showStartTask;
     myMemosPage.hidden = !showMyMemos;
     createMemoPage.hidden = !showCreateMemo;
+    employeeAdminPage.hidden =
+      !showEmployeeAdmin;
+    dropdownAdminPage.hidden =
+      !showDropdownAdmin;
 
     dashboardNavButton.classList.toggle(
       "active",
@@ -1433,6 +1742,16 @@ document.addEventListener("DOMContentLoaded", () => {
     createMemoNavButton.classList.toggle(
       "active",
       showCreateMemo
+    );
+
+    employeeAdminNavButton.classList.toggle(
+      "active",
+      showEmployeeAdmin
+    );
+
+    dropdownAdminNavButton.classList.toggle(
+      "active",
+      showDropdownAdmin
     );
   }
 
@@ -3142,6 +3461,1009 @@ document.addEventListener("DOMContentLoaded", () => {
         "Create and Assign Memo";
     }
   }
+    function showEmployeeAdminMessage(message) {
+    employeeAdminMessage.textContent = message;
+    employeeAdminMessage.hidden = !message;
+  }
+
+  function clearEmployeeAdminMessage() {
+    employeeAdminMessage.textContent = "";
+    employeeAdminMessage.hidden = true;
+  }
+
+  function showEmployeeAdminFormMessage(
+    message,
+    type = "error"
+  ) {
+    employeeAdminFormMessage.textContent = message;
+    employeeAdminFormMessage.className =
+      `login-message ${type}`;
+    employeeAdminFormMessage.hidden = !message;
+  }
+
+  function clearEmployeeAdminFormMessage() {
+    employeeAdminFormMessage.textContent = "";
+    employeeAdminFormMessage.hidden = true;
+  }
+
+  function closeEmployeeAdminModal() {
+    employeeAdminModalBackdrop.hidden = true;
+    employeeAdminForm.reset();
+    employeeAdminId.value = "";
+    clearEmployeeAdminFormMessage();
+  }
+
+  function populateEmployeeAdminOptions() {
+    const options =
+      employeeAdminOptionsData || {
+        roles: [],
+        departments: [],
+        supervisors: []
+      };
+
+    employeeAdminRole.innerHTML = `
+      <option value="">
+        Select a role
+      </option>
+    `;
+
+    options.roles.forEach((role) => {
+      const option =
+        document.createElement("option");
+
+      option.value = role;
+      option.textContent = role;
+
+      employeeAdminRole.appendChild(option);
+    });
+
+    employeeDepartmentOptions.innerHTML = "";
+
+    options.departments.forEach((department) => {
+      const option =
+        document.createElement("option");
+
+      option.value = department;
+
+      employeeDepartmentOptions.appendChild(
+        option
+      );
+    });
+
+    employeeAdminSupervisor.innerHTML = `
+      <option value="">
+        No supervisor
+      </option>
+    `;
+
+    options.supervisors.forEach((supervisor) => {
+      const option =
+        document.createElement("option");
+
+      option.value = supervisor.id;
+      option.textContent =
+        supervisor.employee_name;
+
+      if (supervisor.department) {
+        option.textContent +=
+          ` — ${supervisor.department}`;
+      }
+
+      if (!supervisor.is_active) {
+        option.textContent += " — Inactive";
+      }
+
+      employeeAdminSupervisor.appendChild(
+        option
+      );
+    });
+  }
+
+  async function loadEmployeeAdminOptions(
+    forceRefresh = false
+  ) {
+    if (
+      !employeeAdminOptionsData ||
+      forceRefresh
+    ) {
+      employeeAdminOptionsData =
+        await auth.getEmployeeAdminOptions(
+          currentSession.sessionToken
+        );
+    }
+
+    populateEmployeeAdminOptions();
+  }
+
+  function renderAdminEmployees(result) {
+    currentAdminEmployees =
+      Array.isArray(result?.records)
+        ? result.records
+        : [];
+
+    const totalCount =
+      Number(result?.total_count) || 0;
+
+    employeeAdminSummary.textContent =
+      `${totalCount} employee record${
+        totalCount === 1 ? "" : "s"
+      } found`;
+
+    if (currentAdminEmployees.length === 0) {
+      employeeAdminRecords.innerHTML = `
+        <div class="task-empty-state">
+          <div class="task-empty-icon">✓</div>
+
+          <div>
+            <h3>No employees found</h3>
+
+            <p>
+              Change the search or inactive filter and try
+              again.
+            </p>
+          </div>
+        </div>
+      `;
+
+      return;
+    }
+
+    employeeAdminRecords.innerHTML =
+      currentAdminEmployees
+        .map((employee) => {
+          const statusClass =
+            employee.is_active
+              ? ""
+              : " inactive";
+
+          const meta = [
+            employee.department,
+            employee.role,
+            employee.supervisor_name
+              ? `Supervisor: ${
+                  employee.supervisor_name
+                }`
+              : "No supervisor",
+            `Order: ${employee.display_order}`,
+            employee.has_pin
+              ? "PIN configured"
+              : "PIN not configured"
+          ]
+            .filter(Boolean)
+            .map(
+              (value) =>
+                `<span>${escapeHtml(value)}</span>`
+            )
+            .join("");
+
+          return `
+            <article
+              class="admin-record-card${statusClass}"
+            >
+              <div>
+                <div class="admin-record-title-row">
+                  <span class="admin-record-title">
+                    ${escapeHtml(
+                      employee.employee_name
+                    )}
+                  </span>
+
+                  <span
+                    class="admin-record-status${statusClass}"
+                  >
+                    ${
+                      employee.is_active
+                        ? "Active"
+                        : "Inactive"
+                    }
+                  </span>
+                </div>
+
+                <div class="admin-record-meta">
+                  ${meta}
+                </div>
+              </div>
+
+              <button
+                class="admin-edit-button"
+                type="button"
+                data-employee-id="${escapeHtml(
+                  employee.id
+                )}"
+              >
+                Edit
+              </button>
+            </article>
+          `;
+        })
+        .join("");
+
+    employeeAdminRecords
+      .querySelectorAll(".admin-edit-button")
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => {
+            const employee =
+              currentAdminEmployees.find(
+                (record) =>
+                  record.id ===
+                  button.dataset.employeeId
+              );
+
+            if (employee) {
+              openEmployeeAdminModal(employee);
+            }
+          }
+        );
+      });
+  }
+
+  async function loadAdminEmployees() {
+    if (!currentSession) {
+      return;
+    }
+
+    employeeAdminRefreshButton.disabled = true;
+    employeeAdminRefreshButton.textContent =
+      "Refreshing...";
+
+    showEmployeeAdminMessage(
+      "Loading employee records..."
+    );
+
+    try {
+      const result =
+        await auth.searchAdminEmployees(
+          currentSession.sessionToken,
+          {
+            searchText:
+              employeeAdminSearch.value,
+            includeInactive:
+              employeeAdminIncludeInactive.checked,
+            resultLimit: 200,
+            resultOffset: 0
+          }
+        );
+
+      renderAdminEmployees(result);
+      clearEmployeeAdminMessage();
+    } catch (error) {
+      showEmployeeAdminMessage(
+        error.message ||
+        "The employee records could not be loaded."
+      );
+    } finally {
+      employeeAdminRefreshButton.disabled =
+        false;
+      employeeAdminRefreshButton.textContent =
+        "Refresh";
+    }
+  }
+
+  function openEmployeeAdminModal(
+    employee = null
+  ) {
+    employeeAdminForm.reset();
+    clearEmployeeAdminFormMessage();
+
+    const isEditing = Boolean(employee);
+
+    employeeAdminModalTitle.textContent =
+      isEditing
+        ? "Edit Employee"
+        : "Add Employee";
+
+    employeeAdminSaveButton.textContent =
+      isEditing
+        ? "Save Employee"
+        : "Add Employee";
+
+    employeeAdminId.value =
+      employee?.id || "";
+
+    employeeAdminName.value =
+      employee?.employee_name || "";
+
+    employeeAdminDepartment.value =
+      employee?.department || "";
+
+    employeeAdminRole.value =
+      employee?.role || "Employee";
+
+    employeeAdminSupervisor.value =
+      employee?.supervisor_id || "";
+
+    employeeAdminDisplayOrder.value =
+      String(employee?.display_order ?? 0);
+
+    employeeAdminActive.checked =
+      employee
+        ? Boolean(employee.is_active)
+        : true;
+
+    employeeAdminPin.value = "";
+
+    employeeAdminPinLabel.textContent =
+      isEditing
+        ? "New PIN"
+        : "Employee PIN";
+
+    employeeAdminPin.required =
+      !isEditing;
+
+    employeeAdminPinNote.textContent =
+      isEditing
+        ? "Leave blank to keep the employee’s current PIN."
+        : "Enter a PIN containing 4 to 12 numbers.";
+
+    employeeAdminModalBackdrop.hidden = false;
+    employeeAdminName.focus();
+  }
+
+  async function submitAdminEmployee() {
+    const employeeName =
+      employeeAdminName.value.trim();
+
+    const employeeRole =
+      employeeAdminRole.value;
+
+    const newPin =
+      employeeAdminPin.value.trim();
+
+    if (!employeeName) {
+      showEmployeeAdminFormMessage(
+        "Enter the employee name."
+      );
+      return;
+    }
+
+    if (!employeeRole) {
+      showEmployeeAdminFormMessage(
+        "Select an employee role."
+      );
+      return;
+    }
+
+    if (
+      !employeeAdminId.value &&
+      !newPin
+    ) {
+      showEmployeeAdminFormMessage(
+        "Enter a PIN for the new employee."
+      );
+      return;
+    }
+
+    if (
+      newPin &&
+      !/^[0-9]{4,12}$/.test(newPin)
+    ) {
+      showEmployeeAdminFormMessage(
+        "The PIN must contain 4 to 12 numbers."
+      );
+      return;
+    }
+
+    employeeAdminSaveButton.disabled = true;
+    employeeAdminSaveButton.textContent =
+      "Saving Employee...";
+
+    clearEmployeeAdminFormMessage();
+
+    try {
+      await auth.saveAdminEmployee(
+        currentSession.sessionToken,
+        {
+          employeeId:
+            employeeAdminId.value || null,
+          employeeName,
+          department:
+            employeeAdminDepartment.value.trim() ||
+            null,
+          supervisorId:
+            employeeAdminSupervisor.value || null,
+          employeeRole,
+          isActive:
+            employeeAdminActive.checked,
+          displayOrder:
+            employeeAdminDisplayOrder.value,
+          newPin: newPin || null
+        }
+      );
+
+      closeEmployeeAdminModal();
+
+      await loadEmployeeAdminOptions(true);
+      await loadAdminEmployees();
+
+      showEmployeeAdminMessage(
+        "The employee record was saved successfully."
+      );
+
+      window.setTimeout(() => {
+        clearEmployeeAdminMessage();
+      }, 5000);
+    } catch (error) {
+      showEmployeeAdminFormMessage(
+        error.message ||
+        "The employee record could not be saved."
+      );
+    } finally {
+      employeeAdminSaveButton.disabled = false;
+      employeeAdminSaveButton.textContent =
+        employeeAdminId.value
+          ? "Save Employee"
+          : "Add Employee";
+    }
+  }
+    function showDropdownAdminMessage(message) {
+    dropdownAdminMessage.textContent = message;
+    dropdownAdminMessage.hidden = !message;
+  }
+
+  function clearDropdownAdminMessage() {
+    dropdownAdminMessage.textContent = "";
+    dropdownAdminMessage.hidden = true;
+  }
+
+  function showDropdownAdminFormMessage(
+    message,
+    type = "error"
+  ) {
+    dropdownAdminFormMessage.textContent = message;
+    dropdownAdminFormMessage.className =
+      `login-message ${type}`;
+    dropdownAdminFormMessage.hidden = !message;
+  }
+
+  function clearDropdownAdminFormMessage() {
+    dropdownAdminFormMessage.textContent = "";
+    dropdownAdminFormMessage.hidden = true;
+  }
+
+  function getSelectedDropdownRecordType() {
+    return (
+      dropdownAdminConfigurationData
+        ?.record_types
+        ?.find(
+          (recordType) =>
+            recordType.value ===
+            dropdownRecordTypeSelect.value
+        ) || null
+    );
+  }
+
+  function populateDropdownAdminConfiguration() {
+    dropdownRecordTypeSelect.innerHTML = "";
+
+    (
+      dropdownAdminConfigurationData
+        ?.record_types || []
+    ).forEach((recordType) => {
+      const option =
+        document.createElement("option");
+
+      option.value = recordType.value;
+      option.textContent = recordType.label;
+
+      dropdownRecordTypeSelect.appendChild(
+        option
+      );
+    });
+
+    dropdownAdminReasonType.innerHTML = `
+      <option value="">
+        Select a reason type
+      </option>
+    `;
+
+    (
+      dropdownAdminConfigurationData
+        ?.stop_reason_types || []
+    ).forEach((reasonType) => {
+      const option =
+        document.createElement("option");
+
+      option.value = reasonType;
+      option.textContent = reasonType;
+
+      dropdownAdminReasonType.appendChild(
+        option
+      );
+    });
+
+    updateDropdownAdminControls();
+  }
+
+  async function loadDropdownAdminConfiguration(
+    forceRefresh = false
+  ) {
+    if (
+      !dropdownAdminConfigurationData ||
+      forceRefresh
+    ) {
+      dropdownAdminConfigurationData =
+        await auth.getDropdownAdminConfiguration(
+          currentSession.sessionToken
+        );
+    }
+
+    populateDropdownAdminConfiguration();
+  }
+
+  function updateDropdownAdminControls() {
+    const recordType =
+      getSelectedDropdownRecordType();
+
+    dropdownAdminSearch.disabled =
+      !recordType;
+
+    newDropdownRecordButton.hidden =
+      !recordType?.supports_create;
+
+    dropdownAdminSearch.placeholder =
+      recordType?.value === "items"
+        ? "Search by item name, Internal ID, SKU group, or department"
+        : "Search the selected list";
+  }
+
+  function getDropdownRecordMeta(
+    recordType,
+    record
+  ) {
+    if (recordType === "items") {
+      return [
+        record.internal_id
+          ? `Internal ID: ${record.internal_id}`
+          : null,
+        record.sku_group
+          ? `SKU Group: ${record.sku_group}`
+          : null,
+        record.work_order_department,
+        record.make,
+        record.build_type,
+        record.item_cycle_time_minutes !== null &&
+        record.item_cycle_time_minutes !== undefined
+          ? `Cycle: ${
+              record.item_cycle_time_minutes
+            } minutes`
+          : null,
+        record.is_placeholder
+          ? "Placeholder item"
+          : null
+      ];
+    }
+
+    if (recordType === "stop_reasons") {
+      return [
+        record.reason_type,
+        record.resulting_job_status,
+        record.requires_comment
+          ? "Comments required"
+          : "Comments optional",
+        `Order: ${record.display_order}`
+      ];
+    }
+
+    if (
+      recordType ===
+      "non_productive_tasks"
+    ) {
+      return [
+        record.requires_comment
+          ? "Comments required"
+          : "Comments optional",
+        `Order: ${record.display_order}`
+      ];
+    }
+
+    return [
+      `Order: ${record.display_order}`
+    ];
+  }
+
+  function renderDropdownAdminRecords(result) {
+    currentDropdownRecords =
+      Array.isArray(result?.records)
+        ? result.records
+        : [];
+
+    const totalCount =
+      Number(result?.total_count) || 0;
+
+    dropdownAdminSummary.textContent =
+      `${totalCount} record${
+        totalCount === 1 ? "" : "s"
+      } found`;
+
+    if (
+      currentDropdownRecords.length === 0
+    ) {
+      dropdownAdminRecords.innerHTML = `
+        <div class="task-empty-state">
+          <div class="task-empty-icon">✓</div>
+
+          <div>
+            <h3>No records found</h3>
+
+            <p>
+              Change the search or inactive filter and try
+              again.
+            </p>
+          </div>
+        </div>
+      `;
+
+      return;
+    }
+
+    const recordType =
+      dropdownRecordTypeSelect.value;
+
+    dropdownAdminRecords.innerHTML =
+      currentDropdownRecords
+        .map((record) => {
+          const statusClass =
+            record.is_active
+              ? ""
+              : " inactive";
+
+          const meta =
+            getDropdownRecordMeta(
+              recordType,
+              record
+            )
+              .filter(Boolean)
+              .map(
+                (value) =>
+                  `<span>${escapeHtml(value)}</span>`
+              )
+              .join("");
+
+          return `
+            <article
+              class="admin-record-card${statusClass}"
+            >
+              <div>
+                <div class="admin-record-title-row">
+                  <span class="admin-record-title">
+                    ${escapeHtml(
+                      record.name || "Unnamed record"
+                    )}
+                  </span>
+
+                  <span
+                    class="admin-record-status${statusClass}"
+                  >
+                    ${
+                      record.is_active
+                        ? "Active"
+                        : "Inactive"
+                    }
+                  </span>
+                </div>
+
+                <div class="admin-record-meta">
+                  ${meta}
+                </div>
+              </div>
+
+              <button
+                class="admin-edit-button"
+                type="button"
+                data-record-id="${escapeHtml(
+                  record.id
+                )}"
+              >
+                Edit
+              </button>
+            </article>
+          `;
+        })
+        .join("");
+
+    dropdownAdminRecords
+      .querySelectorAll(".admin-edit-button")
+      .forEach((button) => {
+        button.addEventListener(
+          "click",
+          () => {
+            const record =
+              currentDropdownRecords.find(
+                (item) =>
+                  item.id ===
+                  button.dataset.recordId
+              );
+
+            if (record) {
+              openDropdownAdminModal(record);
+            }
+          }
+        );
+      });
+  }
+
+  async function loadAdminDropdownRecords() {
+    const recordType =
+      dropdownRecordTypeSelect.value;
+
+    if (!currentSession || !recordType) {
+      return;
+    }
+
+    dropdownAdminRefreshButton.disabled =
+      true;
+    dropdownAdminRefreshButton.textContent =
+      "Refreshing...";
+
+    showDropdownAdminMessage(
+      "Loading administration records..."
+    );
+
+    try {
+      const result =
+        await auth.searchAdminDropdownRecords(
+          currentSession.sessionToken,
+          {
+            recordType,
+            searchText:
+              dropdownAdminSearch.value,
+            includeInactive:
+              dropdownAdminIncludeInactive.checked,
+            resultLimit:
+              recordType === "items"
+                ? 100
+                : 250,
+            resultOffset: 0
+          }
+        );
+
+      renderDropdownAdminRecords(result);
+      clearDropdownAdminMessage();
+    } catch (error) {
+      showDropdownAdminMessage(
+        error.message ||
+        "The administration records could not be loaded."
+      );
+    } finally {
+      dropdownAdminRefreshButton.disabled =
+        false;
+      dropdownAdminRefreshButton.textContent =
+        "Refresh";
+    }
+  }
+
+  function updateDropdownEditorFields() {
+    const recordType =
+      dropdownRecordTypeSelect.value;
+
+    const isItem =
+      recordType === "items";
+    const isStopReason =
+      recordType === "stop_reasons";
+    const isNonProductive =
+      recordType ===
+      "non_productive_tasks";
+    const isTaskType =
+      recordType === "task_types";
+
+    dropdownAdminNameField.hidden =
+      isTaskType;
+
+    dropdownAdminInternalIdField.hidden =
+      !isItem;
+    dropdownAdminSkuGroupField.hidden =
+      !isItem;
+    dropdownAdminDepartmentField.hidden =
+      !isItem;
+    dropdownAdminMakeField.hidden =
+      !isItem;
+    dropdownAdminBuildTypeField.hidden =
+      !isItem;
+    dropdownAdminCycleTimeField.hidden =
+      !isItem;
+    dropdownAdminPlaceholderField.hidden =
+      !isItem;
+
+    dropdownAdminReasonTypeField.hidden =
+      !isStopReason;
+
+    dropdownAdminRequiresCommentField.hidden =
+      !(
+        isStopReason ||
+        isNonProductive
+      );
+
+    dropdownAdminDisplayOrderField.hidden =
+      isItem;
+  }
+
+  function closeDropdownAdminModal() {
+    dropdownAdminModalBackdrop.hidden = true;
+    dropdownAdminForm.reset();
+    dropdownAdminRecordId.value = "";
+    clearDropdownAdminFormMessage();
+  }
+
+  function openDropdownAdminModal(
+    record = null
+  ) {
+    const recordType =
+      dropdownRecordTypeSelect.value;
+
+    dropdownAdminForm.reset();
+    clearDropdownAdminFormMessage();
+    updateDropdownEditorFields();
+
+    const isEditing = Boolean(record);
+
+    dropdownAdminModalTitle.textContent =
+      isEditing
+        ? "Edit Record"
+        : "Add Record";
+
+    dropdownAdminRecordId.value =
+      record?.id || "";
+
+    dropdownAdminName.value =
+      record?.name || "";
+
+    dropdownAdminInternalId.value =
+      record?.internal_id || "";
+
+    dropdownAdminSkuGroup.value =
+      record?.sku_group || "";
+
+    dropdownAdminDepartment.value =
+      record?.work_order_department || "";
+
+    dropdownAdminMake.value =
+      record?.make || "";
+
+    dropdownAdminBuildType.value =
+      record?.build_type || "";
+
+    dropdownAdminCycleTime.value =
+      record?.item_cycle_time_minutes ?? "";
+
+    dropdownAdminReasonType.value =
+      record?.reason_type || "";
+
+    dropdownAdminDisplayOrder.value =
+      String(record?.display_order ?? 0);
+
+    dropdownAdminRequiresComment.checked =
+      Boolean(record?.requires_comment);
+
+    dropdownAdminPlaceholder.checked =
+      Boolean(record?.is_placeholder);
+
+    dropdownAdminActive.checked =
+      record
+        ? Boolean(record.is_active)
+        : true;
+
+    dropdownAdminSaveButton.textContent =
+      isEditing
+        ? "Save Record"
+        : "Add Record";
+
+    dropdownAdminModalBackdrop.hidden = false;
+
+    if (!dropdownAdminNameField.hidden) {
+      dropdownAdminName.focus();
+    }
+  }
+
+  async function submitAdminDropdownRecord() {
+    const recordType =
+      dropdownRecordTypeSelect.value;
+
+    const recordId =
+      dropdownAdminRecordId.value || null;
+
+    if (!recordType) {
+      showDropdownAdminFormMessage(
+        "Select a record type."
+      );
+      return;
+    }
+
+    if (
+      recordType !== "task_types" &&
+      !dropdownAdminName.value.trim()
+    ) {
+      showDropdownAdminFormMessage(
+        "Enter the record name."
+      );
+      return;
+    }
+
+    if (
+      recordType === "items" &&
+      !dropdownAdminInternalId.value.trim()
+    ) {
+      showDropdownAdminFormMessage(
+        "Enter the Internal ID."
+      );
+      return;
+    }
+
+    if (
+      recordType === "stop_reasons" &&
+      !dropdownAdminReasonType.value
+    ) {
+      showDropdownAdminFormMessage(
+        "Select a reason type."
+      );
+      return;
+    }
+
+    dropdownAdminSaveButton.disabled = true;
+    dropdownAdminSaveButton.textContent =
+      "Saving Record...";
+
+    clearDropdownAdminFormMessage();
+
+    const recordData = {
+      name:
+        dropdownAdminName.value.trim(),
+      internal_id:
+        dropdownAdminInternalId.value.trim(),
+      sku_group:
+        dropdownAdminSkuGroup.value.trim(),
+      work_order_department:
+        dropdownAdminDepartment.value.trim(),
+      make:
+        dropdownAdminMake.value.trim(),
+      build_type:
+        dropdownAdminBuildType.value.trim(),
+      item_cycle_time_minutes:
+        dropdownAdminCycleTime.value,
+      reason_type:
+        dropdownAdminReasonType.value,
+      display_order:
+        dropdownAdminDisplayOrder.value,
+      requires_comment:
+        dropdownAdminRequiresComment.checked,
+      is_placeholder:
+        dropdownAdminPlaceholder.checked,
+      is_active:
+        dropdownAdminActive.checked
+    };
+
+    try {
+      await auth.saveAdminDropdownRecord(
+        currentSession.sessionToken,
+        recordType,
+        recordId,
+        recordData
+      );
+
+      closeDropdownAdminModal();
+      await loadAdminDropdownRecords();
+
+      showDropdownAdminMessage(
+        "The administration record was saved successfully."
+      );
+
+      window.setTimeout(() => {
+        clearDropdownAdminMessage();
+      }, 5000);
+    } catch (error) {
+      showDropdownAdminFormMessage(
+        error.message ||
+        "The administration record could not be saved."
+      );
+    } finally {
+      dropdownAdminSaveButton.disabled = false;
+      dropdownAdminSaveButton.textContent =
+        recordId
+          ? "Save Record"
+          : "Add Record";
+    }
+  }
   async function displayApplication(session) {
     const permissions =
       await auth.getPermissionContext(
@@ -3415,11 +4737,214 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  createMemoForm.addEventListener(
+    createMemoForm.addEventListener(
     "submit",
     async (event) => {
       event.preventDefault();
       await submitCreateMemo();
+    }
+  );
+
+  employeeAdminNavButton.addEventListener(
+    "click",
+    async () => {
+      showApplicationPage("employee-admin");
+
+      try {
+        await loadEmployeeAdminOptions();
+        await loadAdminEmployees();
+      } catch (error) {
+        showEmployeeAdminMessage(
+          error.message ||
+          "Employee Administration could not be loaded."
+        );
+      }
+    }
+  );
+
+  dropdownAdminNavButton.addEventListener(
+    "click",
+    async () => {
+      showApplicationPage("dropdown-admin");
+
+      try {
+        await loadDropdownAdminConfiguration();
+
+        if (dropdownRecordTypeSelect.value) {
+          await loadAdminDropdownRecords();
+        }
+      } catch (error) {
+        showDropdownAdminMessage(
+          error.message ||
+          "Dropdown Administration could not be loaded."
+        );
+      }
+    }
+  );
+
+  employeeAdminRefreshButton.addEventListener(
+    "click",
+    loadAdminEmployees
+  );
+
+  employeeAdminIncludeInactive.addEventListener(
+    "change",
+    loadAdminEmployees
+  );
+
+  employeeAdminSearch.addEventListener(
+    "input",
+    () => {
+      window.clearTimeout(
+        employeeAdminSearchTimer
+      );
+
+      employeeAdminSearchTimer =
+        window.setTimeout(
+          loadAdminEmployees,
+          300
+        );
+    }
+  );
+
+  newEmployeeButton.addEventListener(
+    "click",
+    async () => {
+      try {
+        await loadEmployeeAdminOptions();
+        openEmployeeAdminModal();
+      } catch (error) {
+        showEmployeeAdminMessage(
+          error.message ||
+          "The employee editor could not be opened."
+        );
+      }
+    }
+  );
+
+  employeeAdminModalClose.addEventListener(
+    "click",
+    closeEmployeeAdminModal
+  );
+
+  employeeAdminCancelButton.addEventListener(
+    "click",
+    closeEmployeeAdminModal
+  );
+
+  employeeAdminModalBackdrop.addEventListener(
+    "click",
+    (event) => {
+      if (
+        event.target ===
+        employeeAdminModalBackdrop
+      ) {
+        closeEmployeeAdminModal();
+      }
+    }
+  );
+
+  employeeAdminForm.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+      await submitAdminEmployee();
+    }
+  );
+
+  dropdownAdminRefreshButton.addEventListener(
+    "click",
+    loadAdminDropdownRecords
+  );
+
+  dropdownAdminIncludeInactive.addEventListener(
+    "change",
+    loadAdminDropdownRecords
+  );
+
+  dropdownAdminSearch.addEventListener(
+    "input",
+    () => {
+      window.clearTimeout(
+        dropdownAdminSearchTimer
+      );
+
+      dropdownAdminSearchTimer =
+        window.setTimeout(
+          loadAdminDropdownRecords,
+          300
+        );
+    }
+  );
+
+  dropdownRecordTypeSelect.addEventListener(
+    "change",
+    async () => {
+      dropdownAdminSearch.value = "";
+      currentDropdownRecords = [];
+
+      updateDropdownAdminControls();
+
+      dropdownAdminRecords.innerHTML = "";
+      dropdownAdminSummary.textContent = "";
+
+      if (dropdownRecordTypeSelect.value) {
+        await loadAdminDropdownRecords();
+      }
+    }
+  );
+
+  newDropdownRecordButton.addEventListener(
+    "click",
+    () => {
+      const recordType =
+        getSelectedDropdownRecordType();
+
+      if (!recordType) {
+        showDropdownAdminMessage(
+          "Select a record type first."
+        );
+        return;
+      }
+
+      if (!recordType.supports_create) {
+        showDropdownAdminMessage(
+          "New records cannot be added to this list."
+        );
+        return;
+      }
+
+      openDropdownAdminModal();
+    }
+  );
+
+  dropdownAdminModalClose.addEventListener(
+    "click",
+    closeDropdownAdminModal
+  );
+
+  dropdownAdminCancelButton.addEventListener(
+    "click",
+    closeDropdownAdminModal
+  );
+
+  dropdownAdminModalBackdrop.addEventListener(
+    "click",
+    (event) => {
+      if (
+        event.target ===
+        dropdownAdminModalBackdrop
+      ) {
+        closeDropdownAdminModal();
+      }
+    }
+  );
+
+  dropdownAdminForm.addEventListener(
+    "submit",
+    async (event) => {
+      event.preventDefault();
+      await submitAdminDropdownRecord();
     }
   );
 
@@ -3577,6 +5102,23 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   );
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      if (!employeeAdminModalBackdrop.hidden) {
+        closeEmployeeAdminModal();
+        return;
+      }
+
+      if (!dropdownAdminModalBackdrop.hidden) {
+        closeDropdownAdminModal();
+      }
+    }
+  );
 
   logoutButton.addEventListener(
     "click",
@@ -3592,12 +5134,41 @@ document.addEventListener("DOMContentLoaded", () => {
         logoutButton.textContent =
           "Sign out";
 
-        resetStartTaskForm();
+                resetStartTaskForm();
         resetCreateMemoForm();
+
+        closeEmployeeAdminModal();
+        closeDropdownAdminModal();
+
+        window.clearTimeout(
+          employeeAdminSearchTimer
+        );
+
+        window.clearTimeout(
+          dropdownAdminSearchTimer
+        );
 
         startTaskOptionsData = null;
         memoCreationOptionsData = null;
         currentMemos = [];
+
+        employeeAdminOptionsData = null;
+        currentAdminEmployees = [];
+        employeeAdminSearchTimer = null;
+
+        dropdownAdminConfigurationData = null;
+        currentDropdownRecords = [];
+        dropdownAdminSearchTimer = null;
+
+        employeeAdminSearch.value = "";
+        employeeAdminRecords.innerHTML = "";
+        employeeAdminSummary.textContent = "";
+        clearEmployeeAdminMessage();
+
+        dropdownAdminSearch.value = "";
+        dropdownAdminRecords.innerHTML = "";
+        dropdownAdminSummary.textContent = "";
+        clearDropdownAdminMessage();
 
         pendingMemoCount.hidden = true;
         pendingMemoCount.textContent = "";
