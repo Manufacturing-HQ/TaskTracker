@@ -893,10 +893,13 @@
       display: none;
     }
 
-    .task-action-modal {
+        .task-action-modal {
       width: min(100%, 520px);
       max-height: calc(100vh - 48px);
-      overflow-y: auto;
+      max-height: calc(100dvh - 48px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
       border: 1px solid var(--slate-200);
       border-radius: 18px;
       background: white;
@@ -904,13 +907,17 @@
         0 28px 70px rgba(15, 23, 42, 0.28);
     }
 
-    .task-action-modal-header {
+        .task-action-modal-header {
+      position: relative;
+      z-index: 2;
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
+      flex: 0 0 auto;
       gap: 20px;
       padding: 24px 26px 18px;
       border-bottom: 1px solid var(--slate-200);
+      background: white;
     }
 
     .task-action-modal-header h2 {
@@ -938,15 +945,25 @@
       line-height: 1;
     }
 
-    .task-action-modal-body {
+        .task-action-modal-body {
+      min-height: 0;
       padding: 24px 26px 26px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     .task-action-modal-footer {
+      position: sticky;
+      z-index: 3;
+      bottom: -26px;
       display: flex;
       justify-content: flex-end;
       gap: 12px;
-      margin-top: 22px;
+      margin: 22px -26px -26px;
+      padding: 16px 26px;
+      border-top: 1px solid var(--slate-200);
+      background: white;
     }
 
     .task-action-cancel-button,
@@ -1128,7 +1145,8 @@
       top: calc(100% + 7px);
       right: 0;
       left: 0;
-      max-height: 330px;
+      max-height: min(330px, 40vh);
+      max-height: min(330px, 40dvh);
       overflow-y: auto;
       border: 1px solid var(--slate-200);
       border-radius: 13px;
@@ -1354,6 +1372,53 @@
 
       .task-action-row {
         flex-wrap: wrap;
+      }
+    }
+
+        @media (max-width: 600px) {
+      .task-action-modal-backdrop {
+        align-items: flex-end;
+        padding: 12px;
+      }
+
+      .task-action-modal {
+        width: 100%;
+        max-height: calc(100vh - 24px);
+        max-height: calc(100dvh - 24px);
+        border-radius: 18px 18px 12px 12px;
+      }
+
+      .task-action-modal-header {
+        gap: 14px;
+        padding: 20px 18px 16px;
+      }
+
+      .task-action-modal-header h2 {
+        font-size: 20px;
+      }
+
+      .task-action-modal-body {
+        padding: 20px 18px;
+      }
+
+      .task-action-modal-footer {
+        bottom: -20px;
+        flex-direction: column-reverse;
+        margin: 20px -18px -20px;
+        padding: 14px 18px;
+      }
+
+      .task-action-cancel-button,
+      .task-action-confirm-button {
+        width: 100%;
+      }
+
+      .selected-item-header {
+        align-items: flex-start;
+      }
+
+      .item-search-results {
+        max-height: 220px;
       }
     }
 
