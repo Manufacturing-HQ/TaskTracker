@@ -1258,6 +1258,204 @@
       padding: 0 28px;
     }
 
+        .admin-toolbar {
+      display: grid;
+      grid-template-columns:
+        minmax(240px, 1fr)
+        minmax(180px, 0.65fr)
+        auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .admin-search-field,
+    .admin-filter-field {
+      min-width: 0;
+    }
+
+    .admin-search-field label,
+    .admin-filter-field label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--slate-700);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .admin-search-field input,
+    .admin-filter-field select {
+      width: 100%;
+      min-height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--slate-300);
+      border-radius: 11px;
+      outline: none;
+      color: var(--slate-900);
+      background: white;
+      font: inherit;
+    }
+
+    .admin-search-field input:focus,
+    .admin-filter-field select:focus {
+      border-color: var(--blue-500);
+      box-shadow:
+        0 0 0 4px rgba(59, 130, 246, 0.11);
+    }
+
+    .admin-checkbox-control {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--slate-700);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .admin-checkbox-control input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .admin-result-summary {
+      margin: 18px 0 12px;
+      color: var(--slate-500);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .admin-record-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .admin-record-card {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1fr)
+        auto;
+      gap: 20px;
+      align-items: center;
+      padding: 18px;
+      border: 1px solid var(--slate-200);
+      border-radius: 14px;
+      background: white;
+    }
+
+    .admin-record-card.inactive {
+      background: var(--slate-50);
+      opacity: 0.78;
+    }
+
+    .admin-record-title-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .admin-record-title {
+      overflow-wrap: anywhere;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .admin-record-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 16px;
+      margin-top: 7px;
+      color: var(--slate-500);
+      font-size: 12px;
+    }
+
+    .admin-record-status {
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--success);
+      background: #e7f7ee;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .admin-record-status.inactive {
+      color: var(--danger);
+      background: #fdecec;
+    }
+
+    .admin-edit-button {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid var(--slate-300);
+      border-radius: 10px;
+      color: var(--slate-700);
+      background: white;
+      font-weight: 800;
+    }
+
+    .admin-edit-button:hover {
+      border-color: var(--blue-500);
+      color: var(--blue-600);
+    }
+
+    .admin-editor-modal {
+      width: min(780px, 100%);
+    }
+
+    .admin-form-grid {
+      display: grid;
+      grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .admin-form-grid .full-width {
+      grid-column: 1 / -1;
+    }
+
+    .admin-switch-control {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      min-height: 68px;
+      padding: 13px;
+      border: 1px solid var(--slate-200);
+      border-radius: 11px;
+      background: var(--slate-50);
+      cursor: pointer;
+    }
+
+    .admin-switch-control input {
+      flex: 0 0 auto;
+      width: 19px;
+      height: 19px;
+      margin-top: 2px;
+    }
+
+    .admin-switch-control strong,
+    .admin-switch-control small {
+      display: block;
+    }
+
+    .admin-switch-control strong {
+      font-size: 13px;
+    }
+
+    .admin-switch-control small {
+      margin-top: 4px;
+      color: var(--slate-500);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .admin-field-note {
+      margin-top: 7px;
+      color: var(--slate-500);
+      font-size: 11px;
+      line-height: 1.45;
+    }
         .nav-count-badge {
       min-width: 22px;
       margin-left: auto;
@@ -1464,6 +1662,14 @@
     }
 
         @media (max-width: 720px) {
+      .admin-toolbar,
+      .admin-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-form-grid .full-width {
+        grid-column: auto;
+      }
       .task-type-options,
       .start-form-grid,
       .dashboard-grid,
@@ -1503,6 +1709,14 @@
     }
 
         @media (max-width: 900px) {
+      .admin-toolbar {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+
+      .admin-toolbar .refresh-button {
+        justify-self: start;
+      }
       .page-shell {
         display: block;
       }
@@ -1632,6 +1846,13 @@
     }
 
     @media (max-width: 520px) {
+            .admin-record-card {
+        grid-template-columns: 1fr;
+      }
+
+      .admin-edit-button {
+        width: 100%;
+      }
       .memo-card-header {
         flex-direction: column;
       }
@@ -1942,12 +2163,20 @@
       >
         <div class="sidebar-label">Administration</div>
 
-        <button class="nav-link" type="button">
+                <button
+          id="employee-admin-nav-button"
+          class="nav-link"
+          type="button"
+        >
           Employees
         </button>
 
-        <button class="nav-link" type="button">
-          System Settings
+        <button
+          id="dropdown-admin-nav-button"
+          class="nav-link"
+          type="button"
+        >
+          Dropdowns
         </button>
       </section>
 
@@ -2514,7 +2743,7 @@
             ></div>
 
             <div class="start-task-submit-row">
-              <button
+                            <button
                 id="create-memo-submit-button"
                 class="login-button start-task-submit-button"
                 type="submit"
@@ -2529,10 +2758,670 @@
 
       </div>
 
+
+      <div id="employee-admin-page" hidden>
+
+        <header class="app-header">
+          <div>
+            <h1>Employee Administration</h1>
+
+            <p>
+              Add employees, update reporting relationships,
+              manage roles, reset PINs, and control access.
+            </p>
+          </div>
+
+          <button
+            id="new-employee-button"
+            class="refresh-button"
+            type="button"
+          >
+            Add Employee
+          </button>
+        </header>
+
+        <section class="workspace-card">
+
+          <div class="admin-toolbar">
+
+            <div class="admin-search-field">
+              <label for="employee-admin-search">
+                Search employees
+              </label>
+
+              <input
+                id="employee-admin-search"
+                type="search"
+                autocomplete="off"
+                placeholder="Search by name, department, role, or supervisor"
+              >
+            </div>
+
+            <label class="admin-checkbox-control">
+              <input
+                id="employee-admin-include-inactive"
+                type="checkbox"
+                checked
+              >
+
+              <span>Show inactive employees</span>
+            </label>
+
+            <button
+              id="employee-admin-refresh-button"
+              class="refresh-button"
+              type="button"
+            >
+              Refresh
+            </button>
+
+          </div>
+
+          <div
+            id="employee-admin-message"
+            class="task-state-message"
+            hidden
+          ></div>
+
+          <div
+            id="employee-admin-summary"
+            class="admin-result-summary"
+          ></div>
+
+          <div
+            id="employee-admin-records"
+            class="admin-record-list"
+          ></div>
+
+        </section>
+
+      </div>
+
+
+      <div id="dropdown-admin-page" hidden>
+
+        <header class="app-header">
+          <div>
+            <h1>Dropdown Administration</h1>
+
+            <p>
+              Manage operational lists, memo categories,
+              stop reasons, task options, and item records.
+            </p>
+          </div>
+
+          <button
+            id="new-dropdown-record-button"
+            class="refresh-button"
+            type="button"
+          >
+            Add Record
+          </button>
+        </header>
+
+        <section class="workspace-card">
+
+          <div class="admin-toolbar">
+
+            <div class="admin-filter-field">
+              <label for="dropdown-record-type-select">
+                Record type
+              </label>
+
+              <select id="dropdown-record-type-select">
+                <option value="">
+                  Loading record types...
+                </option>
+              </select>
+            </div>
+
+            <div class="admin-search-field">
+              <label for="dropdown-admin-search">
+                Search records
+              </label>
+
+              <input
+                id="dropdown-admin-search"
+                type="search"
+                autocomplete="off"
+                placeholder="Search the selected list"
+              >
+            </div>
+
+            <label class="admin-checkbox-control">
+              <input
+                id="dropdown-admin-include-inactive"
+                type="checkbox"
+                checked
+              >
+
+              <span>Show inactive records</span>
+            </label>
+
+            <button
+              id="dropdown-admin-refresh-button"
+              class="refresh-button"
+              type="button"
+            >
+              Refresh
+            </button>
+
+          </div>
+
+          <div
+            id="dropdown-admin-message"
+            class="task-state-message"
+            hidden
+          ></div>
+
+          <div
+            id="dropdown-admin-summary"
+            class="admin-result-summary"
+          ></div>
+
+          <div
+            id="dropdown-admin-records"
+            class="admin-record-list"
+          ></div>
+
+        </section>
+
+      </div>
+
     </section>
 
   </main>
+  <div
+    id="employee-admin-modal-backdrop"
+    class="task-action-modal-backdrop"
+    hidden
+  >
 
+    <section
+      class="task-action-modal admin-editor-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="employee-admin-modal-title"
+    >
+
+      <header class="task-action-modal-header">
+
+        <div>
+          <span class="section-eyebrow">
+            Employee Administration
+          </span>
+
+          <h2 id="employee-admin-modal-title">
+            Add Employee
+          </h2>
+        </div>
+
+        <button
+          id="employee-admin-modal-close"
+          class="task-action-modal-close"
+          type="button"
+          aria-label="Close employee editor"
+        >
+          ×
+        </button>
+
+      </header>
+
+      <form id="employee-admin-form">
+
+        <div class="task-action-modal-body">
+
+          <input
+            id="employee-admin-id"
+            type="hidden"
+          >
+
+          <div class="admin-form-grid">
+
+            <div class="form-field">
+              <label for="employee-admin-name">
+                Employee Name
+                <span class="required-marker">*</span>
+              </label>
+
+              <input
+                id="employee-admin-name"
+                type="text"
+                maxlength="200"
+                required
+              >
+            </div>
+
+            <div class="form-field">
+              <label for="employee-admin-department">
+                Department
+              </label>
+
+              <input
+                id="employee-admin-department"
+                type="text"
+                maxlength="150"
+                list="employee-department-options"
+              >
+
+              <datalist id="employee-department-options">
+              </datalist>
+            </div>
+
+            <div class="form-field">
+              <label for="employee-admin-role">
+                Role
+                <span class="required-marker">*</span>
+              </label>
+
+              <select
+                id="employee-admin-role"
+                required
+              >
+                <option value="">
+                  Select a role
+                </option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label for="employee-admin-supervisor">
+                Supervisor
+              </label>
+
+              <select id="employee-admin-supervisor">
+                <option value="">
+                  No supervisor
+                </option>
+              </select>
+            </div>
+
+            <div class="form-field">
+              <label for="employee-admin-display-order">
+                Display Order
+              </label>
+
+              <input
+                id="employee-admin-display-order"
+                type="number"
+                min="0"
+                step="1"
+                value="0"
+              >
+            </div>
+
+            <div class="form-field">
+              <label for="employee-admin-pin">
+                <span id="employee-admin-pin-label">
+                  New PIN
+                </span>
+              </label>
+
+              <input
+                id="employee-admin-pin"
+                type="password"
+                inputmode="numeric"
+                autocomplete="new-password"
+                minlength="4"
+                maxlength="12"
+                pattern="[0-9]{4,12}"
+                placeholder="4 to 12 numbers"
+              >
+
+              <div
+                id="employee-admin-pin-note"
+                class="admin-field-note"
+              >
+                Leave blank when editing to keep the current PIN.
+              </div>
+            </div>
+
+            <label
+              class="admin-switch-control full-width"
+              for="employee-admin-active"
+            >
+              <input
+                id="employee-admin-active"
+                type="checkbox"
+                checked
+              >
+
+              <span>
+                <strong>Active employee</strong>
+
+                <small>
+                  Inactive employees cannot sign in.
+                </small>
+              </span>
+            </label>
+
+          </div>
+
+          <div
+            id="employee-admin-form-message"
+            class="login-message"
+            hidden
+          ></div>
+
+        </div>
+
+        <footer class="task-action-modal-footer">
+
+          <button
+            id="employee-admin-cancel-button"
+            class="task-action-cancel-button"
+            type="button"
+          >
+            Cancel
+          </button>
+
+          <button
+            id="employee-admin-save-button"
+            class="task-action-confirm-button"
+            type="submit"
+          >
+            Save Employee
+          </button>
+
+        </footer>
+
+      </form>
+
+    </section>
+
+  </div>
+    <div
+    id="dropdown-admin-modal-backdrop"
+    class="task-action-modal-backdrop"
+    hidden
+  >
+
+    <section
+      class="task-action-modal admin-editor-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dropdown-admin-modal-title"
+    >
+
+      <header class="task-action-modal-header">
+
+        <div>
+          <span class="section-eyebrow">
+            Dropdown Administration
+          </span>
+
+          <h2 id="dropdown-admin-modal-title">
+            Add Record
+          </h2>
+        </div>
+
+        <button
+          id="dropdown-admin-modal-close"
+          class="task-action-modal-close"
+          type="button"
+          aria-label="Close record editor"
+        >
+          ×
+        </button>
+
+      </header>
+
+      <form id="dropdown-admin-form">
+
+        <div class="task-action-modal-body">
+
+          <input
+            id="dropdown-admin-record-id"
+            type="hidden"
+          >
+
+          <div class="admin-form-grid">
+
+            <div
+              id="dropdown-admin-name-field"
+              class="form-field full-width"
+            >
+              <label for="dropdown-admin-name">
+                Name
+                <span class="required-marker">*</span>
+              </label>
+
+              <input
+                id="dropdown-admin-name"
+                type="text"
+                maxlength="250"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-internal-id-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-internal-id">
+                Internal ID
+                <span class="required-marker">*</span>
+              </label>
+
+              <input
+                id="dropdown-admin-internal-id"
+                type="text"
+                maxlength="200"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-sku-group-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-sku-group">
+                SKU Group
+              </label>
+
+              <input
+                id="dropdown-admin-sku-group"
+                type="text"
+                maxlength="200"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-department-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-department">
+                Work Order Department
+              </label>
+
+              <input
+                id="dropdown-admin-department"
+                type="text"
+                maxlength="200"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-make-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-make">
+                Make
+              </label>
+
+              <input
+                id="dropdown-admin-make"
+                type="text"
+                maxlength="200"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-build-type-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-build-type">
+                Build Type
+              </label>
+
+              <input
+                id="dropdown-admin-build-type"
+                type="text"
+                maxlength="200"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-cycle-time-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-cycle-time">
+                Cycle Time in Minutes
+              </label>
+
+              <input
+                id="dropdown-admin-cycle-time"
+                type="number"
+                min="0"
+                step="0.01"
+              >
+            </div>
+
+            <div
+              id="dropdown-admin-reason-type-field"
+              class="form-field"
+              hidden
+            >
+              <label for="dropdown-admin-reason-type">
+                Reason Type
+                <span class="required-marker">*</span>
+              </label>
+
+              <select id="dropdown-admin-reason-type">
+                <option value="">
+                  Select a reason type
+                </option>
+              </select>
+            </div>
+
+            <div
+              id="dropdown-admin-display-order-field"
+              class="form-field"
+            >
+              <label for="dropdown-admin-display-order">
+                Display Order
+              </label>
+
+              <input
+                id="dropdown-admin-display-order"
+                type="number"
+                min="0"
+                step="1"
+                value="0"
+              >
+            </div>
+
+            <label
+              id="dropdown-admin-requires-comment-field"
+              class="admin-switch-control"
+              for="dropdown-admin-requires-comment"
+              hidden
+            >
+              <input
+                id="dropdown-admin-requires-comment"
+                type="checkbox"
+              >
+
+              <span>
+                <strong>Require comments</strong>
+
+                <small>
+                  Employees must enter a comment when using
+                  this option.
+                </small>
+              </span>
+            </label>
+
+            <label
+              id="dropdown-admin-placeholder-field"
+              class="admin-switch-control"
+              for="dropdown-admin-placeholder"
+              hidden
+            >
+              <input
+                id="dropdown-admin-placeholder"
+                type="checkbox"
+              >
+
+              <span>
+                <strong>Placeholder item</strong>
+
+                <small>
+                  Marks this as a special item-not-listed
+                  record.
+                </small>
+              </span>
+            </label>
+
+            <label
+              class="admin-switch-control"
+              for="dropdown-admin-active"
+            >
+              <input
+                id="dropdown-admin-active"
+                type="checkbox"
+                checked
+              >
+
+              <span>
+                <strong>Active record</strong>
+
+                <small>
+                  Inactive records are hidden from operational
+                  forms.
+                </small>
+              </span>
+            </label>
+
+          </div>
+
+          <div
+            id="dropdown-admin-form-message"
+            class="login-message"
+            hidden
+          ></div>
+
+        </div>
+
+        <footer class="task-action-modal-footer">
+
+          <button
+            id="dropdown-admin-cancel-button"
+            class="task-action-cancel-button"
+            type="button"
+          >
+            Cancel
+          </button>
+
+          <button
+            id="dropdown-admin-save-button"
+            class="task-action-confirm-button"
+            type="submit"
+          >
+            Save Record
+          </button>
+
+        </footer>
+
+      </form>
+
+    </section>
+
+  </div>
   <div
     id="task-action-modal-backdrop"
     class="task-action-modal-backdrop"
