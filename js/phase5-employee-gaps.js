@@ -163,11 +163,14 @@
       const f = $("edit-placeholder-field");
       f.hidden = !f.hidden;
       $("edit-item-search").disabled = !f.hidden;
-      if (!f.hidden) { editSelectedItem = startOptions?.placeholder_item || null; renderEditSelectedItem(); }
+      if (!f.hidden) {
+        editSelectedItem = startOptions?.placeholder_item || null;
+        renderEditSelectedItem();
+      }
     });
     $("edit-item-search").addEventListener("input", () => {
       clearTimeout(editSearchTimer);
-      editSearchTimer = setTimeout(() => searchEditItems().catch(e => message(e.message,"error")), 250);
+      editSearchTimer = setTimeout(() => searchEditItems().catch(e => message(e.message, "error")), 250);
     });
   }
 
@@ -180,7 +183,14 @@
       editState = active;
       const opts = startOptions || await getOptions();
       const fill = (id, values) => {
-        const s=$(id); s.innerHTML='<option value="">Select</option>'; values.forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;s.appendChild(o);});
+        const s = $(id);
+        s.innerHTML = '<option value="">Select</option>';
+        values.forEach(v => {
+          const o = document.createElement("option");
+          o.value = v;
+          o.textContent = v;
+          s.appendChild(o);
+        });
       };
       fill("edit-work-order-type", opts.work_order_types || []);
       fill("edit-job-type", opts.job_types || []);
@@ -198,59 +208,77 @@
       else editSelectedItem = { item_id: active.item_id, item_name: active.item_name, internal_id: active.internal_id };
       renderEditSelectedItem();
       $("edit-job-panel").hidden = false;
-    } catch (e) { message(e.message,"error"); }
+    } catch (e) {
+      message(e.message, "error");
+    }
   }
 
   async function searchEditItems() {
     const q = $("edit-item-search").value.trim();
-    const items = await rpc("search_start_task_items_v2", { p_session_token:token(), p_search_text:q||null, p_department:null, p_make:null, p_result_limit:30 });
-    const box=$("edit-item-results"); box.innerHTML="";
-    (items||[]).forEach(item=>{const b=document.createElement("button");b.type="button";b.className="item-row";b.innerHTML=`<strong>${esc(item.item_name)}</strong><span>${esc(item.internal_id||"")}</span>`;b.addEventListener("click",()=>{editSelectedItem=item;renderEditSelectedItem();box.innerHTML="";});box.appendChild(b);});
+    const items = await rpc("search_start_task_items_v2", {
+      p_session_token: token(), p_search_text: q || null, p_department: null, p_make: null, p_result_limit: 30
+    });
+    const box = $("edit-item-results");
+    box.innerHTML = "";
+    (items || []).forEach(item => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "item-row";
+      b.innerHTML = `<strong>${esc(item.item_name)}</strong><span>${esc(item.internal_id || "")}</span>`;
+      b.addEventListener("click", () => {
+        editSelectedItem = item;
+        renderEditSelectedItem();
+        box.innerHTML = "";
+      });
+      box.appendChild(b);
+    });
   }
 
   function renderEditSelectedItem() {
-    const el=$("edit-selected-item");
-    if (!editSelectedItem) { el.textContent="No item selected"; return; }
-    el.innerHTML=`<strong>${esc(editSelectedItem.item_name||"Item Not Listed")}</strong><div class="muted">${esc(editSelectedItem.internal_id||"")}</div>`;
+    const el = $("edit-selected-item");
+    if (!editSelectedItem) {
+      el.textContent = "No item selected";
+      return;
+    }
+    el.innerHTML = `<strong>${esc(editSelectedItem.item_name || "Item Not Listed")}</strong><div class="muted">${esc(editSelectedItem.internal_id || "")}</div>`;
   }
 
   async function saveEdit() {
     try {
       if (!editState) throw new Error("No active job is loaded.");
-      const reason=$("edit-reason").value.trim();
+      const reason = $("edit-reason").value.trim();
       if (!reason) throw new Error("Enter a correction reason.");
       if (!editSelectedItem?.item_id) throw new Error("Select an item.");
       const isPlaceholder = !$("edit-placeholder-field").hidden;
       const detail = isPlaceholder ? $("edit-item-detail").value.trim() : null;
       if (isPlaceholder && !detail) throw new Error("Enter the Item Not Listed description.");
-      const qty=Number($("edit-quantity").value);
-      if (!(qty>0)) throw new Error("Assigned quantity must be greater than zero.");
-      const opts=startOptions||await getOptions();
-      const productiveType=(opts.task_types||[]).find(x=>x.task_type_name==="Productive");
-      const state=await rpc("edit_permitted_job_v2",{
-        p_session_token:token(), p_job_id:editState.job_id, p_correction_reason:reason,
-        p_task_type_id:productiveType.task_type_id, p_assigned_quantity:qty,
-        p_item_id:editSelectedItem.item_id, p_item_not_listed_detail:detail,
-        p_non_productive_task_id:null, p_work_order_number:$("edit-work-order").value.trim(),
-        p_work_order_type:$("edit-work-order-type").value, p_job_type:$("edit-job-type").value,
-        p_job_comments:$("edit-comments").value.trim()||null
+      const qty = Number($("edit-quantity").value);
+      if (!(qty > 0)) throw new Error("Assigned quantity must be greater than zero.");
+      const opts = startOptions || await getOptions();
+      const productiveType = (opts.task_types || []).find(x => x.task_type_name === "Productive");
+      await rpc("edit_permitted_job_v2", {
+        p_session_token: token(),
+        p_job_id: editState.job_id,
+        p_correction_reason: reason,
+        p_task_type_id: productiveType.task_type_id,
+        p_assigned_quantity: qty,
+        p_item_id: editSelectedItem.item_id,
+        p_item_not_listed_detail: detail,
+        p_non_productive_task_id: null,
+        p_work_order_number: $("edit-work-order").value.trim(),
+        p_work_order_type: $("edit-work-order-type").value,
+        p_job_type: $("edit-job-type").value,
+        p_job_comments: $("edit-comments").value.trim() || null
       });
-      $("edit-job-panel").hidden=true;
-      message("Active job details updated successfully.","success");
+      $("edit-job-panel").hidden = true;
+      message("Active job details updated successfully.", "success");
       $("refresh-state").click();
-    } catch(e){ message(e.message,"error"); }
-  }
-
-  function watchUi() {
-    addItemNotListedControls();
-    ensureEditUi();
-    const active = $("active-actions");
-    const editBtn=$("edit-current-job");
-    if (editBtn) editBtn.hidden = !active || active.hidden;
+    } catch (e) {
+      message(e.message, "error");
+    }
   }
 
   document.addEventListener("submit", handlePlaceholderStart, true);
-  const observer = new MutationObserver(watchUi);
-  observer.observe(document.documentElement, { childList:true, subtree:true, attributes:true, attributeFilter:["hidden"] });
-  watchUi();
+  addItemNotListedControls();
+  ensureEditUi();
 })();
