@@ -187,7 +187,7 @@
   function setItemNotListedMode(enabled) {
     itemNotListedMode = enabled;
     $("item-not-listed-fields").hidden = !enabled;
-    $("item-not-listed-toggle").textContent = enabled ? "Use Listed Item Instead" : "Item Not Listed";
+    $("item-not-listed-toggle").textContent = enabled ? "Cancel Item Not Listed" : "Item Not Listed";
     $("item-search").disabled = enabled;
     $("department").disabled = enabled;
     $("make").disabled = enabled;
@@ -259,10 +259,10 @@
 
     if (selectedTaskType.task_type_name === "Productive") {
       if (itemNotListedMode) {
-        if (!startOptions?.placeholder_item?.item_id) return "The Item Not Listed placeholder is not configured.";
+        if (!startOptions?.placeholder_item?.item_id) return "Item Not Listed is not configured.";
         if (!$("item-not-listed-detail").value.trim()) return "Enter the Item Not Listed description.";
       } else if (!selectedItem) {
-        return "Select an item or choose Item Not Listed.";
+        return "Select an item.";
       }
       if (!$("work-order").value.trim()) return "Enter the work order number.";
       if (!$("work-order-type").value) return "Select the work order type.";
@@ -285,13 +285,8 @@
     }
 
     const productive = selectedTaskType.task_type_name === "Productive";
-    const item = productive
-      ? (itemNotListedMode ? startOptions.placeholder_item : selectedItem)
-      : null;
-    const itemDetail = productive && itemNotListedMode
-      ? $("item-not-listed-detail").value.trim()
-      : null;
-
+    const startItem = productive && itemNotListedMode ? startOptions.placeholder_item : selectedItem;
+    const itemDetail = productive && itemNotListedMode ? $("item-not-listed-detail").value.trim() : null;
     $("start-button").disabled = true;
     setMessage("Starting task...");
 
@@ -299,7 +294,7 @@
       const rows = await rpc("start_my_task_v2", {
         p_session_token: sessionToken,
         p_task_type_id: selectedTaskType.task_type_id,
-        p_item_id: productive ? item.item_id : null,
+        p_item_id: productive ? startItem.item_id : null,
         p_item_not_listed_detail: itemDetail,
         p_work_order_number: productive ? $("work-order").value.trim() : null,
         p_work_order_type: productive ? $("work-order-type").value : null,
@@ -327,14 +322,14 @@
     itemNotListedMode = false;
     $("productive-fields").hidden = true;
     $("np-fields").hidden = true;
-    $("selected-item").hidden = true;
-    $("selected-item").innerHTML = "";
-    $("item-results").innerHTML = "";
     $("item-not-listed-fields").hidden = true;
     $("item-not-listed-toggle").textContent = "Item Not Listed";
     $("item-search").disabled = false;
     $("department").disabled = false;
     $("make").disabled = false;
+    $("selected-item").hidden = true;
+    $("selected-item").innerHTML = "";
+    $("item-results").innerHTML = "";
     document.querySelectorAll("#task-types .choice").forEach((b) => b.classList.remove("selected"));
   }
 
@@ -352,7 +347,7 @@
       card.className = "mini-card";
       card.innerHTML = `
         <strong>Job #${escapeHtml(job.job_number)} · ${escapeHtml(job.job_status)}</strong>
-        <div>${escapeHtml(job.item_name || job.non_productive_task_name || "")}</div>
+        <div>${escapeHtml(job.item_not_listed_detail || job.item_name || job.non_productive_task_name || "")}</div>
         <div class="state-meta">${escapeHtml([job.work_order_number, job.job_type].filter(Boolean).join(" · "))}</div>
         ${["Paused", "Blocked"].includes(job.job_status) ? `<div style="margin-top:10px"><button class="secondary resume-job" type="button" data-job-id="${escapeHtml(job.job_id)}">Resume</button></div>` : ""}
       `;
@@ -425,7 +420,7 @@
     } else {
       box.innerHTML = `
         <div class="state-title">${escapeHtml(active.task_type_name)} · Job #${escapeHtml(active.job_number)}</div>
-        <div>${escapeHtml(active.item_name || active.non_productive_task_name || "")}</div>
+        <div>${escapeHtml(active.item_not_listed_detail || active.item_name || active.non_productive_task_name || "")}</div>
         <div class="state-meta">${escapeHtml([active.work_order_number, active.job_type, active.assigned_quantity ? `Qty ${active.assigned_quantity}` : null].filter(Boolean).join(" · "))}</div>
       `;
       $("active-actions").hidden = false;
