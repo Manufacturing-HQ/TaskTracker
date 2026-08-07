@@ -22,7 +22,8 @@
     textarea { min-height: 92px; resize: vertical; }
     .primary { border: 0; border-radius: 10px; padding: 12px 18px; background: #1d4ed8; color: white; font-weight: 800; }
     .secondary { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; background: white; font-weight: 700; }
-    .choices { display: flex; gap: 12px; flex-wrap: wrap; }
+    .danger { border: 1px solid #fecaca; border-radius: 10px; padding: 10px 14px; background: #fff; color: #b91c1c; font-weight: 800; }
+    .choices, .actions { display: flex; gap: 12px; flex-wrap: wrap; }
     .choice { border: 1px solid #cbd5e1; background: white; border-radius: 12px; padding: 12px 18px; font-weight: 800; }
     .choice.selected { border-color: #1d4ed8; background: #eff6ff; color: #1d4ed8; }
     .state-title { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
@@ -39,6 +40,11 @@
     .empty { color: #64748b; padding: 10px 0; }
     .pill { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 800; }
     .row { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .stack { display: grid; gap: 12px; }
+    .mini-card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; background: #f8fafc; }
+    .mini-card strong { display: block; margin-bottom: 4px; }
+    .action-panel { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+    .action-panel .grid { margin-top: 14px; }
     [hidden] { display: none !important; }
     @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .full { grid-column: auto; } .topbar, .row { align-items: stretch; flex-direction: column; } }
   </style>
@@ -91,6 +97,43 @@
             <div id="rework-count" class="pill">0</div>
           </div>
         </div>
+
+        <div id="active-actions" class="action-panel" hidden>
+          <div class="actions">
+            <button class="secondary" type="button" data-action="pause">Pause</button>
+            <button class="secondary" type="button" data-action="block">Block</button>
+            <button class="secondary" type="button" data-action="return">Return</button>
+            <button class="primary" type="button" data-action="complete">Complete</button>
+          </div>
+        </div>
+
+        <div id="action-editor" class="action-panel" hidden>
+          <div class="state-title" id="action-title">Task Action</div>
+          <div class="grid">
+            <div id="action-reason-field">
+              <label for="action-reason">Reason</label>
+              <select id="action-reason"></select>
+            </div>
+            <div>
+              <label for="action-comments">Comments</label>
+              <input id="action-comments" type="text" placeholder="Optional comments">
+            </div>
+            <div class="full actions">
+              <button id="confirm-action" class="primary" type="button">Confirm</button>
+              <button id="cancel-action" class="secondary" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 style="margin-top:0">Unfinished / Resumable Jobs</h2>
+        <div id="unfinished" class="stack"></div>
+      </section>
+
+      <section class="card">
+        <h2 style="margin-top:0">Pending QA Rework</h2>
+        <div id="rework-list" class="stack"></div>
       </section>
 
       <form id="start-form">
