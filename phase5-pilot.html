@@ -32,8 +32,8 @@
     .item-row { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; border: 0; border-bottom: 1px solid #eef2f7; padding: 11px 12px; background: white; text-align: left; }
     .item-row:last-child { border-bottom: 0; }
     .item-row:hover { background: #f8fafc; }
-    .item-row span, #selected-item span { color: #64748b; font-size: 12px; }
-    #selected-item { margin-top: 10px; padding: 12px; border-radius: 10px; background: #eff6ff; display: flex; flex-direction: column; gap: 4px; }
+    .item-row span, #selected-item span, #edit-selected-item span { color: #64748b; font-size: 12px; }
+    #selected-item, #edit-selected-item { margin-top: 10px; padding: 12px; border-radius: 10px; background: #eff6ff; display: flex; flex-direction: column; gap: 4px; }
     .item-not-listed { margin-top: 10px; padding: 14px; border: 1px dashed #94a3b8; border-radius: 12px; background: #f8fafc; }
     .message { padding: 11px 13px; border-radius: 10px; background: #e2e8f0; margin-bottom: 18px; }
     .message[data-type="error"] { background: #fee2e2; color: #991b1b; }
@@ -101,6 +101,7 @@
 
         <div id="active-actions" class="action-panel" hidden>
           <div class="actions">
+            <button id="edit-current-job" class="secondary" type="button">Edit Job Details</button>
             <button class="secondary" type="button" data-action="pause">Pause</button>
             <button class="secondary" type="button" data-action="block">Block</button>
             <button class="secondary" type="button" data-action="return">Return</button>
@@ -122,6 +123,53 @@
             <div class="full actions">
               <button id="confirm-action" class="primary" type="button">Confirm</button>
               <button id="cancel-action" class="secondary" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="edit-job-panel" class="action-panel" hidden>
+          <div class="state-title">Edit Current Productive Job</div>
+          <div class="muted">Changes are recorded in the correction audit. A correction reason is required.</div>
+          <div class="grid">
+            <div class="full">
+              <label for="edit-reason">Correction Reason</label>
+              <input id="edit-reason" type="text" placeholder="Why is this job being corrected?">
+            </div>
+            <div>
+              <label for="edit-work-order">Work Order Number</label>
+              <input id="edit-work-order" type="text">
+            </div>
+            <div>
+              <label for="edit-quantity">Assigned Quantity</label>
+              <input id="edit-quantity" type="number" min="0.01" step="0.01">
+            </div>
+            <div>
+              <label for="edit-work-order-type">Work Order Type</label>
+              <select id="edit-work-order-type"></select>
+            </div>
+            <div>
+              <label for="edit-job-type">Job Type</label>
+              <select id="edit-job-type"></select>
+            </div>
+            <div class="full">
+              <label for="edit-item-search">Item Search</label>
+              <input id="edit-item-search" type="text" placeholder="Search item name or internal ID">
+              <div id="edit-item-results" class="item-results"></div>
+              <div id="edit-selected-item" hidden></div>
+              <div style="margin-top:10px"><button id="edit-item-not-listed-toggle" class="secondary" type="button">Item Not Listed</button></div>
+              <div id="edit-item-not-listed-fields" class="item-not-listed" hidden>
+                <label for="edit-item-not-listed-detail">Item Description</label>
+                <input id="edit-item-not-listed-detail" type="text" placeholder="Enter the item that is not listed">
+                <div class="muted" style="margin-top:7px">No new item is created in the item list.</div>
+              </div>
+            </div>
+            <div class="full">
+              <label for="edit-comments">Job Comments</label>
+              <textarea id="edit-comments" placeholder="Optional comments"></textarea>
+            </div>
+            <div class="full actions">
+              <button id="save-job-edit" class="primary" type="button">Save Changes</button>
+              <button id="cancel-job-edit" class="secondary" type="button">Cancel</button>
             </div>
           </div>
         </div>
@@ -163,7 +211,7 @@
               <div id="item-not-listed-fields" class="item-not-listed" hidden>
                 <label for="item-not-listed-detail">Item Description</label>
                 <input id="item-not-listed-detail" type="text" placeholder="Enter the item that is not listed">
-                <div class="muted" style="margin-top:7px">The description will be saved with the job while the system placeholder is used internally.</div>
+                <div class="muted" style="margin-top:7px">The description is saved on the job. No new item is created in the item list.</div>
               </div>
             </div>
             <div>
