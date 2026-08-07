@@ -26,9 +26,12 @@
   let sessionToken = sessionStorage.getItem(sessionKey);
   let sessionEmployee = null;
   let startOptions = null;
+  let actionOptions = null;
   let selectedTaskType = null;
   let selectedItem = null;
   let itemSearchTimer = null;
+  let currentState = null;
+  let currentAction = null;
 
   function setMessage(message, type = "info") {
     const el = $("message");
@@ -123,8 +126,8 @@
     select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>`;
     (items || []).forEach((item) => {
       const option = document.createElement("option");
-      option.value = item[valueKey] ?? item;
-      option.textContent = item[labelKey] ?? item;
+      option.value = valueKey ? item[valueKey] : item;
+      option.textContent = labelKey ? item[labelKey] : item;
       select.appendChild(option);
     });
   }
@@ -139,8 +142,8 @@
     const currentDepartment = $("department").value;
     const currentMake = $("make").value;
 
-    fillSelect("department", startOptions.filters?.departments || [], "department", "department", "All departments");
-    fillSelect("make", startOptions.filters?.makes || [], "make", "make", "All makes");
+    fillSelect("department", startOptions.filters?.departments || [], null, null, "All departments");
+    fillSelect("make", startOptions.filters?.makes || [], null, null, "All makes");
 
     if ([...$("department").options].some((o) => o.value === currentDepartment)) $("department").value = currentDepartment;
     if ([...$("make").options].some((o) => o.value === currentMake)) $("make").value = currentMake;
@@ -159,6 +162,14 @@
       button.addEventListener("click", () => selectTaskType(task, button));
       taskWrap.appendChild(button);
     });
+  }
+
+  async function loadActionOptions() {
+    if (actionOptions) return actionOptions;
+    actionOptions = await rpc("get_task_action_options", {
+      p_session_token: sessionToken
+    });
+    return actionOptions;
   }
 
   function selectTaskType(task, button) {
@@ -288,23 +299,178 @@
     document.querySelectorAll("#task-types .choice").forEach((b) => b.classList.remove("selected"));
   }
 
-  async function loadState() {
-    const state = await rpc("get_my_task_state_v2", { p_session_token: sessionToken });
-    const active = state?.active_job;
+  function renderUnfinishedJobs(jobs) {
+    const box = $("unfinished");
+    box.innerHTML = "";
+
+    if (!(jobs || []).length) {
+      box.innerHTML = '<div class="empty">No unfinished jobs.</div>';
+      return;
+    }
+
+    jobs.forEach((job) => {
+      const card = document.createElement("div");
+      card.className = "mini-card";
+      card.innerHTML = `
+        <strong>Job #${escapeHtml(job.job_number)} · ${escapeHtml(job.job_status)}</strong>
+        <div>${escapeHtml(job.item_name || job.non_productive_task_name || "")}</div>
+        <div class="state-meta">${escapeHtml([job.work_order_number, job.job_type].filter(Boolean).join(" · "))}</div>
+        ${["Paused", "Blocked"].includes(job.job_status) ? `<div style="margin-top:10px"><button class="secondary resume-job" type="button" data-job-id="${escapeHtml(job.job_id)}">Resume</button></div>` : ""}
+      `;
+      box.appendChild(card);
+    });
+
+    box.querySelectorAll(".resume-job").forEach((button) => {
+      button.addEventListener("click", async () => {
+        try {
+          const state = await rpc("resume_my_task", {
+            p_session_token: sessionToken,
+            p_job_id: button.dataset.jobId,
+            p_comments: null
+          });
+          setMessage("Task resumed successfully.", "success");
+          renderState(state);
+        } catch (error) {
+          setMessage(error.message, "error");
+        }
+      });
+    });
+  }
+
+  function renderReworkRequests(requests) {
+    const box = $("rework-list");
+    box.innerHTML = "";
+
+    if (!(requests || []).length) {
+      box.innerHTML = '<div class="empty">No pending QA rework.</div>';
+      return;
+    }
+
+    requests.forEach((request) => {
+      const card = document.createElement("div");
+      card.className = "mini-card";
+      card.innerHTML = `
+        <strong>${escapeHtml(request.item_name || "QA Rework")}</strong>
+        <div>${escapeHtml([request.work_order_number, `Qty ${request.requested_quantity}`].filter(Boolean).join(" · "))}</div>
+        <div class="state-meta">${escapeHtml(request.comments || "")}</div>
+        ${request.can_start ? `<div style="margin-top:10px"><button class="primary start-rework" type="button" data-request-id="${escapeHtml(request.rework_request_id)}">Start Rework</button></div>` : ""}
+      `;
+      box.appendChild(card);
+    });
+
+    box.querySelectorAll(".start-rework").forEach((button) => {
+      button.addEventListener("click", async () => {
+        try {
+          await rpc("start_my_qa_rework", {
+            p_session_token: sessionToken,
+            p_rework_request_id: button.dataset.requestId,
+            p_comments: null
+          });
+          setMessage("QA rework started as Non-Productive work.", "success");
+          await loadState();
+        } catch (error) {
+          setMessage(error.message, "error");
+        }
+      });
+    });
+  }
+
+  function renderState(state) {
+    currentState = state || {};
+    const active = currentState.active_job;
     const box = $("state");
 
     if (!active) {
       box.innerHTML = '<div class="empty">No active task.</div>';
+      $("active-actions").hidden = true;
     } else {
       box.innerHTML = `
         <div class="state-title">${escapeHtml(active.task_type_name)} · Job #${escapeHtml(active.job_number)}</div>
         <div>${escapeHtml(active.item_name || active.non_productive_task_name || "")}</div>
         <div class="state-meta">${escapeHtml([active.work_order_number, active.job_type, active.assigned_quantity ? `Qty ${active.assigned_quantity}` : null].filter(Boolean).join(" · "))}</div>
       `;
+      $("active-actions").hidden = false;
     }
 
-    const rework = state?.pending_qa_rework_requests || [];
+    const unfinished = currentState.unfinished_jobs || [];
+    const rework = currentState.pending_qa_rework_requests || [];
     $("rework-count").textContent = String(rework.length);
+    renderUnfinishedJobs(unfinished);
+    renderReworkRequests(rework);
+  }
+
+  async function loadState() {
+    const state = await rpc("get_my_task_state_v2", { p_session_token: sessionToken });
+    renderState(state);
+  }
+
+  async function openAction(action) {
+    const active = currentState?.active_job;
+    if (!active) {
+      setMessage("There is no active task.", "error");
+      return;
+    }
+
+    currentAction = action;
+    $("action-editor").hidden = false;
+    $("action-title").textContent = `${action.charAt(0).toUpperCase()}${action.slice(1)} Job #${active.job_number}`;
+    $("action-comments").value = "";
+
+    const reasonField = $("action-reason-field");
+    const reasonSelect = $("action-reason");
+
+    if (action === "complete") {
+      reasonField.hidden = true;
+      reasonSelect.innerHTML = "";
+    } else {
+      reasonField.hidden = false;
+      const options = await loadActionOptions();
+      const key = `${action}_reasons`;
+      fillSelect("action-reason", options?.[key] || [], "stop_reason_id", "reason_name", `Select ${action} reason`);
+    }
+  }
+
+  function closeActionEditor() {
+    currentAction = null;
+    $("action-editor").hidden = true;
+    $("action-comments").value = "";
+    $("action-reason").innerHTML = "";
+  }
+
+  async function confirmAction() {
+    const active = currentState?.active_job;
+    if (!active || !currentAction) return;
+
+    const comments = $("action-comments").value.trim() || null;
+    const reasonId = $("action-reason").value || null;
+
+    if (currentAction !== "complete" && !reasonId) {
+      setMessage(`Select a ${currentAction} reason.`, "error");
+      return;
+    }
+
+    const functionName = currentAction === "complete"
+      ? "complete_my_task_v2"
+      : `${currentAction}_my_task`;
+
+    const args = {
+      p_session_token: sessionToken,
+      p_job_id: active.job_id,
+      p_comments: comments
+    };
+
+    if (currentAction !== "complete") {
+      args.p_stop_reason_id = reasonId;
+    }
+
+    try {
+      const state = await rpc(functionName, args);
+      closeActionEditor();
+      setMessage(`Task ${currentAction === "complete" ? "completed" : `${currentAction}d`} successfully.`, "success");
+      renderState(state);
+    } catch (error) {
+      setMessage(error.message, "error");
+    }
   }
 
   async function enterApp() {
@@ -335,6 +501,12 @@
     clearTimeout(itemSearchTimer);
     itemSearchTimer = setTimeout(() => searchItems().catch((e) => setMessage(e.message, "error")), 250);
   });
+
+  document.querySelectorAll("[data-action]").forEach((button) => {
+    button.addEventListener("click", () => openAction(button.dataset.action).catch((e) => setMessage(e.message, "error")));
+  });
+  $("confirm-action").addEventListener("click", () => confirmAction());
+  $("cancel-action").addEventListener("click", closeActionEditor);
 
   init();
 })();
