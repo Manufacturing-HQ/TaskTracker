@@ -26,7 +26,19 @@
   function showView(name){ const meta={task:["Start / Current Task","Your active task or the next task to start."],dashboard:["Dashboard","Performance, attendance, memos, and active corrective actions."],history:["History","Review your jobs, stops, QA errors, and corrections."],memos:["Memos","Pending and acknowledged employee communications."]}; document.querySelectorAll(".nav button[data-view]").forEach(b=>b.classList.toggle("active",b.dataset.view===name)); ["task","dashboard","history","memos"].forEach(v=>$("view-"+v).hidden=v!==name); $("page-title").textContent=meta[name][0];$("page-subtitle").textContent=meta[name][1]; if(name==="task") ensureTaskFrame(); if(name==="dashboard") loadDashboard().catch(showError); if(name==="history" && historyRows.length===0) loadHistory().catch(showError); if(name==="memos") loadMemos(false).catch(showError); }
   function showError(e){ alert(e.message||String(e)); }
 
-  async function enterApp(){ const role=sessionEmployee?.employee_role||sessionEmployee?.role||"Employee"; if(role!=="Employee"){ location.href="phase5-main.html"; return; } const name=sessionEmployee?.employee_name||sessionEmployee?.name||"Employee"; const dept=sessionEmployee?.department||""; $("login").hidden=true;$("app").hidden=false;$("side-name").textContent=name;$("side-meta").textContent=[role,dept].filter(Boolean).join(" · "); setMessage(""); ensureTaskFrame(); showView("task"); }
+  async function enterApp(){
+    const role=sessionEmployee?.employee_role||sessionEmployee?.role||"Employee";
+    if(role!=="Employee"){
+      const frame=$("task-frame"); if(frame) frame.removeAttribute("src");
+      sessionStorage.removeItem(sessionKey); sessionToken=null; sessionEmployee=null;
+      $("app").hidden=true; $("login").hidden=false;
+      setMessage("This workspace is for Employee accounts. Please sign in with an Employee account.","error");
+      return;
+    }
+    const name=sessionEmployee?.employee_name||sessionEmployee?.name||"Employee";
+    const dept=sessionEmployee?.department||"";
+    $("login").hidden=true;$("app").hidden=false;$("side-name").textContent=name;$("side-meta").textContent=[role,dept].filter(Boolean).join(" · "); setMessage(""); ensureTaskFrame(); showView("task");
+  }
 
   async function loadDashboard(){ const period=$("performance-period").value; const d=await rpc("get_my_employee_dashboard",{p_session_token:sessionToken,p_period:period}); const p=d?.performance||{}; $("metric-productivity").textContent=pct(p.productivity_percent);$("metric-efficiency").textContent=pct(p.efficiency_percent);$("metric-error").textContent=pct(p.error_rate_percent); const a=d?.attendance_summary||{}; $("att-absence").textContent=a.unplanned_absence_or_left_early??0;$("att-tardy").textContent=a.tardies??0;$("att-ncns").textContent=a.no_call_no_show??0; renderCorrective(d?.active_corrective_actions||[]); renderDashboardMemos(d?.pending_memos||[]); }
   function renderCorrective(rows){ const c=$("corrective-actions"); if(!rows.length){c.innerHTML='<div class="empty">No active coaching or corrective actions.</div>';return;} c.innerHTML=rows.map(r=>`<div class="tile"><strong>${escapeHtml(r.category)} · ${escapeHtml(r.reason)}</strong><small>Incident: ${fmtDate(r.incident_date)} · Roll off: ${escapeHtml(r.roll_off_display||"")}</small><div class="details" style="margin-top:8px">${escapeHtml(r.description||"")}</div></div>`).join(""); }
