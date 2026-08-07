@@ -33,6 +33,9 @@
   let itemSearchTimer = null;
   let currentState = null;
   let currentAction = null;
+  let editSelectedItem = null;
+  let editItemNotListedMode = false;
+  let editSearchTimer = null;
 
   function setMessage(message, type = "info") {
     const el = $("message");
@@ -417,6 +420,7 @@
     if (!active) {
       box.innerHTML = '<div class="empty">No active task.</div>';
       $("active-actions").hidden = true;
+      closeEditPanel();
     } else {
       box.innerHTML = `
         <div class="state-title">${escapeHtml(active.task_type_name)} · Job #${escapeHtml(active.job_number)}</div>
@@ -424,6 +428,7 @@
         <div class="state-meta">${escapeHtml([active.work_order_number, active.job_type, active.assigned_quantity ? `Qty ${active.assigned_quantity}` : null].filter(Boolean).join(" · "))}</div>
       `;
       $("active-actions").hidden = false;
+      $("edit-current-job").hidden = active.task_type_name !== "Productive";
     }
 
     const unfinished = currentState.unfinished_jobs || [];
@@ -438,6 +443,176 @@
     renderState(state);
   }
 
+  function fillEditSelects() {
+    fillSelect("edit-work-order-type", startOptions?.work_order_types || [], null, null, "Select work order type");
+    fillSelect("edit-job-type", startOptions?.job_types || [], null, null, "Select job type");
+  }
+
+  function renderEditSelectedItem() {
+    const el = $("edit-selected-item");
+    if (!editSelectedItem) {
+      el.hidden = true;
+      el.innerHTML = "";
+      return;
+    }
+    el.hidden = false;
+    el.innerHTML = `<strong>${escapeHtml(editSelectedItem.item_name || "Item Not Listed")}</strong><span>${escapeHtml([editSelectedItem.internal_id, editSelectedItem.operation_code ? `Operation ${editSelectedItem.operation_code}` : null].filter(Boolean).join(" · "))}</span>`;
+  }
+
+  function setEditItemNotListedMode(enabled) {
+    editItemNotListedMode = enabled;
+    $("edit-item-not-listed-fields").hidden = !enabled;
+    $("edit-item-not-listed-toggle").textContent = enabled ? "Cancel Item Not Listed" : "Item Not Listed";
+    $("edit-item-search").disabled = enabled;
+    $("edit-item-results").innerHTML = "";
+
+    if (enabled) {
+      editSelectedItem = startOptions?.placeholder_item || null;
+      $("edit-item-search").value = "";
+      renderEditSelectedItem();
+    } else {
+      $("edit-item-not-listed-detail").value = "";
+      editSelectedItem = null;
+      renderEditSelectedItem();
+    }
+  }
+
+  async function openEditPanel() {
+    const active = currentState?.active_job;
+    if (!active) {
+      setMessage("There is no active task to edit.", "error");
+      return;
+    }
+    if (active.task_type_name !== "Productive") {
+      setMessage("Only the current Productive job can be edited here.", "error");
+      return;
+    }
+
+    if (!startOptions) await loadOptions();
+    fillEditSelects();
+    $("edit-reason").value = "";
+    $("edit-work-order").value = active.work_order_number || "";
+    $("edit-quantity").value = active.assigned_quantity ?? "";
+    $("edit-work-order-type").value = active.work_order_type || "";
+    $("edit-job-type").value = active.job_type || "";
+    $("edit-comments").value = active.comments || "";
+    $("edit-item-results").innerHTML = "";
+    $("edit-item-search").value = "";
+
+    editItemNotListedMode = Boolean(active.item_not_listed_detail);
+    $("edit-item-not-listed-fields").hidden = !editItemNotListedMode;
+    $("edit-item-not-listed-toggle").textContent = editItemNotListedMode ? "Cancel Item Not Listed" : "Item Not Listed";
+    $("edit-item-search").disabled = editItemNotListedMode;
+    $("edit-item-not-listed-detail").value = active.item_not_listed_detail || "";
+
+    if (editItemNotListedMode) {
+      editSelectedItem = startOptions.placeholder_item;
+    } else {
+      editSelectedItem = {
+        item_id: active.item_id,
+        item_name: active.item_name,
+        internal_id: active.internal_id,
+        operation_code: active.operation_code
+      };
+    }
+    renderEditSelectedItem();
+    $("action-editor").hidden = true;
+    $("edit-job-panel").hidden = false;
+  }
+
+  function closeEditPanel() {
+    if (!$('edit-job-panel')) return;
+    $("edit-job-panel").hidden = true;
+    editSelectedItem = null;
+    editItemNotListedMode = false;
+    $("edit-item-results").innerHTML = "";
+  }
+
+  async function searchEditItems() {
+    if (!sessionToken || editItemNotListedMode) return;
+    const search = $("edit-item-search").value.trim();
+    const items = await rpc("search_start_task_items_v2", {
+      p_session_token: sessionToken,
+      p_search_text: search || null,
+      p_department: null,
+      p_make: null,
+      p_result_limit: 50
+    });
+
+    const results = $("edit-item-results");
+    results.innerHTML = "";
+    (items || []).forEach((item) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "item-row";
+      button.innerHTML = `<strong>${escapeHtml(item.item_name)}</strong><span>${escapeHtml([item.internal_id, item.work_order_department, item.make].filter(Boolean).join(" · "))}</span>`;
+      button.addEventListener("click", () => {
+        editSelectedItem = item;
+        renderEditSelectedItem();
+        results.innerHTML = "";
+      });
+      results.appendChild(button);
+    });
+    if (!(items || []).length) results.innerHTML = '<div class="empty">No matching items.</div>';
+  }
+
+  async function saveJobEdit() {
+    const active = currentState?.active_job;
+    if (!active) {
+      setMessage("There is no active task to edit.", "error");
+      return;
+    }
+
+    const reason = $("edit-reason").value.trim();
+    const workOrder = $("edit-work-order").value.trim();
+    const quantity = Number($("edit-quantity").value);
+    const workOrderType = $("edit-work-order-type").value;
+    const jobType = $("edit-job-type").value;
+    const comments = $("edit-comments").value.trim() || null;
+    const detail = editItemNotListedMode ? $("edit-item-not-listed-detail").value.trim() : null;
+
+    if (!reason) return setMessage("Enter a correction reason.", "error");
+    if (!workOrder) return setMessage("Enter the work order number.", "error");
+    if (!(quantity > 0)) return setMessage("Assigned quantity must be greater than zero.", "error");
+    if (!workOrderType) return setMessage("Select the work order type.", "error");
+    if (!jobType) return setMessage("Select the job type.", "error");
+    if (editItemNotListedMode) {
+      if (!startOptions?.placeholder_item?.item_id) return setMessage("Item Not Listed is not configured.", "error");
+      if (!detail) return setMessage("Enter the Item Not Listed description.", "error");
+    } else if (!editSelectedItem?.item_id) {
+      return setMessage("Select an item.", "error");
+    }
+
+    const productiveType = (startOptions?.task_types || []).find((t) => t.task_type_name === "Productive");
+    if (!productiveType) return setMessage("Productive task type is not configured.", "error");
+
+    $("save-job-edit").disabled = true;
+    setMessage("Saving job changes...");
+    try {
+      const state = await rpc("edit_permitted_job_v2", {
+        p_session_token: sessionToken,
+        p_job_id: active.job_id,
+        p_correction_reason: reason,
+        p_task_type_id: productiveType.task_type_id,
+        p_assigned_quantity: quantity,
+        p_item_id: editItemNotListedMode ? startOptions.placeholder_item.item_id : editSelectedItem.item_id,
+        p_item_not_listed_detail: detail,
+        p_non_productive_task_id: null,
+        p_work_order_number: workOrder,
+        p_work_order_type: workOrderType,
+        p_job_type: jobType,
+        p_job_comments: comments
+      });
+      closeEditPanel();
+      setMessage("Job details updated successfully.", "success");
+      renderState(state);
+    } catch (error) {
+      setMessage(error.message, "error");
+    } finally {
+      $("save-job-edit").disabled = false;
+    }
+  }
+
   async function openAction(action) {
     const active = currentState?.active_job;
     if (!active) {
@@ -445,6 +620,7 @@
       return;
     }
 
+    closeEditPanel();
     currentAction = action;
     $("action-editor").hidden = false;
     $("action-title").textContent = `${action.charAt(0).toUpperCase()}${action.slice(1)} Job #${active.job_number}`;
@@ -536,6 +712,14 @@
     itemSearchTimer = setTimeout(() => searchItems().catch((e) => setMessage(e.message, "error")), 250);
   });
   $("item-not-listed-toggle").addEventListener("click", () => setItemNotListedMode(!itemNotListedMode));
+  $("edit-current-job").addEventListener("click", () => openEditPanel().catch((e) => setMessage(e.message, "error")));
+  $("cancel-job-edit").addEventListener("click", closeEditPanel);
+  $("save-job-edit").addEventListener("click", () => saveJobEdit().catch((e) => setMessage(e.message, "error")));
+  $("edit-item-not-listed-toggle").addEventListener("click", () => setEditItemNotListedMode(!editItemNotListedMode));
+  $("edit-item-search").addEventListener("input", () => {
+    clearTimeout(editSearchTimer);
+    editSearchTimer = setTimeout(() => searchEditItems().catch((e) => setMessage(e.message, "error")), 250);
+  });
 
   document.querySelectorAll("[data-action]").forEach((button) => {
     button.addEventListener("click", () => openAction(button.dataset.action).catch((e) => setMessage(e.message, "error")));
