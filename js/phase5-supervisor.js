@@ -96,6 +96,30 @@
     await enterApp();
   }
 
+  async function signOut() {
+    const token = sessionToken;
+    sessionStorage.removeItem(sessionKey);
+    sessionToken = null;
+    sessionEmployee = null;
+    setupOptions = null;
+    tasks = [];
+    selectedTaskId = null;
+
+    if (token) {
+      try {
+        await rpc("logout_employee_session", { p_session_token: token });
+      } catch (error) {
+        console.warn("Server logout did not complete:", error.message);
+      }
+    }
+
+    $("app").hidden = true;
+    $("login").hidden = false;
+    $("employee").value = "";
+    $("pin").value = "";
+    setMessage("Signed out. Select the next employee to continue.", "success");
+  }
+
   async function loadSetupOptions() {
     setupOptions = await rpc("get_supervisor_operations_setup_options", {
       p_session_token: sessionToken
@@ -311,6 +335,7 @@
   $("create-form").addEventListener("submit", createTask);
   $("refresh").addEventListener("click", () => loadTasks().catch((e) => setMessage(e.message, "error")));
   $("include-completed").addEventListener("change", () => loadTasks().catch((e) => setMessage(e.message, "error")));
+  $("sign-out").addEventListener("click", () => signOut().catch((e) => setMessage(e.message, "error")));
   $("confirm-complete").addEventListener("click", completeSelected);
   $("cancel-complete").addEventListener("click", () => { selectedTaskId = null; $("complete-card").hidden = true; });
   $("confirm-cancel").addEventListener("click", cancelSelected);
