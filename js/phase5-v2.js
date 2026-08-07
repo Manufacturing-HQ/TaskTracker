@@ -29,6 +29,7 @@
   let actionOptions = null;
   let selectedTaskType = null;
   let selectedItem = null;
+  let itemNotListedMode = false;
   let itemSearchTimer = null;
   let currentState = null;
   let currentAction = null;
@@ -180,9 +181,29 @@
     const productive = task.task_type_name === "Productive";
     $("productive-fields").hidden = !productive;
     $("np-fields").hidden = productive;
+    if (!productive) setItemNotListedMode(false);
+  }
+
+  function setItemNotListedMode(enabled) {
+    itemNotListedMode = enabled;
+    $("item-not-listed-fields").hidden = !enabled;
+    $("item-not-listed-toggle").textContent = enabled ? "Use Listed Item Instead" : "Item Not Listed";
+    $("item-search").disabled = enabled;
+    $("department").disabled = enabled;
+    $("make").disabled = enabled;
+
+    if (enabled) {
+      selectedItem = null;
+      $("item-search").value = "";
+      $("item-results").innerHTML = "";
+      renderSelectedItem();
+    } else {
+      $("item-not-listed-detail").value = "";
+    }
   }
 
   async function refreshFilterOptions() {
+    if (itemNotListedMode) return;
     selectedItem = null;
     renderSelectedItem();
     await loadOptions();
@@ -190,7 +211,7 @@
   }
 
   async function searchItems() {
-    if (!sessionToken) return;
+    if (!sessionToken || itemNotListedMode) return;
     const search = $("item-search").value.trim();
 
     const items = await rpc("search_start_task_items_v2", {
@@ -237,7 +258,12 @@
     if (!selectedTaskType) return "Select Productive or Non-Productive.";
 
     if (selectedTaskType.task_type_name === "Productive") {
-      if (!selectedItem) return "Select an item.";
+      if (itemNotListedMode) {
+        if (!startOptions?.placeholder_item?.item_id) return "The Item Not Listed placeholder is not configured.";
+        if (!$("item-not-listed-detail").value.trim()) return "Enter the Item Not Listed description.";
+      } else if (!selectedItem) {
+        return "Select an item or choose Item Not Listed.";
+      }
       if (!$("work-order").value.trim()) return "Enter the work order number.";
       if (!$("work-order-type").value) return "Select the work order type.";
       if (!$("job-type").value) return "Select the job type.";
@@ -259,6 +285,13 @@
     }
 
     const productive = selectedTaskType.task_type_name === "Productive";
+    const item = productive
+      ? (itemNotListedMode ? startOptions.placeholder_item : selectedItem)
+      : null;
+    const itemDetail = productive && itemNotListedMode
+      ? $("item-not-listed-detail").value.trim()
+      : null;
+
     $("start-button").disabled = true;
     setMessage("Starting task...");
 
@@ -266,8 +299,8 @@
       const rows = await rpc("start_my_task_v2", {
         p_session_token: sessionToken,
         p_task_type_id: selectedTaskType.task_type_id,
-        p_item_id: productive ? selectedItem.item_id : null,
-        p_item_not_listed_detail: null,
+        p_item_id: productive ? item.item_id : null,
+        p_item_not_listed_detail: itemDetail,
         p_work_order_number: productive ? $("work-order").value.trim() : null,
         p_work_order_type: productive ? $("work-order-type").value : null,
         p_job_type: productive ? $("job-type").value : null,
@@ -291,11 +324,17 @@
     $("start-form").reset();
     selectedTaskType = null;
     selectedItem = null;
+    itemNotListedMode = false;
     $("productive-fields").hidden = true;
     $("np-fields").hidden = true;
     $("selected-item").hidden = true;
     $("selected-item").innerHTML = "";
     $("item-results").innerHTML = "";
+    $("item-not-listed-fields").hidden = true;
+    $("item-not-listed-toggle").textContent = "Item Not Listed";
+    $("item-search").disabled = false;
+    $("department").disabled = false;
+    $("make").disabled = false;
     document.querySelectorAll("#task-types .choice").forEach((b) => b.classList.remove("selected"));
   }
 
@@ -501,6 +540,7 @@
     clearTimeout(itemSearchTimer);
     itemSearchTimer = setTimeout(() => searchItems().catch((e) => setMessage(e.message, "error")), 250);
   });
+  $("item-not-listed-toggle").addEventListener("click", () => setItemNotListedMode(!itemNotListedMode));
 
   document.querySelectorAll("[data-action]").forEach((button) => {
     button.addEventListener("click", () => openAction(button.dataset.action).catch((e) => setMessage(e.message, "error")));
