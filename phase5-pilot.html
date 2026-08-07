@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task Tracker Phase 5 Pilot</title>
+  <style>
+    :root { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f4f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1120px; margin: 0 auto; padding: 28px 20px 48px; }
+    .topbar { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 22px; }
+    .brand h1 { margin: 0; font-size: 28px; }
+    .brand p { margin: 5px 0 0; color: #64748b; }
+    .card { background: white; border: 1px solid #dbe3ef; border-radius: 16px; padding: 22px; margin-bottom: 18px; box-shadow: 0 8px 24px rgba(15, 23, 42, .04); }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .full { grid-column: 1 / -1; }
+    label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 7px; }
+    input, select, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 11px 12px; background: white; }
+    textarea { min-height: 92px; resize: vertical; }
+    .primary { border: 0; border-radius: 10px; padding: 12px 18px; background: #1d4ed8; color: white; font-weight: 800; }
+    .secondary { border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px 14px; background: white; font-weight: 700; }
+    .choices { display: flex; gap: 12px; flex-wrap: wrap; }
+    .choice { border: 1px solid #cbd5e1; background: white; border-radius: 12px; padding: 12px 18px; font-weight: 800; }
+    .choice.selected { border-color: #1d4ed8; background: #eff6ff; color: #1d4ed8; }
+    .state-title { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
+    .state-meta, .muted { color: #64748b; font-size: 13px; }
+    .item-results { max-height: 280px; overflow: auto; border: 1px solid #dbe3ef; border-radius: 12px; margin-top: 8px; }
+    .item-row { width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; border: 0; border-bottom: 1px solid #eef2f7; padding: 11px 12px; background: white; text-align: left; }
+    .item-row:last-child { border-bottom: 0; }
+    .item-row:hover { background: #f8fafc; }
+    .item-row span, #selected-item span { color: #64748b; font-size: 12px; }
+    #selected-item { margin-top: 10px; padding: 12px; border-radius: 10px; background: #eff6ff; display: flex; flex-direction: column; gap: 4px; }
+    .message { padding: 11px 13px; border-radius: 10px; background: #e2e8f0; margin-bottom: 18px; }
+    .message[data-type="error"] { background: #fee2e2; color: #991b1b; }
+    .message[data-type="success"] { background: #dcfce7; color: #166534; }
+    .empty { color: #64748b; padding: 10px 0; }
+    .pill { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 800; }
+    .row { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    [hidden] { display: none !important; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } .full { grid-column: auto; } .topbar, .row { align-items: stretch; flex-direction: column; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>Task Tracker V2 Pilot</h1>
+        <p>Phase 5 controlled frontend cutover · development validation page</p>
+      </div>
+      <button id="logout" class="secondary" type="button">Sign Out</button>
+    </div>
+
+    <div id="message" class="message" hidden></div>
+
+    <section id="login" class="card">
+      <form id="login-form" class="grid">
+        <div>
+          <label for="employee">Employee</label>
+          <select id="employee" required><option value="">Loading employees...</option></select>
+        </div>
+        <div>
+          <label for="pin">PIN</label>
+          <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
+        </div>
+        <div class="full"><button class="primary" type="submit">Sign In</button></div>
+      </form>
+    </section>
+
+    <main id="app" hidden>
+      <section class="card">
+        <div class="row">
+          <div>
+            <div class="muted">Signed in as</div>
+            <div id="user-name" class="state-title">Employee</div>
+          </div>
+          <button id="refresh-state" class="secondary" type="button">Refresh State</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="row">
+          <div>
+            <h2 style="margin:0 0 8px">Current Task</h2>
+            <div id="state"></div>
+          </div>
+          <div>
+            <div class="muted">Pending QA rework</div>
+            <div id="rework-count" class="pill">0</div>
+          </div>
+        </div>
+      </section>
+
+      <form id="start-form">
+        <section class="card">
+          <h2 style="margin-top:0">Start New Task</h2>
+          <div id="task-types" class="choices"></div>
+        </section>
+
+        <section id="productive-fields" class="card" hidden>
+          <h3 style="margin-top:0">Productive Work</h3>
+          <div class="grid">
+            <div>
+              <label for="department">Department Filter</label>
+              <select id="department"><option value="">All departments</option></select>
+            </div>
+            <div>
+              <label for="make">Make Filter</label>
+              <select id="make"><option value="">All makes</option></select>
+            </div>
+            <div class="full">
+              <label for="item-search">Item Search</label>
+              <input id="item-search" type="text" placeholder="Search item name or internal ID">
+              <div id="item-results" class="item-results"></div>
+              <div id="selected-item" hidden></div>
+            </div>
+            <div>
+              <label for="work-order">Work Order Number</label>
+              <input id="work-order" type="text">
+            </div>
+            <div>
+              <label for="quantity">Assigned Quantity</label>
+              <input id="quantity" type="number" min="0.01" step="0.01">
+            </div>
+            <div>
+              <label for="work-order-type">Work Order Type</label>
+              <select id="work-order-type"></select>
+            </div>
+            <div>
+              <label for="job-type">Job Type</label>
+              <select id="job-type"></select>
+            </div>
+          </div>
+        </section>
+
+        <section id="np-fields" class="card" hidden>
+          <h3 style="margin-top:0">Non-Productive Work</h3>
+          <div class="grid">
+            <div>
+              <label for="np-task">Non-Productive Task</label>
+              <select id="np-task"></select>
+            </div>
+            <div>
+              <label for="scheduled-minutes">Scheduled Duration (optional, 1–30 min)</label>
+              <input id="scheduled-minutes" type="number" min="1" max="30" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <label for="comments">Comments</label>
+          <textarea id="comments" placeholder="Optional comments"></textarea>
+          <div style="margin-top:16px"><button id="start-button" class="primary" type="submit">Start Task</button></div>
+        </section>
+      </form>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js"></script>
+  <script src="js/phase5-v2.js"></script>
+</body>
+</html>
