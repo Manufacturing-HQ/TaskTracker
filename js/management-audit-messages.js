@@ -40,4 +40,11 @@
     auditMessage.hidden = true;
     auditMessage.textContent = "";
   });
+
+  ["js/management-operations-status.js", "js/management-queue-simple.js"].forEach((src) => {
+    if (document.querySelector(`script[src="${src}"]`)) return;
+    const script = document.createElement("script");
+    script.src = src;
+    document.body.appendChild(script);
+  });
 })();
