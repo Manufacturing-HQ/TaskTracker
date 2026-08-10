@@ -54,116 +54,56 @@
     }
   }
 
+  function workspaceForRole(role) {
+    if (role === "Employee") return "phase5-employee-redesign.html";
+    if (["Supervisor", "Manager", "Administrator"].includes(role)) return "phase5-supervisor-redesign.html";
+    return null;
+  }
+
+  function routeToWorkspace() {
+    const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
+    const destination = workspaceForRole(role);
+    if (!destination) throw new Error(`No staging workspace is configured for role: ${role || "Unknown"}.`);
+
+    $("login-form").hidden = true;
+    $("routing").hidden = false;
+    $("routing-message").textContent = `Signed in as ${sessionEmployee?.employee_name || "employee"} · ${role}.`;
+    window.location.replace(destination);
+  }
+
   async function login(event) {
     event.preventDefault();
     setMessage("Signing in...");
+
     const rows = await rpc("login_with_employee_pin", {
       p_employee_id: $("employee").value,
       p_pin: $("pin").value
     });
     const row = Array.isArray(rows) ? rows[0] : rows;
+
     if (!row?.login_successful || !row.session_token) {
       setMessage(row?.login_message || "Login failed.", "error");
       return;
     }
+
     sessionToken = row.session_token;
     sessionStorage.setItem(sessionKey, sessionToken);
     sessionEmployee = row;
     $("pin").value = "";
-    await enterApp();
-  }
-
-  async function logout() {
-    const token = sessionToken;
-    sessionStorage.removeItem(sessionKey);
-    sessionToken = null;
-    sessionEmployee = null;
-    if (token) {
-      try { await rpc("logout_employee_session", { p_session_token: token }); } catch {}
-    }
-    $("app").hidden = true;
-    $("login-shell").hidden = false;
-    setMessage("Signed out.");
-  }
-
-  async function getAccess() {
-    const role = sessionEmployee?.employee_role || sessionEmployee?.role || "Employee";
-    const employeeId = sessionEmployee?.employee_id || sessionEmployee?.id;
-    const result = {
-      qa: false,
-      training: false,
-      supervisor: ["Supervisor", "Manager", "Administrator"].includes(role),
-      reporting: ["Supervisor", "Manager", "Administrator"].includes(role)
-    };
-
-    if (["Manager", "Administrator"].includes(role)) {
-      result.qa = true;
-      result.training = true;
-      return result;
-    }
-
-    if (role === "Supervisor") result.training = true;
-
-    try {
-      const qa = await rpc("has_employee_permission", {
-        p_employee_id: employeeId,
-        p_permission_code: "qa.view"
-      });
-      result.qa = Boolean(qa);
-    } catch {}
-
-    try {
-      const training = await rpc("has_employee_permission", {
-        p_employee_id: employeeId,
-        p_permission_code: "qa.manage_training"
-      });
-      result.training = result.training || Boolean(training);
-    } catch {}
-
-    return result;
-  }
-
-  function applyAccess(access) {
-    const map = [
-      ["qa", "nav-qa", "card-qa"],
-      ["training", "nav-training", "card-training"],
-      ["supervisor", "nav-supervisor", "card-supervisor"],
-      ["reporting", "nav-reporting", "card-reporting"]
-    ];
-    map.forEach(([key, navId, cardId]) => {
-      $(navId).hidden = !access[key];
-      $(cardId).hidden = !access[key];
-    });
-  }
-
-  async function enterApp() {
-    const name = sessionEmployee?.employee_name || sessionEmployee?.name || "Employee";
-    const role = sessionEmployee?.employee_role || sessionEmployee?.role || "Employee";
-    const department = sessionEmployee?.department || "";
-
-    $("login-shell").hidden = true;
-    $("app").hidden = false;
-    $("welcome-name").textContent = name;
-    $("side-name").textContent = name;
-    $("side-meta").textContent = [role, department].filter(Boolean).join(" · ");
-    $("role-badge").textContent = role;
-    setMessage("");
-
-    const access = await getAccess();
-    applyAccess(access);
+    routeToWorkspace();
   }
 
   async function init() {
     try {
       await listEmployees();
-      if (await restoreSession()) await enterApp();
+      if (await restoreSession()) routeToWorkspace();
     } catch (error) {
       setMessage(error.message, "error");
+      $("login-form").hidden = false;
+      $("routing").hidden = true;
     }
   }
 
   $("login-form").addEventListener("submit", (event) => login(event).catch((e) => setMessage(e.message, "error")));
-  $("sign-out").addEventListener("click", () => logout().catch(() => {}));
-
   init();
 })();
