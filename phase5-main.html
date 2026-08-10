@@ -3,41 +3,39 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Task Tracker V2</title>
+  <title>Task Tracker Staging</title>
   <style>
     :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb;--navy:#0b1220;--navy2:#17233c;--blue:#2563eb;--slate:#64748b;--border:#dbe3ef}
     *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh}button,select,input{font:inherit}button{cursor:pointer}
-    .login-shell{min-height:100vh;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(480px,1.1fr)}
-    .brand{padding:52px;color:#fff;background:linear-gradient(145deg,#0b1220,#17233c);display:flex;flex-direction:column;justify-content:space-between}.brand h1{font-size:58px;line-height:1.02;letter-spacing:-.055em;margin:20px 0}.brand p{color:#c4cfdf;font-size:18px;line-height:1.7;max-width:580px}.mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-weight:900}.login-side{display:grid;place-items:center;padding:42px;background:linear-gradient(135deg,#f8fafc,#e8eef5)}.login-card{width:min(520px,100%);background:#fff;border:1px solid var(--border);border-radius:24px;padding:38px;box-shadow:0 26px 70px rgba(11,18,32,.16)}.login-card h2{font-size:32px;margin:0 0 10px}.muted{color:var(--slate)}label{display:block;font-weight:800;font-size:13px;margin:18px 0 8px}select,input{width:100%;min-height:52px;border:1px solid #cbd5e1;border-radius:12px;padding:0 14px;background:#fff}.primary,.secondary{border-radius:11px;padding:12px 16px;font-weight:800}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #cbd5e1;background:#fff}.login-card .primary{width:100%;margin-top:20px;min-height:54px}.message{margin-top:16px;padding:12px 14px;border-radius:10px;background:#e2e8f0}.message[data-type="error"]{background:#fee2e2;color:#991b1b}
-    .app{min-height:100vh;display:grid;grid-template-columns:260px minmax(0,1fr)}.sidebar{background:var(--navy);color:#fff;padding:22px 18px;display:flex;flex-direction:column;min-height:100vh}.side-brand{display:flex;gap:12px;align-items:center;padding:4px 8px 26px}.side-brand .mark{width:42px;height:42px}.side-label{color:#7f8ba0;font-size:11px;font-weight:900;letter-spacing:.11em;text-transform:uppercase;padding:16px 12px 8px}.nav{display:grid;gap:6px}.nav a{display:block;color:#c8d1df;text-decoration:none;border-radius:10px;padding:12px}.nav a:hover{background:var(--navy2);color:#fff}.side-footer{margin-top:auto}.employee-box{padding:13px;border-radius:12px;background:rgba(255,255,255,.06)}.employee-box strong{display:block}.employee-box span{display:block;color:#93a0b5;font-size:12px;margin-top:4px}.side-footer button{width:100%;margin-top:10px;background:transparent;color:#d7deea;border:1px solid #344159;border-radius:10px;padding:10px}
-    .main{padding:34px}.header{display:flex;justify-content:space-between;gap:20px;align-items:flex-start}.header h1{font-size:34px;letter-spacing:-.04em;margin:0}.role{display:inline-flex;padding:7px 11px;border-radius:999px;background:#eaf2ff;color:#2456a1;font-size:12px;font-weight:900}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:28px}.module{background:#fff;border:1px solid var(--border);border-radius:18px;padding:22px;min-height:180px;display:flex;flex-direction:column}.module h2{font-size:18px;margin:0 0 10px}.module p{margin:0;color:var(--slate);line-height:1.55;font-size:14px}.module a{margin-top:auto;text-decoration:none;display:inline-block}.module .primary{display:inline-block;text-align:center;margin-top:22px}.badge{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin-bottom:10px}.status{margin-top:26px;background:#fff;border:1px solid var(--border);border-radius:18px;padding:20px}.status strong{color:#166534}
-    @media(max-width:900px){.login-shell{grid-template-columns:1fr}.brand{display:none}.app{grid-template-columns:1fr}.sidebar{min-height:auto}.side-footer{margin-top:18px}.grid{grid-template-columns:1fr 1fr}.main{padding:24px}}@media(max-width:620px){.grid{grid-template-columns:1fr}.header{flex-direction:column}.login-side{padding:20px}}
+    .shell{min-height:100vh;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(480px,1.1fr)}
+    .brand{padding:52px;color:#fff;background:linear-gradient(145deg,#0b1220,#17233c);display:flex;flex-direction:column;justify-content:space-between}.brand h1{font-size:58px;line-height:1.02;letter-spacing:-.055em;margin:20px 0}.brand p{color:#c4cfdf;font-size:18px;line-height:1.7;max-width:580px}.mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-weight:900}.login-side{display:grid;place-items:center;padding:42px;background:linear-gradient(135deg,#f8fafc,#e8eef5)}.card{width:min(520px,100%);background:#fff;border:1px solid var(--border);border-radius:24px;padding:38px;box-shadow:0 26px 70px rgba(11,18,32,.16)}.card h2{font-size:32px;margin:0 0 10px}.muted{color:var(--slate)}label{display:block;font-weight:800;font-size:13px;margin:18px 0 8px}select,input{width:100%;min-height:52px;border:1px solid #cbd5e1;border-radius:12px;padding:0 14px;background:#fff}.primary{border:0;border-radius:11px;padding:12px 16px;font-weight:800;background:var(--blue);color:#fff;width:100%;margin-top:20px;min-height:54px}.message{margin-top:16px;padding:12px 14px;border-radius:10px;background:#e2e8f0}.message[data-type="error"]{background:#fee2e2;color:#991b1b}.routing{text-align:center}.routing .spinner{width:42px;height:42px;border:4px solid #dbe3ef;border-top-color:#2563eb;border-radius:50%;margin:0 auto 18px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:900px){.shell{grid-template-columns:1fr}.brand{display:none}.login-side{padding:20px}}
   </style>
 </head>
 <body>
-  <div id="login-shell" class="login-shell">
-    <section class="brand"><div><div class="mark">TT</div><h1>Task Tracker V2</h1><p>One secure workspace for employee task tracking, QA, training, supervisor operations, and reporting.</p></div><div style="color:#8d9aaf;font-size:12px">Phase 5 consolidated validation portal</div></section>
-    <section class="login-side"><form id="login-form" class="login-card"><h2>Sign in</h2><div class="muted">Use your employee name and PIN.</div><label for="employee">Employee</label><select id="employee" required><option value="">Loading employees...</option></select><label for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" required><button class="primary" type="submit">Sign In</button><div id="message" class="message" hidden></div></form></section>
-  </div>
-
-  <div id="app" class="app" hidden>
-    <aside class="sidebar">
-      <div class="side-brand"><div class="mark">TT</div><div><strong>Task Tracker</strong><div style="color:#8d9aaf;font-size:12px">V2 Portal</div></div></div>
-      <div class="side-label">Workspace</div>
-      <nav class="nav"><a href="phase5-pilot.html">Employee Tasks</a><a id="nav-qa" href="phase5-qa.html">QA Review</a><a id="nav-training" href="phase5-training.html">Training</a><a id="nav-supervisor" href="phase5-supervisor.html">Supervisor Operations</a><a id="nav-reporting" href="phase5-reporting.html">Reporting</a></nav>
-      <div class="side-footer"><div class="employee-box"><strong id="side-name"></strong><span id="side-meta"></span></div><button id="sign-out" type="button">Sign Out</button></div>
-    </aside>
-    <main class="main">
-      <div class="header"><div><h1>Welcome, <span id="welcome-name"></span></h1><p class="muted">Choose the area you need. Your secure session carries across all Phase 5 modules.</p></div><span id="role-badge" class="role"></span></div>
-      <section class="grid">
-        <article class="module"><div class="badge">Core Workflow</div><h2>Employee Tasks</h2><p>Start Productive and Non-Productive work, pause, block, return, resume, complete, and handle pending QA rework.</p><a class="primary" href="phase5-pilot.html">Open Employee Tasks</a></article>
-        <article id="card-qa" class="module"><div class="badge">Quality</div><h2>QA Review</h2><p>Review Ready-for-QA jobs, record errors and quantities, place jobs on hold, complete QA, or return rework.</p><a class="primary" href="phase5-qa.html">Open QA Review</a></article>
-        <article id="card-training" class="module"><div class="badge">Development</div><h2>Training</h2><p>Create and manage training plans, checklist completion, trainee visibility, comments, and final approval.</p><a class="primary" href="phase5-training.html">Open Training</a></article>
-        <article id="card-supervisor" class="module"><div class="badge">Operations</div><h2>Supervisor Operations</h2><p>View, start, complete, assign, and manage shared supervisor operational tasks.</p><a class="primary" href="phase5-supervisor.html">Open Supervisor Operations</a></article>
-        <article id="card-reporting" class="module"><div class="badge">Analytics</div><h2>Reporting</h2><p>Daily and weekly Eastern Time reporting with productivity, coverage, expected minutes, and employee filtering.</p><a class="primary" href="phase5-reporting.html">Open Reporting</a></article>
-      </section>
-      <section class="status"><strong>Validated modules:</strong> Employee workflow, QA, Training, Supervisor Operations, and Reporting have each passed browser testing before consolidation.</section>
-    </main>
+  <div class="shell">
+    <section class="brand">
+      <div><div class="mark">TT</div><h1>Task Tracker</h1><p>Single staging entry point for the redesigned Employee and Management workspaces.</p></div>
+      <div style="color:#8d9aaf;font-size:12px">Phase 5.5 staging router · production index remains unchanged</div>
+    </section>
+    <section class="login-side">
+      <form id="login-form" class="card">
+        <h2>Sign in</h2>
+        <div class="muted">Your role will automatically open the correct staging workspace.</div>
+        <label for="employee">Employee</label>
+        <select id="employee" required><option value="">Loading employees...</option></select>
+        <label for="pin">PIN</label>
+        <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
+        <button class="primary" type="submit">Sign In</button>
+        <div id="message" class="message" hidden></div>
+      </form>
+      <div id="routing" class="card routing" hidden>
+        <div class="spinner"></div>
+        <h2 style="font-size:24px">Opening your workspace…</h2>
+        <div id="routing-message" class="muted">Checking your role and session.</div>
+      </div>
+    </section>
   </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script src="js/phase5-main.js"></script>
-</body></html>
+</body>
+</html>
