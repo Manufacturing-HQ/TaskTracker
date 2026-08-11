@@ -19,7 +19,7 @@
     .employee-rework-zone{border:3px solid #111827!important;background:#fff0f3!important}
     .employee-rework-zone .mini-card{background:#fff7f8}
     .employee-top-name{font-weight:900;font-size:14px;padding:8px 12px;border-radius:10px;background:#f8fafc;border:1px solid #cbd5e1}
-    .employee-rework-nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:8px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:900;vertical-align:middle}
+    .employee-signed-card-hidden{display:none!important}
   `;
   document.head.appendChild(style);
 
@@ -28,7 +28,7 @@
   reworkSection.classList.add("employee-rework-zone");
 
   const signedCard = app.querySelector("section.card:first-child");
-  if (signedCard) signedCard.remove();
+  if (signedCard) signedCard.classList.add("employee-signed-card-hidden");
 
   const actions = topbar.querySelector(".actions");
   const topName = document.createElement("span");
@@ -59,7 +59,7 @@
     }
   }
 
-  new MutationObserver(syncName).observe(userName || app, { childList: true, subtree: true, characterData: true });
+  if (userName) new MutationObserver(syncName).observe(userName, { childList: true, subtree: true, characterData: true });
   new MutationObserver(syncReworkBadge).observe(reworkCount, { childList: true, subtree: true, characterData: true });
   syncName();
   syncReworkBadge();
