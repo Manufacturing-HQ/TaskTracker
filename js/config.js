@@ -13,7 +13,7 @@ window.TaskTrackerConfig = Object.freeze({
 (() => {
   function addFeedbackLink() {
     const page = location.pathname.split('/').pop() || 'index.html';
-    if (page === 'feedback.html' || document.querySelector('[data-tasktracker-feedback]')) return;
+    if (["feedback.html","task.html"].includes(page) || document.querySelector('[data-tasktracker-feedback]')) return;
 
     const link = document.createElement('a');
     link.href = `feedback.html?from=${encodeURIComponent(page)}`;
