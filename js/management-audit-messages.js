@@ -40,15 +40,4 @@
     auditMessage.hidden = true;
     auditMessage.textContent = "";
   });
-
-  [
-    "js/management-operations-status.js",
-    "js/management-master-data.js",
-    "js/management-attendance-probation.js"
-  ].forEach((src) => {
-    if (document.querySelector(`script[src="${src}"]`)) return;
-    const script = document.createElement("script");
-    script.src = src;
-    document.body.appendChild(script);
-  });
 })();
