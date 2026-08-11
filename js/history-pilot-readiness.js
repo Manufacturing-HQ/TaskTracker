@@ -81,9 +81,12 @@
   }
 
   async function init(){
-    if(!token()) return;
+    if(initialized||!token()) return;
     try{setup=await rpc("get_history_workspace_options",{p_session_token:token()});buildPanel();}catch{}
   }
   window.addEventListener("pageshow",()=>setTimeout(init,350));
+  document.getElementById("login-form")?.addEventListener("submit",()=>setTimeout(init,700));
+  const app=document.getElementById("app");
+  if(app) new MutationObserver(()=>{if(!app.hidden)setTimeout(init,50);}).observe(app,{attributes:true,attributeFilter:["hidden"]});
   setTimeout(init,800);
 })();
