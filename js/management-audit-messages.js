@@ -40,4 +40,10 @@
     auditMessage.hidden = true;
     auditMessage.textContent = "";
   });
+
+  if (!document.querySelector('script[src="js/management-pilot-readiness.js"]')) {
+    const script = document.createElement("script");
+    script.src = "js/management-pilot-readiness.js";
+    document.body.appendChild(script);
+  }
 })();
