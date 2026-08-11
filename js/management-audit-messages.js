@@ -41,7 +41,12 @@
     auditMessage.textContent = "";
   });
 
-  ["js/management-operations-status.js", "js/management-queue-simple.js"].forEach((src) => {
+  [
+    "js/management-operations-status.js",
+    "js/management-queue-simple.js",
+    "js/management-master-data.js",
+    "js/management-attendance-probation.js"
+  ].forEach((src) => {
     if (document.querySelector(`script[src="${src}"]`)) return;
     const script = document.createElement("script");
     script.src = src;
