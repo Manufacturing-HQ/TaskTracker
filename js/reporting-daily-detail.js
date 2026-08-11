@@ -24,7 +24,6 @@
     .replaceAll("'", "&#039;");
 
   let latestRows = [];
-  let setup = null;
   let detailWrap = null;
   let decorating = false;
 
@@ -48,12 +47,6 @@
     return data;
   }
 
-  async function loadReferenceData() {
-    const token = sessionStorage.getItem(config.sessionStorageKey);
-    if (!token) return;
-    setup = await rpc("get_reporting_setup_options", { p_session_token: token });
-  }
-
   async function fetchRows() {
     const token = sessionStorage.getItem(config.sessionStorageKey);
     if (!token || !isDailyMode() || !startDate.value || !endDate.value) {
@@ -68,17 +61,10 @@
     }) || [];
   }
 
-  function renameCoverage() {
-    tableWrap.querySelectorAll("th").forEach((th) => {
-      if (th.textContent.trim() === "Coverage") th.textContent = "Efficiency";
-    });
-  }
-
   function decorateRows() {
     if (decorating) return;
     decorating = true;
     try {
-      renameCoverage();
       if (!isDailyMode()) {
         if (detailWrap) detailWrap.hidden = true;
         return;
@@ -88,7 +74,7 @@
         const row = latestRows[index];
         if (!row) return;
         tr.style.cursor = "pointer";
-        tr.title = "Click to view underlying jobs and sessions";
+        tr.title = "Click to view underlying jobs, sessions, and QA reviews";
         tr.onclick = () => openDetail(row).catch((error) => renderError(error));
       });
     } finally {
@@ -120,6 +106,8 @@
     const wrap = ensureDetailWrap();
     wrap.hidden = false;
     const jobs = detail?.jobs || [];
+    const qaReviews = detail?.qa_reviews || [];
+
     const jobHtml = jobs.length ? jobs.map((job) => {
       const sessions = job.sessions || [];
       return `<details style="border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-top:10px;background:#f8fafc">
@@ -129,6 +117,8 @@
       </details>`;
     }).join("") : '<div class="muted">No tracker sessions were recorded for this employee on this date.</div>';
 
+    const qaHtml = qaReviews.length ? `<div style="margin-top:18px"><h3 style="margin:0 0 10px">QA Reviews Used for Error Rate</h3><div class="table-wrap"><table style="min-width:980px"><thead><tr><th>QA Rep</th><th>Job</th><th>Item / WO</th><th>Job Type</th><th>Reviewed</th><th>Errors</th><th>Error Rate</th><th>Quality Status</th><th>QA Comments</th></tr></thead><tbody>${qaReviews.map((q)=>`<tr><td>${esc(q.qa_rep||"—")}</td><td>${esc(q.job_number||"—")}</td><td>${esc(q.item_name||"—")}<div class="muted">WO ${esc(q.work_order_number||"—")}</div></td><td>${esc(q.job_type||"—")}</td><td>${fmt(q.quantity_reviewed,0)}</td><td>${fmt(q.error_quantity,0)}</td><td>${fmt(q.error_rate_percent)}%</td><td>${esc(q.quality_status||"—")}</td><td>${esc(q.qa_comments||"—")}</td></tr>`).join("")}</tbody></table></div></div>` : '<div class="muted" style="margin-top:18px">No QA reviews were completed for this employee on this date.</div>';
+
     wrap.innerHTML = `<div class="row"><div><h2 style="margin:0">Daily Detail · ${esc(row.employee_name)}</h2><div class="muted">${esc(row.work_date)} · Click each job to inspect sessions</div></div><button id="close-report-detail" class="secondary" type="button">Close</button></div>
       <div class="summary" style="margin-top:16px">
         <div class="metric"><div class="muted">Tracker Minutes</div><strong>${fmt(row.tracker_minutes)}</strong></div>
@@ -136,8 +126,12 @@
         <div class="metric"><div class="muted">Worked Minutes</div><strong>${fmt(row.minutes_worked)}</strong></div>
         <div class="metric"><div class="muted">Productivity</div><strong>${row.productivity_percent == null ? "—" : `${fmt(row.productivity_percent)}%`}</strong></div>
         <div class="metric"><div class="muted">Efficiency</div><strong>${row.tracker_coverage_percent == null ? "—" : `${fmt(row.tracker_coverage_percent)}%`}</strong></div>
+        <div class="metric"><div class="muted">QA Reviewed</div><strong>${fmt(row.qa_reviewed_pieces,0)}</strong></div>
+        <div class="metric"><div class="muted">QA Errors</div><strong>${fmt(row.qa_error_quantity,0)}</strong></div>
+        <div class="metric"><div class="muted">Error Rate</div><strong>${fmt(row.error_rate_percent)}%</strong></div>
       </div>
-      ${jobHtml}`;
+      ${jobHtml}
+      ${qaHtml}`;
     wrap.querySelector("#close-report-detail")?.addEventListener("click", () => { wrap.hidden = true; });
     wrap.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -160,6 +154,5 @@
   });
 
   window.addEventListener("pageshow", () => setTimeout(syncAfterRender, 300));
-  loadReferenceData().catch(() => {});
   setTimeout(syncAfterRender, 500);
 })();
