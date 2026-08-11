@@ -43,7 +43,6 @@
 
   [
     "js/management-operations-status.js",
-    "js/management-queue-simple.js",
     "js/management-master-data.js",
     "js/management-attendance-probation.js"
   ].forEach((src) => {
