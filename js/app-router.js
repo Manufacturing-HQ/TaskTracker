@@ -66,22 +66,14 @@
   }
 
   async function resolveWorkspace() {
-    const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
-    const department = sessionEmployee?.department || "";
+    const route = await rpc("get_workspace_route", { p_session_token: sessionToken });
+    if (!route?.destination) throw new Error("Unable to determine the correct workspace.");
 
-    if (["Supervisor", "Manager", "Administrator"].includes(role)) return "management.html";
-    if (role !== "Employee") throw new Error(`No workspace is configured for role: ${role || "Unknown"}.`);
-
-    const historySetup = await rpc("get_history_workspace_options", { p_session_token: sessionToken });
-    const hasQa = !!historySetup?.viewer?.has_qa_history;
-
-    if (hasQa) return "qa.html";
-
-    if (department === "Quality Assurance") {
+    if (route.qa_department_missing_access) {
       throw new Error("This Quality Assurance employee does not have QA View/Review permission assigned yet. Assign QA permissions in employee administration before using the QA workspace.");
     }
 
-    return "employee.html";
+    return route.destination;
   }
 
   async function routeToWorkspace() {
