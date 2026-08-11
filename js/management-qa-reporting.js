@@ -47,11 +47,12 @@
   function show(){hideAll();section.hidden=false;button.classList.add("active");document.getElementById("page-title").textContent="QA Reporting";document.getElementById("page-subtitle").textContent="QA volume and error metrics by completed QA review.";loadReport().catch(e=>alert(e.message));}
 
   async function loadSetup(){
+    if(!token()) return;
     try{
       setup=await rpc("get_qa_reporting_options",{p_session_token:token()});
       button.hidden=false;
       document.getElementById("qa-report-rep").innerHTML='<option value="">All QA Employees</option>'+ (setup.qa_reps||[]).map(r=>`<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");
-    }catch{button.hidden=true;}
+    }catch{setup=null;button.hidden=true;}
   }
 
   function renderEmployee(rows){const body=(rows||[]).map(r=>`<tr><td>${esc(r.qa_rep)}</td><td>${esc(r.total_jobs)}</td><td>${esc(r.total_pieces_reviewed)}</td><td>${esc(r.total_errors)}</td><td>${pct(r.error_rate_percent)}</td><td>${esc(r.scrap_pieces)}</td><td>${esc(r.rework_returned)}</td></tr>`).join("");document.getElementById("qa-report-by-employee").innerHTML=`<table class="qa-report-table"><thead><tr><th>QA Employee</th><th>Jobs</th><th>Pieces Reviewed</th><th>Errors</th><th>Error Rate</th><th>Scrap</th><th>Rework Returned</th></tr></thead><tbody>${body||'<tr><td colspan="7">No QA reviews found.</td></tr>'}</tbody></table>`;}
@@ -62,5 +63,6 @@
   button.addEventListener("click",show);
   document.getElementById("qa-report-load").addEventListener("click",()=>loadReport().catch(e=>alert(e.message)));
   const end=new Date();const start=new Date();start.setDate(start.getDate()-30);document.getElementById("qa-report-start").value=start.toISOString().slice(0,10);document.getElementById("qa-report-end").value=end.toISOString().slice(0,10);
+  new MutationObserver(()=>{if(!app.hidden)setTimeout(loadSetup,0);}).observe(app,{attributes:true,attributeFilter:["hidden"]});
   setTimeout(loadSetup,700);
 })();
