@@ -13,12 +13,13 @@
   const token=()=>sessionStorage.getItem(config.sessionStorageKey);
   const esc=(v)=>String(v??"").replace(/[&<>'"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
   let setup=null;
+  let initialized=false;
 
   async function rpc(name,args={}){const {data,error}=await client.rpc(name,args);if(error)throw new Error(error.message||`${name} failed.`);return data;}
 
   const style=document.createElement("style");
   style.textContent=`
-    .sup-assign{border:2px solid #94a3b8;border-radius:14px;background:#fff;padding:16px;margin-bottom:16px}.sup-assign h3{margin:0 0 4px}.sup-assign-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sup-assign-grid .full{grid-column:1/-1}.sup-assign-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.sup-assign-grid input,.sup-assign-grid select,.sup-assign-grid textarea{width:100%;border:1px solid #94a3b8;border-radius:9px;padding:9px 10px;background:#fff}.sup-assign-grid textarea{min-height:90px;resize:vertical}.sup-assign-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.sup-assign-msg{margin-top:10px;padding:9px 10px;border-radius:9px;background:#e2e8f0}.sup-assign-msg.ok{background:#dcfce7;color:#166534}.sup-assign-msg.err{background:#fee2e2;color:#991b1b}@media(max-width:800px){.sup-assign-grid{grid-template-columns:1fr}.sup-assign-grid .full{grid-column:auto}}
+    .sup-assign{border:2px solid #94a3b8;border-radius:14px;background:#fff;padding:16px;margin-bottom:16px}.sup-assign h3{margin:0 0 4px}.sup-assign-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sup-assign-grid .full{grid-column:1/-1}.sup-assign-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.sup-assign-grid input,.sup-assign-grid select,.sup-assign-grid textarea{width:100%;border:1px solid #94a3b8;border-radius:9px;padding:9px 10px;background:#fff}.sup-assign-grid textarea{min-height:90px;resize:vertical}.sup-assign-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.sup-assign-msg{margin-top:10px;padding:9px 10px;border-radius:9px;background:#e2e8f0}.sup-assign-msg.ok{background:#dcfce7;color:#166534}.sup-assign-msg.err{background:#fee2e2;color:#991b1b}.sup-assign-button{margin-left:auto}@media(max-width:800px){.sup-assign-grid{grid-template-columns:1fr}.sup-assign-grid .full{grid-column:auto}}
   `;
   document.head.appendChild(style);
 
@@ -27,7 +28,7 @@
   panel.className="sup-assign";
   panel.hidden=true;
   panel.innerHTML=`
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px"><div><h3>Assign Supervisor Task</h3><div style="font-size:12px;color:#64748b">Manager/Admin manual assignments only.</div></div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px"><div><h3>Assign Supervisor Task</h3><div style="font-size:12px;color:#64748b">Manager/Admin manual assignments only.</div></div><button id="sat-close" type="button" class="ghost">Close</button></div>
     <form id="sup-assign-form">
       <div class="sup-assign-grid">
         <div><label>Supervisor</label><select id="sat-supervisor" required></select></div>
@@ -43,21 +44,49 @@
     </form>`;
   queueList.parentElement.insertBefore(panel,queueList);
 
+  const queueHeader=queueView.querySelector(".section-title");
+  const assignButton=document.createElement("button");
+  assignButton.id="open-supervisor-task-assignment";
+  assignButton.type="button";
+  assignButton.className="primary sup-assign-button";
+  assignButton.textContent="Assign Task";
+  assignButton.hidden=true;
+  const includeCompletedLabel=queueHeader?.querySelector("label");
+  if(includeCompletedLabel) includeCompletedLabel.insertAdjacentElement("beforebegin",assignButton);
+  else queueHeader?.appendChild(assignButton);
+
   function setMsg(text,type=""){
     const el=document.getElementById("sat-message");el.textContent=text||"";el.className=`sup-assign-msg ${type}`;el.hidden=!text;
   }
 
+  function populate(){
+    document.getElementById("sat-supervisor").innerHTML='<option value="">Select supervisor</option>'+ (setup.supervisors||[]).map(x=>`<option value="${esc(x.employee_id)}">${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
+    document.getElementById("sat-type").innerHTML='<option value="">Select task type</option>'+ (setup.task_types||[]).map(x=>`<option value="${esc(x.task_type_code)}">${esc(x.task_type_name)}</option>`).join("");
+    document.getElementById("sat-employee").innerHTML='<option value="">No related employee</option>'+ (setup.employees||[]).map(x=>`<option value="${esc(x.employee_id)}">${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
+    document.getElementById("sat-priority").innerHTML=(setup.priorities||["Low","Normal","High","Urgent"]).map(x=>`<option ${x==="Normal"?"selected":""}>${esc(x)}</option>`).join("");
+    initialized=true;
+  }
+
   async function loadSetup(){
+    if(!token()) return false;
     try{
       setup=await rpc("get_supervisor_task_assignment_options",{p_session_token:token()});
-      panel.hidden=false;
-      document.getElementById("sat-supervisor").innerHTML='<option value="">Select supervisor</option>'+ (setup.supervisors||[]).map(x=>`<option value="${esc(x.employee_id)}">${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
-      document.getElementById("sat-type").innerHTML='<option value="">Select task type</option>'+ (setup.task_types||[]).map(x=>`<option value="${esc(x.task_type_code)}">${esc(x.task_type_name)}</option>`).join("");
-      document.getElementById("sat-employee").innerHTML='<option value="">No related employee</option>'+ (setup.employees||[]).map(x=>`<option value="${esc(x.employee_id)}">${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
-      document.getElementById("sat-priority").innerHTML=(setup.priorities||["Low","Normal","High","Urgent"]).map(x=>`<option ${x==="Normal"?"selected":""}>${esc(x)}</option>`).join("");
+      assignButton.hidden=false;
+      if(!initialized) populate();
+      return true;
     }catch{
+      assignButton.hidden=true;
       panel.hidden=true;
+      return false;
     }
+  }
+
+  async function openPanel(){
+    if(!setup && !(await loadSetup())) return;
+    if(!initialized) populate();
+    panel.hidden=false;
+    setMsg("");
+    panel.scrollIntoView({behavior:"smooth",block:"start"});
   }
 
   async function submit(e){
@@ -81,10 +110,12 @@
       document.getElementById("sat-due").value="";
       document.getElementById("sat-priority").value="Normal";
       document.getElementById("include-completed")?.dispatchEvent(new Event("change"));
-      document.querySelector('button[data-view="queue"]')?.click();
+      setTimeout(()=>document.querySelector('button[data-view="queue"]')?.click(),0);
     }catch(err){setMsg(err.message,"err");}
   }
 
+  assignButton.addEventListener("click",openPanel);
+  document.getElementById("sat-close").addEventListener("click",()=>{panel.hidden=true;});
   document.getElementById("sup-assign-form").addEventListener("submit",submit);
   document.querySelector('button[data-view="queue"]')?.addEventListener("click",()=>setTimeout(loadSetup,0));
   setTimeout(loadSetup,700);
