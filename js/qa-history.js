@@ -13,6 +13,7 @@
   const token=()=>sessionStorage.getItem(config.sessionStorageKey);
   const today=()=>new Date().toISOString().slice(0,10);
   let setup=null;
+  let initialized=false;
 
   async function rpc(name,args={}){const {data,error}=await client.rpc(name,args);if(error)throw new Error(error.message||`${name} failed.`);return data;}
 
@@ -72,13 +73,15 @@
   }
 
   async function init(){
-    if(!token()) return;
+    if(initialized || !token()) return;
+    initialized=true;
     const end=today(); const start=new Date(); start.setDate(start.getDate()-30);
     document.getElementById("qa-history-start").value=start.toISOString().slice(0,10);
     document.getElementById("qa-history-end").value=end;
-    try{await loadSetup();await loadHistory();}catch(e){document.getElementById("qa-history-table").innerHTML=`<div class="message" data-type="error">${esc(e.message)}</div>`;}
+    try{await loadSetup();await loadHistory();}catch(e){initialized=false;document.getElementById("qa-history-table").innerHTML=`<div class="message" data-type="error">${esc(e.message)}</div>`;}
   }
   document.getElementById("qa-history-load").addEventListener("click",()=>loadHistory().catch(e=>alert(e.message)));
+  new MutationObserver(()=>{if(!app.hidden)setTimeout(init,0);}).observe(app,{attributes:true,attributeFilter:["hidden"]});
   window.addEventListener("pageshow",()=>setTimeout(init,300));
   setTimeout(init,600);
 })();
