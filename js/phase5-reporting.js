@@ -139,8 +139,8 @@
     $("weekly-tab").classList.toggle("active", mode === "weekly");
     $("report-title").textContent = mode === "daily" ? "Daily Reporting" : "Weekly Reporting";
     $("report-note").textContent = mode === "daily"
-      ? `Daily allocation uses ${setup?.business_timezone || "America/New_York"}.`
-      : `Weekly reporting is grouped by Saturday week-ending dates in ${setup?.business_timezone || "America/New_York"}.`;
+      ? `Daily allocation uses ${setup?.business_timezone || "America/New_York"}. Error Rate uses QA reviews completed that business date.`
+      : `Weekly reporting is grouped by Saturday week-ending dates in ${setup?.business_timezone || "America/New_York"}. Error Rate is recomputed from weekly QA totals.`;
   }
 
   function formatNumber(value, digits = 1) {
@@ -166,6 +166,9 @@
     const nonProductiveMinutes = sum(rows, "non_productive_minutes");
     const completedQty = sum(rows, "completed_quantity");
     const expectedMinutes = sum(rows, "expected_minutes");
+    const reviewedPieces = sum(rows, "qa_reviewed_pieces");
+    const totalErrors = sum(rows, "qa_error_quantity");
+    const errorRate = reviewedPieces > 0 ? Math.min(100, (totalErrors / reviewedPieces) * 100) : 0;
 
     summary.innerHTML = `
       <div class="metric"><div class="muted">Tracker Minutes</div><strong>${formatNumber(trackerMinutes)}</strong></div>
@@ -173,6 +176,9 @@
       <div class="metric"><div class="muted">Non-Productive Minutes</div><strong>${formatNumber(nonProductiveMinutes)}</strong></div>
       <div class="metric"><div class="muted">Completed Qty</div><strong>${formatNumber(completedQty, 2)}</strong></div>
       <div class="metric"><div class="muted">Expected Minutes</div><strong>${formatNumber(expectedMinutes)}</strong></div>
+      <div class="metric"><div class="muted">QA Reviewed Pieces</div><strong>${formatNumber(reviewedPieces, 2)}</strong></div>
+      <div class="metric"><div class="muted">Total Errors</div><strong>${formatNumber(totalErrors, 2)}</strong></div>
+      <div class="metric"><div class="muted">Error Rate</div><strong>${formatPercent(errorRate)}</strong></div>
     `;
   }
 
@@ -187,13 +193,13 @@
 
     const daily = mode === "daily";
     const headers = daily
-      ? ["Date","Employee","Department","Supervisor","Tracker Min","Productive Min","NP Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity","Coverage","Unaccounted Min"]
-      : ["Week Ending","Employee","Department","Supervisor","First Activity","Last Activity","Tracker Min","Productive Min","NP Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity","Coverage","Unaccounted Min"];
+      ? ["Date","Employee","Department","Supervisor","Tracker Min","Productive Min","NP Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity","Efficiency","Unaccounted Min","QA Reviewed","Errors","Error Rate"]
+      : ["Week Ending","Employee","Department","Supervisor","First Activity","Last Activity","Tracker Min","Productive Min","NP Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity","Efficiency","Unaccounted Min","QA Reviewed","Errors","Error Rate"];
 
     const body = rows.map((r) => {
       const cells = daily
-        ? [r.work_date,r.employee_name,r.department,r.supervisor_name,formatNumber(r.tracker_minutes),formatNumber(r.productive_minutes),formatNumber(r.non_productive_minutes),formatNumber(r.minutes_worked),formatNumber(r.completed_productive_jobs,0),formatNumber(r.completed_quantity,2),formatNumber(r.expected_minutes),formatPercent(r.productivity_percent),formatPercent(r.tracker_coverage_percent),formatNumber(r.unaccounted_minutes)]
-        : [r.week_ending_date,r.employee_name,r.department,r.supervisor_name,r.first_activity_date,r.last_activity_date,formatNumber(r.tracker_minutes),formatNumber(r.productive_minutes),formatNumber(r.non_productive_minutes),formatNumber(r.minutes_worked),formatNumber(r.completed_productive_jobs,0),formatNumber(r.completed_quantity,2),formatNumber(r.expected_minutes),formatPercent(r.productivity_percent),formatPercent(r.tracker_coverage_percent),formatNumber(r.unaccounted_minutes)];
+        ? [r.work_date,r.employee_name,r.department,r.supervisor_name,formatNumber(r.tracker_minutes),formatNumber(r.productive_minutes),formatNumber(r.non_productive_minutes),formatNumber(r.minutes_worked),formatNumber(r.completed_productive_jobs,0),formatNumber(r.completed_quantity,2),formatNumber(r.expected_minutes),formatPercent(r.productivity_percent),formatPercent(r.tracker_coverage_percent),formatNumber(r.unaccounted_minutes),formatNumber(r.qa_reviewed_pieces,2),formatNumber(r.qa_error_quantity,2),formatPercent(r.error_rate_percent)]
+        : [r.week_ending_date,r.employee_name,r.department,r.supervisor_name,r.first_activity_date,r.last_activity_date,formatNumber(r.tracker_minutes),formatNumber(r.productive_minutes),formatNumber(r.non_productive_minutes),formatNumber(r.minutes_worked),formatNumber(r.completed_productive_jobs,0),formatNumber(r.completed_quantity,2),formatNumber(r.expected_minutes),formatPercent(r.productivity_percent),formatPercent(r.tracker_coverage_percent),formatNumber(r.unaccounted_minutes),formatNumber(r.qa_reviewed_pieces,2),formatNumber(r.qa_error_quantity,2),formatPercent(r.error_rate_percent)];
       return `<tr>${cells.map((c) => `<td>${escapeHtml(c ?? "—")}</td>`).join("")}</tr>`;
     }).join("");
 
