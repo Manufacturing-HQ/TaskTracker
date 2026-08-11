@@ -324,26 +324,21 @@
     (tasks || []).forEach((t) => {
       const div = document.createElement("div");
       div.className = "task-card";
-      div.innerHTML = `<h3>${escapeHtml(t.title || t.task_type_name)}</h3><small>${escapeHtml([t.task_type_name, t.employee_name, t.business_date ? `Business ${t.business_date}` : null, t.due_date ? `Due ${t.due_date}` : null, t.status].filter(Boolean).join(" · "))}</small>${t.details ? `<div style="margin-top:8px">${escapeHtml(t.details)}</div>` : ""}<div style="margin-top:10px" class="actions"></div>`;
+      div.innerHTML = `<h3>${escapeHtml(t.title || t.task_type_name)}</h3><small>${escapeHtml([t.task_type_name, t.assigned_supervisor_name ? `Assigned to ${t.assigned_supervisor_name}` : null, t.employee_name, t.business_date ? `Business ${t.business_date}` : null, t.due_date ? `Due ${t.due_date}` : null, t.status].filter(Boolean).join(" · "))}</small>${t.details ? `<div style="margin-top:8px">${escapeHtml(t.details)}</div>` : ""}<div style="margin-top:10px" class="actions"></div>`;
       const actions = div.querySelector(".actions");
-      if (t.status === "Pending") {
-        const b = document.createElement("button");
-        b.className = "ghost";
-        b.textContent = "Start";
-        b.onclick = async () => {
-          await rpc("start_supervisor_task", { p_session_token: sessionToken, p_supervisor_task_id: t.supervisor_task_id });
-          await loadQueue();
-        };
-        actions.appendChild(b);
-      }
       if (["Pending", "In Progress"].includes(t.status)) {
         const b = document.createElement("button");
         b.className = "primary";
         b.textContent = "Complete";
-        b.style.marginLeft = "8px";
         b.onclick = async () => {
-          await rpc("complete_supervisor_task", { p_session_token: sessionToken, p_supervisor_task_id: t.supervisor_task_id, p_completion_notes: null });
-          await loadQueue();
+          b.disabled = true;
+          try {
+            await rpc("complete_supervisor_task", { p_session_token: sessionToken, p_supervisor_task_id: t.supervisor_task_id, p_completion_notes: null });
+            await loadQueue();
+          } catch (error) {
+            b.disabled = false;
+            showError(error);
+          }
         };
         actions.appendChild(b);
       }
