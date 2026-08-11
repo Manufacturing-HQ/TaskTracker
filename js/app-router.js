@@ -54,19 +54,22 @@
     }
   }
 
-  function workspaceForRole(role) {
-    if (role === "Employee") return "employee.html";
+  async function resolveWorkspace() {
+    const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
     if (["Supervisor", "Manager", "Administrator"].includes(role)) return "management.html";
-    return null;
+    if (role !== "Employee") throw new Error(`No workspace is configured for role: ${role || "Unknown"}.`);
+
+    const historySetup = await rpc("get_history_workspace_options", { p_session_token: sessionToken });
+    if (historySetup?.viewer?.has_qa_history) return "qa.html";
+    return "employee.html";
   }
 
-  function routeToWorkspace() {
+  async function routeToWorkspace() {
     const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
-    const destination = workspaceForRole(role);
-    if (!destination) throw new Error(`No workspace is configured for role: ${role || "Unknown"}.`);
     $("login-form").hidden = true;
     $("routing").hidden = false;
     $("routing-message").textContent = `Signed in as ${sessionEmployee?.employee_name || "employee"} · ${role}.`;
+    const destination = await resolveWorkspace();
     window.location.replace(destination);
   }
 
@@ -86,13 +89,13 @@
     sessionStorage.setItem(sessionKey, sessionToken);
     sessionEmployee = row;
     $("pin").value = "";
-    routeToWorkspace();
+    await routeToWorkspace();
   }
 
   async function init() {
     try {
       await listEmployees();
-      if (await restoreSession()) routeToWorkspace();
+      if (await restoreSession()) await routeToWorkspace();
     } catch (error) {
       setMessage(error.message, "error");
       $("login-form").hidden = false;
