@@ -21,6 +21,17 @@
     el.hidden = !message;
   }
 
+  function showLogin(message = "", type = "info") {
+    $("login-form").hidden = false;
+    $("routing").hidden = true;
+    if (message) setMessage(message, type);
+  }
+
+  function showRouting() {
+    $("login-form").hidden = true;
+    $("routing").hidden = false;
+  }
+
   async function rpc(name, args = {}) {
     const { data, error } = await client.rpc(name, args);
     if (error) throw new Error(error.message || `${name} failed.`);
@@ -56,21 +67,34 @@
 
   async function resolveWorkspace() {
     const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
+    const department = sessionEmployee?.department || "";
+
     if (["Supervisor", "Manager", "Administrator"].includes(role)) return "management.html";
     if (role !== "Employee") throw new Error(`No workspace is configured for role: ${role || "Unknown"}.`);
 
     const historySetup = await rpc("get_history_workspace_options", { p_session_token: sessionToken });
-    if (historySetup?.viewer?.has_qa_history) return "qa.html";
+    const hasQa = !!historySetup?.viewer?.has_qa_history;
+
+    if (hasQa) return "qa.html";
+
+    if (department === "Quality Assurance") {
+      throw new Error("This Quality Assurance employee does not have QA View/Review permission assigned yet. Assign QA permissions in employee administration before using the QA workspace.");
+    }
+
     return "employee.html";
   }
 
   async function routeToWorkspace() {
     const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
-    $("login-form").hidden = true;
-    $("routing").hidden = false;
+    showRouting();
     $("routing-message").textContent = `Signed in as ${sessionEmployee?.employee_name || "employee"} · ${role}.`;
-    const destination = await resolveWorkspace();
-    window.location.replace(destination);
+    try {
+      const destination = await resolveWorkspace();
+      window.location.replace(destination);
+    } catch (error) {
+      showLogin(error.message || "Unable to open the correct workspace.", "error");
+      throw error;
+    }
   }
 
   async function login(event) {
@@ -97,12 +121,13 @@
       await listEmployees();
       if (await restoreSession()) await routeToWorkspace();
     } catch (error) {
-      setMessage(error.message, "error");
-      $("login-form").hidden = false;
-      $("routing").hidden = true;
+      showLogin(error.message || "Unable to restore the previous session.", "error");
     }
   }
 
-  $("login-form").addEventListener("submit", (event) => login(event).catch((e) => setMessage(e.message, "error")));
+  $("login-form").addEventListener("submit", (event) => {
+    login(event).catch((error) => showLogin(error.message || "Unable to sign in.", "error"));
+  });
+
   init();
 })();
