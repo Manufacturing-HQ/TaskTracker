@@ -14,6 +14,7 @@
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
   let memoOptions = null;
   let weeklyDefaultApplied = false;
+  let memoInstallBusy = false;
 
   const style = document.createElement("style");
   style.textContent = `
@@ -48,6 +49,12 @@
     weeklyDefaultApplied = true;
     select.value = "WEEK";
     select.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function dedupeMemoButtons() {
+    const buttons = [...document.querySelectorAll("#pilot-submit-memo")];
+    buttons.slice(1).forEach((button) => button.remove());
+    return buttons[0] || null;
   }
 
   async function openMemoModal() {
@@ -100,12 +107,18 @@
   }
 
   async function installMemoButton() {
+    if (memoInstallBusy) return;
+    if (dedupeMemoButtons()) return;
     const t = token();
-    if (!t || document.getElementById("pilot-submit-memo")) return;
+    if (!t) return;
+
+    memoInstallBusy = true;
     try {
       const rows = await rpc("get_employee_session_context", { p_session_token: t });
       const ctx = Array.isArray(rows) ? rows[0] : rows;
       if ((ctx?.employee_role || ctx?.role) !== "Administrator") return;
+      if (dedupeMemoButtons()) return;
+
       const top = document.querySelector(".top");
       if (!top) return;
       const actions = top.lastElementChild;
@@ -117,7 +130,11 @@
       button.style.marginRight = "8px";
       button.onclick = () => openMemoModal().catch((e) => message(e.message, "error"));
       actions?.insertAdjacentElement("beforebegin", button);
-    } catch {}
+      dedupeMemoButtons();
+    } catch {
+    } finally {
+      memoInstallBusy = false;
+    }
   }
 
   const app = document.getElementById("app");
@@ -131,6 +148,7 @@
   const timer = setInterval(() => {
     tries += 1;
     enforceWeeklyDefault();
+    dedupeMemoButtons();
     installMemoButton();
     if ((document.getElementById("pilot-submit-memo") && weeklyDefaultApplied) || tries > 30) clearInterval(timer);
   }, 300);
