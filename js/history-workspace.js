@@ -1,164 +1,58 @@
 "use strict";
 
 (() => {
-  const config = window.TaskTrackerConfig;
-  const supabaseLib = window.supabase;
-  if (!config || !supabaseLib) throw new Error("Task Tracker configuration failed to load.");
-
-  const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
-    auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}
-  });
-  const $=(id)=>document.getElementById(id);
-  const sessionKey=config.sessionStorageKey;
-  let sessionToken=sessionStorage.getItem(sessionKey);
-  let sessionEmployee=null;
-  let setup=null;
-  let activeView="EMPLOYEE";
-  let employeeOffset=0;
-  let qaOffset=0;
+  const config=window.TaskTrackerConfig,supabaseLib=window.supabase;
+  if(!config||!supabaseLib)throw new Error("Task Tracker configuration failed to load.");
+  const client=supabaseLib.createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
+  const $=id=>document.getElementById(id),sessionKey=config.sessionStorageKey;
+  let sessionToken=sessionStorage.getItem(sessionKey),sessionEmployee=null,setup=null,activeView="EMPLOYEE",employeeOffset=0,qaOffset=0;
   const pageSize=50;
-
-  const esc=(v)=>String(v??"").replace(/[&<>'"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
-  const min=(v)=>v===null||v===undefined?"—":`${Number(v).toFixed(2)} min`;
-  const pct=(v)=>v===null||v===undefined?"—":`${Number(v).toFixed(2)}%`;
-  const fmtDate=(v)=>v?new Date(`${v}T00:00:00`).toLocaleDateString():"—";
+  const esc=v=>String(v??"").replace(/[&<>'"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
+  const min=v=>v===null||v===undefined?"—":`${Number(v).toFixed(2)} min`;
+  const pct=v=>v===null||v===undefined?"—":`${Number(v).toFixed(2)}%`;
+  const fmtDate=v=>v?new Date(`${v}T00:00:00`).toLocaleDateString():"—";
   const todayIso=()=>new Date().toISOString().slice(0,10);
+  const isAdmin=()=>setup?.viewer?.role==="Administrator";
+
+  const style=document.createElement("style");
+  style.textContent=`
+    .history-summary-wide{display:block!important;padding:0!important;overflow:auto}.history-main-grid{display:grid;grid-template-columns:100px 120px minmax(180px,1.5fr) 120px 130px minmax(180px,1.4fr) 85px minmax(200px,1.5fr) 110px 110px minmax(180px,1.4fr) minmax(180px,1.4fr) 115px 115px 115px;min-width:1900px}.history-cell{padding:11px 10px;border-right:1px solid #e2e8f0;overflow:hidden}.history-cell:last-child{border-right:0}.history-cell .hlabel{display:block;font-size:10px;color:#64748b;text-transform:uppercase;font-weight:900;margin-bottom:5px}.history-cell .hvalue{font-size:12px;font-weight:700;white-space:normal;overflow-wrap:anywhere}.history-errors-stack>div{margin-bottom:3px}.history-errors-stack>div:last-child{margin-bottom:0}
+    .qa-edit-history{font-size:12px;white-space:nowrap}.qa-history-errors>div{margin-bottom:4px}.qa-history-errors>div:last-child{margin-bottom:0}
+    .qa-history-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.68);display:grid;place-items:center;padding:20px;z-index:1200}.qa-history-modal{width:min(900px,97vw);max-height:94vh;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:16px;padding:20px}.qa-history-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.qa-history-edit-grid .full{grid-column:1/-1}.qa-history-edit-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.qa-history-edit-grid input,.qa-history-edit-grid select,.qa-history-edit-grid textarea{width:100%;border:1px solid #94a3b8;border-radius:9px;padding:9px 10px;background:#fff}.qa-history-edit-grid textarea{min-height:90px}.qa-history-item-results{max-height:180px;overflow:auto;border:1px solid #cbd5e1;border-radius:9px;margin-top:6px}.qa-history-item-result{display:block;width:100%;border:0;border-bottom:1px solid #e2e8f0;background:#fff;padding:9px;text-align:left}.qa-history-error-groups{display:grid;gap:10px}.qa-history-error-group{border:1px solid #e2e8f0;border-radius:10px;padding:10px}.qa-history-error-row{display:grid;grid-template-columns:1fr 100px;gap:10px;align-items:center;padding:5px 0}.qa-history-edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.qa-history-total{padding:10px 12px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;font-size:12px;font-weight:800}
+    @media(max-width:760px){.qa-history-edit-grid{grid-template-columns:1fr}.qa-history-edit-grid .full{grid-column:auto}}
+  `;
+  document.head.appendChild(style);
 
   async function rpc(name,args={}){const {data,error}=await client.rpc(name,args);if(error)throw new Error(error.message||`${name} failed.`);return data;}
   function msg(text,type="info"){const el=$("message");el.textContent=text||"";el.dataset.type=type;el.hidden=!text;}
+  async function listEmployees(){const rows=await rpc("list_login_employees");$("employee").innerHTML='<option value="">Select employee</option>'+ (rows||[]).map(r=>`<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");}
+  async function restore(){if(!sessionToken)return false;try{const rows=await rpc("get_employee_session_context",{p_session_token:sessionToken});sessionEmployee=Array.isArray(rows)?rows[0]:rows;return!!sessionEmployee;}catch{sessionStorage.removeItem(sessionKey);sessionToken=null;return false;}}
+  async function login(e){e.preventDefault();msg("Signing in...");const rows=await rpc("login_with_employee_pin",{p_employee_id:$("employee").value,p_pin:$("pin").value}),row=Array.isArray(rows)?rows[0]:rows;if(!row?.login_successful||!row.session_token){msg(row?.login_message||"Login failed.","error");return;}sessionToken=row.session_token;sessionStorage.setItem(sessionKey,sessionToken);sessionEmployee=row;$("pin").value="";await enter();}
+  async function logout(){const token=sessionToken;sessionStorage.removeItem(sessionKey);sessionToken=null;sessionEmployee=null;if(token){try{await rpc("logout_employee_session",{p_session_token:token});}catch{}}$("app").hidden=true;$("login").hidden=false;msg("Signed out.");}
+  async function enter(){setup=await rpc("get_history_workspace_options",{p_session_token:sessionToken});$("login").hidden=true;$("app").hidden=false;msg("");$("user-name").textContent=setup.viewer?.employee_name||sessionEmployee?.employee_name||"Employee";$("user-meta").textContent=[setup.viewer?.role,setup.viewer?.department].filter(Boolean).join(" · ");fillOptions();activeView=setup.viewer?.default_view||"EMPLOYEE";configureViewButtons();setDates();await showView(activeView,true);}
+  function fillOptions(){const employees=setup.employee_options||[],builders=setup.builder_options||[],qas=setup.qa_rep_options||[];$("employee-filter").innerHTML=employees.map(r=>`<option value="${esc(r.employee_id)}">${esc([r.employee_name,r.department].filter(Boolean).join(" · "))}</option>`).join("");if(!setup.viewer?.is_management&&setup.viewer?.employee_id)$("employee-filter").value=setup.viewer.employee_id;$("builder-filter").innerHTML='<option value="">All Builders</option>'+builders.map(r=>`<option value="${esc(r.employee_id)}">${esc([r.employee_name,r.department].filter(Boolean).join(" · "))}</option>`).join("");$("qa-filter").innerHTML='<option value="">All QA Employees</option>'+qas.map(r=>`<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");$("employee-filter-wrap").hidden=!setup.viewer?.is_management;$("builder-filter-wrap").hidden=!setup.viewer?.is_management;$("qa-filter-wrap").hidden=!setup.viewer?.is_management;}
+  function configureViewButtons(){const management=!!setup.viewer?.is_management,hasQa=!!setup.viewer?.has_qa_history;$("view-switch").hidden=!(management||hasQa);$("qa-view-btn").hidden=!hasQa;if(!management&&!hasQa)$("employee-view-btn").hidden=true;}
+  function setDates(){const end=todayIso(),start=new Date();start.setDate(start.getDate()-30);const s=start.toISOString().slice(0,10);["employee-start","qa-start"].forEach(id=>$(id).value=s);["employee-end","qa-end"].forEach(id=>$(id).value=end);}
+  async function showView(view,reset=false){activeView=view;$("employee-view-btn").classList.toggle("active",view==="EMPLOYEE");$("qa-view-btn").classList.toggle("active",view==="QA");$("employee-history-view").hidden=view!=="EMPLOYEE";$("qa-history-view").hidden=view!=="QA";$("page-subtitle").textContent=view==="EMPLOYEE"?"Employee job history with performance, QA findings, timing, and expandable session details.":"Productive QA reviews by QA completion date.";if(reset){employeeOffset=0;qaOffset=0;}if(view==="EMPLOYEE")await loadEmployee();else await loadQa();}
 
-  async function listEmployees(){
-    const rows=await rpc("list_login_employees");
-    $("employee").innerHTML='<option value="">Select employee</option>'+ (rows||[]).map(r=>`<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");
-  }
-  async function restore(){
-    if(!sessionToken)return false;
-    try{const rows=await rpc("get_employee_session_context",{p_session_token:sessionToken});sessionEmployee=Array.isArray(rows)?rows[0]:rows;return !!sessionEmployee;}
-    catch{sessionStorage.removeItem(sessionKey);sessionToken=null;return false;}
-  }
-  async function login(e){
-    e.preventDefault();msg("Signing in...");
-    const rows=await rpc("login_with_employee_pin",{p_employee_id:$("employee").value,p_pin:$("pin").value});
-    const row=Array.isArray(rows)?rows[0]:rows;
-    if(!row?.login_successful||!row.session_token){msg(row?.login_message||"Login failed.","error");return;}
-    sessionToken=row.session_token;sessionStorage.setItem(sessionKey,sessionToken);sessionEmployee=row;$("pin").value="";await enter();
-  }
-  async function logout(){
-    const token=sessionToken;sessionStorage.removeItem(sessionKey);sessionToken=null;sessionEmployee=null;
-    if(token){try{await rpc("logout_employee_session",{p_session_token:token});}catch{}}
-    $("app").hidden=true;$("login").hidden=false;msg("Signed out.");
-  }
+  function errorsStack(errors,cls="history-errors-stack"){return `<div class="${cls}">${(errors||[]).map(e=>`<div>${esc(e.error_name||"Error")} × ${esc(e.quantity??0)}</div>`).join("")||"—"}</div>`;}
+  function productivity(job){if(job.task_type!=="Productive")return"N/A";const actual=Number(job.actual_minutes),expected=Number(job.expected_minutes);return Number.isFinite(actual)&&actual>0&&Number.isFinite(expected)?pct(expected/actual*100):"—";}
+  function employeeErrorRate(job){if(job.task_type!=="Productive")return"N/A";return job.qa?.reviewed_at?pct(job.qa.error_rate_percent):"Pending QA";}
+  function cell(label,value,raw=false){return `<div class="history-cell"><span class="hlabel">${esc(label)}</span><div class="hvalue">${raw?value:esc(value)}</div></div>`;}
+  function renderEmployee(data){const sum=data?.summary||{};$("emp-productivity").textContent=pct(sum.productivity_percent);$("emp-efficiency").textContent=pct(sum.efficiency_percent);$("emp-error").textContent=pct(sum.error_rate_percent);const jobs=data?.jobs||[],list=$("employee-list");if(!jobs.length)list.innerHTML='<div class="empty">No employee history found for this date range.</div>';else list.innerHTML=jobs.map(job=>{const productive=job.task_type==="Productive",variable=productive?(job.item_name||"—"):(job.non_productive_task||"—"),errors=job.qa?.errors||[],sessions=(job.sessions||[]).map(s=>{const gap=Number(s.time_between_tasks_minutes),hasGap=Number.isFinite(gap)&&gap>0,cls=hasGap?(s.gap_type==="WITHIN_JOB"?"gap-within":"gap-between"):"",gl=hasGap?`<span class="gap-label">${s.gap_type==="WITHIN_JOB"?"Within same job":"Between jobs"}</span>`:"";return `<tr><td>${fmtDate(s.business_date)}</td><td>${esc(s.start_time||"—")}</td><td>${esc(s.stop_time||"—")}</td><td>${esc(s.stop_reason||"—")}</td><td>${min(s.duration_minutes)}</td><td class="${cls}">${hasGap?min(gap):"—"}${gl}</td><td>${esc(s.comments||"—")}</td></tr>`;}).join("");const grid=[cell("Date",fmtDate(job.first_date)),cell("Task Type",job.task_type||"—"),cell("Variable Field",variable),cell("Job Type",productive?(job.job_type||"—"):"N/A"),cell("Work Order Number",productive?(job.work_order_number||"—"):"N/A"),cell("Item",productive?(job.item_name||"—"):"N/A"),cell("Quantity",productive?(job.assigned_quantity??"—"):"N/A"),cell("Comments",job.comments||"—"),cell("Productivity %",productivity(job)),cell("Error Rate %",employeeErrorRate(job)),cell("Errors",errorsStack(errors),true),cell("QA Comments",job.qa?.qa_comments||"—"),cell("Tracked Duration",min(job.actual_minutes)),cell("Within - Job Gap",min(job.within_job_gap_minutes)),cell("Next Task Gap",min(job.between_job_gap_minutes))].join("");return `<details class="history-card"><summary class="history-summary history-summary-wide"><div class="history-main-grid">${grid}</div></summary><div class="history-detail"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Start Time</th><th>Stop Time</th><th>Stop Reason</th><th>Duration</th><th>Time Between Tasks</th><th>Comments</th></tr></thead><tbody>${sessions}</tbody></table></div></div></details>`;}).join("");renderPager("employee",data.total_count||0,employeeOffset);}
+  async function loadEmployee(){const employeeId=setup.viewer?.is_management?$("employee-filter").value:setup.viewer?.employee_id;if(!employeeId){$("employee-list").innerHTML='<div class="empty">Select an employee.</div>';return;}$("employee-list").innerHTML='<div class="empty">Loading history...</div>';try{renderEmployee(await rpc("get_employee_history_timeline_page",{p_session_token:sessionToken,p_employee_id:employeeId,p_start_date:$("employee-start").value,p_end_date:$("employee-end").value,p_page_size:pageSize,p_page_offset:employeeOffset}));}catch(e){$("employee-list").innerHTML=`<div class="msg" data-type="error">${esc(e.message)}</div>`;}}
 
-  async function enter(){
-    setup=await rpc("get_history_workspace_options",{p_session_token:sessionToken});
-    $("login").hidden=true;$("app").hidden=false;msg("");
-    $("user-name").textContent=setup.viewer?.employee_name||sessionEmployee?.employee_name||"Employee";
-    $("user-meta").textContent=[setup.viewer?.role,setup.viewer?.department].filter(Boolean).join(" · ");
-    fillOptions();
-    activeView=setup.viewer?.default_view||"EMPLOYEE";
-    configureViewButtons();
-    setDates();
-    await showView(activeView,true);
+  function renderQa(data){const rows=data?.records||[],admin=isAdmin(),body=rows.map((r,i)=>`<tr><td>${fmtDate(r.review_date)}</td><td>${esc(r.builder_name||"—")}</td><td>${esc(r.job_type||"—")}</td><td>${esc(r.work_order_number||"—")}</td><td>${esc(r.item_name||"—")}</td><td>${esc(r.assigned_quantity??r.quantity_reviewed??"—")}</td><td>${esc(r.quantity_passed??0)}</td><td>${esc(r.quantity_rejected??0)}</td><td>${errorsStack(r.errors,"qa-history-errors")}</td><td>${esc(r.qa_comments||"—")}</td>${admin?`<td><button type="button" class="ghost qa-edit-history" data-index="${i}">Edit</button></td>`:""}</tr>`).join("");$("qa-table").innerHTML=`<div class="table-wrap"><table class="qa-table"><thead><tr><th>Date</th><th>Builder</th><th>Job Type</th><th>Work Order Number</th><th>Item</th><th>Quantity</th><th>Passed</th><th>Rejected</th><th>Errors</th><th>QA Comments</th>${admin?"<th>Admin</th>":""}</tr></thead><tbody>${body||`<tr><td colspan="${admin?11:10}" class="empty">No QA history found for this date range.</td></tr>`}</tbody></table></div>`;if(admin)$("qa-table").querySelectorAll(".qa-edit-history").forEach(b=>b.onclick=()=>openQaEditor(rows[Number(b.dataset.index)]).catch(e=>msg(e.message,"error")));renderPager("qa",data.total_count||0,qaOffset);}
+  async function loadQa(){$("qa-table").innerHTML='<div class="empty">Loading QA history...</div>';try{renderQa(await rpc("get_qa_history_page",{p_session_token:sessionToken,p_start_date:$("qa-start").value,p_end_date:$("qa-end").value,p_builder_employee_id:setup.viewer?.is_management?($("builder-filter").value||null):null,p_qa_employee_id:setup.viewer?.is_management?($("qa-filter").value||null):null,p_page_size:pageSize,p_page_offset:qaOffset}));}catch(e){$("qa-table").innerHTML=`<div class="msg" data-type="error">${esc(e.message)}</div>`;}}
+
+  async function openQaEditor(row){if(!isAdmin())throw new Error("Administrator access is required.");const options=await rpc("get_qa_review_options",{p_session_token:sessionToken});let selectedItem=row.item_id?{item_id:row.item_id,item_name:row.item_name}:null,searchTimer=null;const currentErrors=new Map((row.errors||[]).map(e=>[e.error_type_id,Number(e.quantity)||0]));const backdrop=document.createElement("div");backdrop.className="qa-history-backdrop";const errorGroups=(options?.error_categories||[]).map(cat=>`<div class="qa-history-error-group"><strong>${esc(cat.category_name)}</strong>${(cat.error_types||[]).map(t=>`<div class="qa-history-error-row"><label>${esc(t.error_name)}</label><input type="number" min="0" step="1" data-error-type-id="${esc(t.error_type_id)}" value="${currentErrors.get(t.error_type_id)||""}"></div>`).join("")}</div>`).join("");backdrop.innerHTML=`<div class="qa-history-modal"><h2 style="margin-top:0">Edit QA History · Job #${esc(row.job_number||"")}</h2><div class="muted" style="margin-bottom:14px">Administrator correction. Builder, QA completion date, and Task Type remain historical identity fields. All changes require a reason and are audited.</div><div class="qa-history-edit-grid"><div class="full"><label>Correction Reason</label><input id="qh-reason" placeholder="Required"></div><div><label>Builder</label><input value="${esc(row.builder_name||"")}" readonly></div><div><label>QA Completion Date</label><input value="${esc(fmtDate(row.review_date))}" readonly></div><div><label>Job Type</label><select id="qh-job-type">${["Build Line","Solid Keys","Aftermarket","New In Bag"].map(x=>`<option value="${x}" ${x===row.job_type?"selected":""}>${x}</option>`).join("")}</select></div><div><label>Work Order Number</label><input id="qh-wo" value="${esc(row.work_order_number||"")}"></div><div class="full"><label>Item Search</label><input id="qh-item-search" value="${esc(row.item_name||"")}"><div id="qh-item-results" class="qa-history-item-results" hidden></div><div id="qh-selected-item" class="muted" style="margin-top:5px">Selected: ${esc(row.item_name||"—")}</div></div><div><label>Quantity</label><input id="qh-qty" type="number" min="0.01" step="0.01" value="${esc(row.assigned_quantity??row.quantity_reviewed??"")}"></div><div class="qa-history-total" id="qh-total"></div><div><label>Passed</label><input id="qh-pass" type="number" min="0" step="1" value="${esc(row.quantity_passed??0)}"></div><div><label>Rejected</label><input id="qh-reject" type="number" min="0" step="1" value="${esc(row.quantity_rejected??0)}"></div><div class="full"><label>Error Details</label><div class="qa-history-error-groups">${errorGroups||"No active error types."}</div></div><div class="full"><label>QA Comments</label><textarea id="qh-comments">${esc(row.qa_comments||"")}</textarea></div></div><div id="qh-message" class="msg" hidden></div><div class="qa-history-edit-actions"><button type="button" id="qh-cancel" class="ghost">Cancel</button><button type="button" id="qh-save" class="primary">Save Correction</button></div></div>`;document.body.appendChild(backdrop);const modal=backdrop.querySelector(".qa-history-modal"),q=id=>modal.querySelector(`#${id}`),num=id=>Number(q(id).value)||0;
+    function updateTotal(){const qty=num("qh-qty"),total=num("qh-pass")+num("qh-reject"),ok=Math.abs(qty-total)<.000001;q("qh-total").textContent=`Passed + Rejected: ${total} of ${qty}${ok?" ✓":" — must match Quantity"}`;q("qh-total").style.background=ok?"#ecfdf5":"#fff7ed";q("qh-total").style.color=ok?"#166534":"#9a3412";return ok;}
+    q("qh-cancel").onclick=()=>backdrop.remove();[q("qh-qty"),q("qh-pass"),q("qh-reject")].forEach(el=>el.addEventListener("input",updateTotal));updateTotal();
+    q("qh-item-search").oninput=()=>{selectedItem=null;q("qh-selected-item").textContent="Select an item from the search results before saving.";clearTimeout(searchTimer);searchTimer=setTimeout(async()=>{const term=q("qh-item-search").value.trim();if(!term)return;try{const rows=await rpc("search_qa_items",{p_session_token:sessionToken,p_search_text:term,p_result_limit:30}),box=q("qh-item-results");box.hidden=false;box.innerHTML=(rows||[]).map(i=>`<button type="button" class="qa-history-item-result" data-id="${esc(i.item_id)}" data-name="${esc(i.item_name)}"><strong>${esc(i.item_name)}</strong><div class="muted">${esc(i.internal_id||"")}${i.make?` · ${esc(i.make)}`:""}</div></button>`).join("")||'<div class="muted" style="padding:9px">No items found.</div>';box.querySelectorAll("button").forEach(b=>b.onclick=()=>{selectedItem={item_id:b.dataset.id,item_name:b.dataset.name};q("qh-selected-item").textContent=`Selected: ${selectedItem.item_name}`;box.hidden=true;});}catch(e){const m=q("qh-message");m.textContent=e.message;m.dataset.type="error";m.hidden=false;}},250);};
+    q("qh-save").onclick=async()=>{const m=q("qh-message"),reason=q("qh-reason").value.trim();if(!reason){m.textContent="A correction reason is required.";m.dataset.type="error";m.hidden=false;return;}if(!selectedItem?.item_id){m.textContent="Select a listed Item.";m.dataset.type="error";m.hidden=false;return;}if(!updateTotal()){m.textContent="Passed plus Rejected must equal Quantity.";m.dataset.type="error";m.hidden=false;return;}const errors=[...modal.querySelectorAll("input[data-error-type-id]")].map(i=>({error_type_id:i.dataset.errorTypeId,quantity:Number(i.value)||0})).filter(e=>e.quantity>0),save=q("qh-save");save.disabled=true;save.textContent="Saving...";try{await rpc("admin_edit_qa_history_review",{p_session_token:sessionToken,p_qa_review_id:row.qa_review_id,p_correction_reason:reason,p_item_id:selectedItem.item_id,p_assigned_quantity:num("qh-qty"),p_work_order_number:q("qh-wo").value,p_job_type:q("qh-job-type").value,p_quantity_passed:num("qh-pass"),p_quantity_rejected:num("qh-reject"),p_error_entries:errors,p_qa_comments:q("qh-comments").value.trim()||null});backdrop.remove();msg("QA History correction saved and audited.","success");await loadQa();}catch(e){m.textContent=e.message;m.dataset.type="error";m.hidden=false;save.disabled=false;save.textContent="Save Correction";}};
   }
 
-  function fillOptions(){
-    const employeeOptions=setup.employee_options||[];
-    const builderOptions=setup.builder_options||[];
-    const qaOptions=setup.qa_rep_options||[];
-    $("employee-filter").innerHTML=employeeOptions.map(r=>`<option value="${esc(r.employee_id)}">${esc([r.employee_name,r.department].filter(Boolean).join(" · "))}</option>`).join("");
-    if(!setup.viewer?.is_management && setup.viewer?.employee_id) $("employee-filter").value=setup.viewer.employee_id;
-    $("builder-filter").innerHTML='<option value="">All Builders</option>'+builderOptions.map(r=>`<option value="${esc(r.employee_id)}">${esc([r.employee_name,r.department].filter(Boolean).join(" · "))}</option>`).join("");
-    $("qa-filter").innerHTML='<option value="">All QA Employees</option>'+qaOptions.map(r=>`<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");
-    $("employee-filter-wrap").hidden=!setup.viewer?.is_management;
-    $("builder-filter-wrap").hidden=!setup.viewer?.is_management;
-    $("qa-filter-wrap").hidden=!setup.viewer?.is_management;
-  }
-
-  function configureViewButtons(){
-    const management=!!setup.viewer?.is_management;
-    const hasQa=!!setup.viewer?.has_qa_history;
-    $("view-switch").hidden=!(management||hasQa);
-    $("qa-view-btn").hidden=!hasQa;
-    if(!management && !hasQa) $("employee-view-btn").hidden=true;
-  }
-
-  function setDates(){
-    const end=todayIso();const start=new Date();start.setDate(start.getDate()-30);const s=start.toISOString().slice(0,10);
-    ["employee-start","qa-start"].forEach(id=>$(id).value=s);
-    ["employee-end","qa-end"].forEach(id=>$(id).value=end);
-  }
-
-  async function showView(view,reset=false){
-    activeView=view;
-    $("employee-view-btn").classList.toggle("active",view==="EMPLOYEE");
-    $("qa-view-btn").classList.toggle("active",view==="QA");
-    $("employee-history-view").hidden=view!=="EMPLOYEE";
-    $("qa-history-view").hidden=view!=="QA";
-    $("page-subtitle").textContent=view==="EMPLOYEE"?"Employee jobs, sessions, stops, duration, and time between tasks.":"Completed QA inspections, findings, status, and comments.";
-    if(reset){employeeOffset=0;qaOffset=0;}
-    if(view==="EMPLOYEE") await loadEmployee(); else await loadQa();
-  }
-
-  function renderEmployee(data){
-    const sum=data?.summary||{};
-    $("emp-productivity").textContent=pct(sum.productivity_percent);
-    $("emp-efficiency").textContent=pct(sum.efficiency_percent);
-    $("emp-error").textContent=pct(sum.error_rate_percent);
-    const jobs=data?.jobs||[];
-    const list=$("employee-list");
-    if(!jobs.length){list.innerHTML='<div class="empty">No employee history found for this date range.</div>';}
-    else list.innerHTML=jobs.map(job=>{
-      const label=job.task_type==="Productive"?(job.work_order_number||job.item_name||"Productive"):(job.non_productive_task||job.task_type||"Task");
-      const sessions=(job.sessions||[]).map(s=>{
-        const gap=Number(s.time_between_tasks_minutes);const hasGap=Number.isFinite(gap)&&gap>0;
-        const cls=hasGap?(s.gap_type==="WITHIN_JOB"?"gap-within":"gap-between"):"";
-        const gl=hasGap?`<span class="gap-label">${s.gap_type==="WITHIN_JOB"?"Within same job":"Between jobs"}</span>`:"";
-        return `<tr><td>${fmtDate(s.business_date)}</td><td>${esc(s.start_time||"—")}</td><td>${esc(s.stop_time||"—")}</td><td>${esc(s.stop_reason||"—")}</td><td>${min(s.duration_minutes)}</td><td class="${cls}">${hasGap?min(gap):"—"}${gl}</td><td>${esc(s.comments||"—")}</td></tr>`;
-      }).join("");
-      return `<details class="history-card"><summary class="history-summary"><div><strong>${fmtDate(job.first_date)}</strong><small>${esc(job.task_type||"")}</small></div><div><strong>${esc(label)}</strong><small>${esc([job.item_name,job.job_type,job.job_status].filter(Boolean).join(" · "))}</small></div><div><strong>${min(job.actual_minutes)}</strong><small>Tracked Duration</small></div><div><strong>${min(job.within_job_gap_minutes)}</strong><small>Within-Job Gap</small></div><div><strong>${min(job.between_job_gap_minutes)}</strong><small>Next-Task Gap</small></div></summary><div class="history-detail"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Start Time</th><th>Stop Time</th><th>Stop Reason</th><th>Duration</th><th>Time Between Tasks</th><th>Comments</th></tr></thead><tbody>${sessions}</tbody></table></div></div></details>`;
-    }).join("");
-    renderPager("employee",data.total_count||0,employeeOffset);
-  }
-
-  async function loadEmployee(){
-    const employeeId=setup.viewer?.is_management?$("employee-filter").value:setup.viewer?.employee_id;
-    if(!employeeId){$("employee-list").innerHTML='<div class="empty">Select an employee.</div>';return;}
-    $("employee-list").innerHTML='<div class="empty">Loading history...</div>';
-    try{renderEmployee(await rpc("get_employee_history_timeline_page",{p_session_token:sessionToken,p_employee_id:employeeId,p_start_date:$("employee-start").value,p_end_date:$("employee-end").value,p_page_size:pageSize,p_page_offset:employeeOffset}));}
-    catch(e){$("employee-list").innerHTML=`<div class="msg" data-type="error">${esc(e.message)}</div>`;}
-  }
-
-  function renderQa(data){
-    const rows=data?.records||[];
-    const body=rows.map(r=>`<tr><td>${fmtDate(r.review_date)}</td><td>${esc(r.builder_name||"—")}</td><td><strong>${esc(r.item_name||"—")}</strong><div class="subtle">WO ${esc(r.work_order_number||"—")}</div></td><td>${esc(r.job_type||"—")}</td><td>${esc(r.quantity_reviewed??0)}</td><td>${esc(r.qa_rep||"—")}</td><td><strong>${esc(r.quality_status||"—")}</strong></td><td><div class="error-pills">${(r.errors||[]).map(e=>`<span>${esc(e.error_name)} × ${esc(e.quantity)}</span>`).join("")||"—"}</div></td><td>${esc(r.qa_comments||"—")}</td></tr>`).join("");
-    $("qa-table").innerHTML=`<div class="table-wrap"><table class="qa-table"><thead><tr><th>Date</th><th>Builder</th><th>Item / WO</th><th>Job Type</th><th>Quantity</th><th>QA Rep</th><th>Quality Status</th><th>Errors</th><th>QA Comments</th></tr></thead><tbody>${body||'<tr><td colspan="9" class="empty">No QA history found for this date range.</td></tr>'}</tbody></table></div>`;
-    renderPager("qa",data.total_count||0,qaOffset);
-  }
-
-  async function loadQa(){
-    $("qa-table").innerHTML='<div class="empty">Loading QA history...</div>';
-    try{renderQa(await rpc("get_qa_history_page",{p_session_token:sessionToken,p_start_date:$("qa-start").value,p_end_date:$("qa-end").value,p_builder_employee_id:setup.viewer?.is_management?($("builder-filter").value||null):null,p_qa_employee_id:setup.viewer?.is_management?($("qa-filter").value||null):null,p_page_size:pageSize,p_page_offset:qaOffset}));}
-    catch(e){$("qa-table").innerHTML=`<div class="msg" data-type="error">${esc(e.message)}</div>`;}
-  }
-
-  function renderPager(prefix,total,offset){
-    const from=total?offset+1:0;const to=Math.min(offset+pageSize,total);
-    $(`${prefix}-page-info`).textContent=`Showing ${from}–${to} of ${total}`;
-    $(`${prefix}-prev`).disabled=offset<=0;
-    $(`${prefix}-next`).disabled=offset+pageSize>=total;
-  }
-
-  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));
-  $("sign-out").addEventListener("click",()=>logout().catch(()=>{}));
-  $("employee-view-btn").addEventListener("click",()=>showView("EMPLOYEE",true));
-  $("qa-view-btn").addEventListener("click",()=>showView("QA",true));
-  $("employee-load").addEventListener("click",()=>{employeeOffset=0;loadEmployee();});
-  $("qa-load").addEventListener("click",()=>{qaOffset=0;loadQa();});
-  $("employee-prev").addEventListener("click",()=>{employeeOffset=Math.max(0,employeeOffset-pageSize);loadEmployee();});
-  $("employee-next").addEventListener("click",()=>{employeeOffset+=pageSize;loadEmployee();});
-  $("qa-prev").addEventListener("click",()=>{qaOffset=Math.max(0,qaOffset-pageSize);loadQa();});
-  $("qa-next").addEventListener("click",()=>{qaOffset+=pageSize;loadQa();});
-
-  async function init(){try{await listEmployees();if(await restore())await enter();}catch(e){msg(e.message,"error");}}
-  init();
+  function renderPager(prefix,total,offset){const from=total?offset+1:0,to=Math.min(offset+pageSize,total);$(`${prefix}-page-info`).textContent=`Showing ${from}–${to} of ${total}`;$(`${prefix}-prev`).disabled=offset<=0;$(`${prefix}-next`).disabled=offset+pageSize>=total;}
+  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>logout().catch(()=>{}));$("employee-view-btn").addEventListener("click",()=>showView("EMPLOYEE",true));$("qa-view-btn").addEventListener("click",()=>showView("QA",true));$("employee-load").addEventListener("click",()=>{employeeOffset=0;loadEmployee();});$("qa-load").addEventListener("click",()=>{qaOffset=0;loadQa();});$("employee-prev").addEventListener("click",()=>{employeeOffset=Math.max(0,employeeOffset-pageSize);loadEmployee();});$("employee-next").addEventListener("click",()=>{employeeOffset+=pageSize;loadEmployee();});$("qa-prev").addEventListener("click",()=>{qaOffset=Math.max(0,qaOffset-pageSize);loadQa();});$("qa-next").addEventListener("click",()=>{qaOffset+=pageSize;loadQa();});
+  async function init(){try{await listEmployees();if(await restore())await enter();}catch(e){msg(e.message,"error");}}init();
 })();
