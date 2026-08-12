@@ -31,3 +31,11 @@
     });
   });
 })();
+
+(() => {
+  if (document.querySelector('script[data-pilot-helper="management"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/management-pilot-live-enhancements.js";
+  script.dataset.pilotHelper = "management";
+  document.body.appendChild(script);
+})();
