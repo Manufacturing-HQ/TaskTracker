@@ -14,7 +14,7 @@
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
   let memoOptions = null;
   let weeklyDefaultApplied = false;
-  let memoInstallBusy = false;
+  let memoRoleChecked = false;
 
   const style = document.createElement("style");
   style.textContent = `
@@ -106,13 +106,15 @@
     };
   }
 
-  async function installMemoButton() {
-    if (memoInstallBusy) return;
-    if (dedupeMemoButtons()) return;
+  async function installMemoButtonOnce() {
+    if (memoRoleChecked) return;
+    const app = document.getElementById("app");
     const t = token();
-    if (!t) return;
+    if (!t || !app || app.hidden) return;
 
-    memoInstallBusy = true;
+    memoRoleChecked = true;
+    dedupeMemoButtons();
+
     try {
       const rows = await rpc("get_employee_session_context", { p_session_token: t });
       const ctx = Array.isArray(rows) ? rows[0] : rows;
@@ -132,24 +134,31 @@
       actions?.insertAdjacentElement("beforebegin", button);
       dedupeMemoButtons();
     } catch {
-    } finally {
-      memoInstallBusy = false;
+      // Memo button is non-critical. Do not retry session validation continuously.
     }
+  }
+
+  function onManagementReady() {
+    enforceWeeklyDefault();
+    installMemoButtonOnce();
   }
 
   const app = document.getElementById("app");
   if (app) {
     new MutationObserver(() => {
-      if (!app.hidden) setTimeout(enforceWeeklyDefault, 40);
+      if (!app.hidden) setTimeout(onManagementReady, 40);
     }).observe(app, { attributes: true, attributeFilter: ["hidden"] });
   }
 
-  let tries = 0;
-  const timer = setInterval(() => {
-    tries += 1;
-    enforceWeeklyDefault();
-    dedupeMemoButtons();
-    installMemoButton();
-    if ((document.getElementById("pilot-submit-memo") && weeklyDefaultApplied) || tries > 30) clearInterval(timer);
+  let readinessChecks = 0;
+  const readinessTimer = setInterval(() => {
+    readinessChecks += 1;
+    const managementApp = document.getElementById("app");
+    if (token() && managementApp && !managementApp.hidden) {
+      clearInterval(readinessTimer);
+      onManagementReady();
+    } else if (readinessChecks >= 30) {
+      clearInterval(readinessTimer);
+    }
   }, 300);
 })();
