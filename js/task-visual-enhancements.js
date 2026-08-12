@@ -64,3 +64,11 @@
   syncName();
   syncReworkBadge();
 })();
+
+(() => {
+  if (document.querySelector('script[data-pilot-helper="scheduled-stop"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/task-scheduled-stop-indicator.js";
+  script.dataset.pilotHelper = "scheduled-stop";
+  document.body.appendChild(script);
+})();
