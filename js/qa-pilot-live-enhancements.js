@@ -99,7 +99,7 @@
         });
       });
     } catch {
-      // Core QA controller already owns user-visible errors. This helper stays non-blocking.
+      // Core QA controller owns user-visible errors. This helper stays non-blocking.
     } finally {
       queueBusy = false;
     }
@@ -118,11 +118,14 @@
     if (e.target?.matches('#errors input[data-error-type-id], #qty-pass, #qty-reject')) updateErrorRate();
   });
 
-  const reviewObserver = new MutationObserver(() => {
-    ensureErrorSection();
-    updateErrorRate();
-  });
-  reviewObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "disabled"] });
+  const reviewCard = $("review-card");
+  if (reviewCard) {
+    const reviewObserver = new MutationObserver(() => {
+      ensureErrorSection();
+      updateErrorRate();
+    });
+    reviewObserver.observe(reviewCard, { childList: true, attributes: true, attributeFilter: ["hidden"] });
+  }
 
   const queueObserver = new MutationObserver(scheduleQueueDecoration);
   if ($("queue")) queueObserver.observe($("queue"), { childList: true, subtree: true });
