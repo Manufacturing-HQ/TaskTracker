@@ -150,15 +150,6 @@
     }).observe(app, { attributes: true, attributeFilter: ["hidden"] });
   }
 
-  let readinessChecks = 0;
-  const readinessTimer = setInterval(() => {
-    readinessChecks += 1;
-    const managementApp = document.getElementById("app");
-    if (token() && managementApp && !managementApp.hidden) {
-      clearInterval(readinessTimer);
-      onManagementReady();
-    } else if (readinessChecks >= 30) {
-      clearInterval(readinessTimer);
-    }
-  }, 300);
+  // One delayed readiness attempt only. No polling loop and no repeated session validation.
+  setTimeout(onManagementReady, 700);
 })();
