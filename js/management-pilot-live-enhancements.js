@@ -13,6 +13,7 @@
   });
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
   let memoOptions = null;
+  let weeklyDefaultApplied = false;
 
   const style = document.createElement("style");
   style.textContent = `
@@ -38,6 +39,15 @@
     el.textContent = text || "";
     el.dataset.type = type;
     el.hidden = !text;
+  }
+
+  function enforceWeeklyDefault() {
+    const app = document.getElementById("app");
+    const select = document.getElementById("performance-period");
+    if (weeklyDefaultApplied || !app || app.hidden || !select || !token()) return;
+    weeklyDefaultApplied = true;
+    select.value = "WEEK";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   async function openMemoModal() {
@@ -110,10 +120,18 @@
     } catch {}
   }
 
+  const app = document.getElementById("app");
+  if (app) {
+    new MutationObserver(() => {
+      if (!app.hidden) setTimeout(enforceWeeklyDefault, 40);
+    }).observe(app, { attributes: true, attributeFilter: ["hidden"] });
+  }
+
   let tries = 0;
   const timer = setInterval(() => {
     tries += 1;
+    enforceWeeklyDefault();
     installMemoButton();
-    if (document.getElementById("pilot-submit-memo") || tries > 30) clearInterval(timer);
+    if ((document.getElementById("pilot-submit-memo") && weeklyDefaultApplied) || tries > 30) clearInterval(timer);
   }, 300);
 })();
