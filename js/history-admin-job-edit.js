@@ -19,7 +19,7 @@
   const style = document.createElement("style");
   style.textContent = `
     .history-admin-edit-row{display:flex;justify-content:flex-end;margin-bottom:10px}.history-admin-edit{font-size:12px}
-    .history-edit-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.65);display:grid;place-items:center;padding:20px;z-index:1000}.history-edit-modal{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:16px;padding:20px}.history-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.history-edit-grid .full{grid-column:1/-1}.history-edit-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.history-edit-grid input,.history-edit-grid select,.history-edit-grid textarea{width:100%;border:1px solid #94a3b8;border-radius:9px;padding:9px 10px;background:#fff}.history-edit-grid textarea{min-height:100px;resize:vertical}.history-item-results{max-height:180px;overflow:auto;border:1px solid #cbd5e1;border-radius:9px;margin-top:6px}.history-item-result{display:block;width:100%;border:0;border-bottom:1px solid #e2e8f0;background:#fff;padding:9px;text-align:left;cursor:pointer}.history-item-result:hover{background:#f8fafc}.history-edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.history-edit-note{font-size:12px;color:#64748b;margin:-6px 0 14px}
+    .history-edit-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.65);display:grid;place-items:center;padding:20px;z-index:1000}.history-edit-modal{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:16px;padding:20px}.history-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.history-edit-grid .full{grid-column:1/-1}.history-edit-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.history-edit-grid input,.history-edit-grid select,.history-edit-grid textarea{width:100%;border:1px solid #94a3b8;border-radius:9px;padding:9px 10px;background:#fff}.history-edit-grid textarea{min-height:100px;resize:vertical}.history-item-results{max-height:180px;overflow:auto;border:1px solid #cbd5e1;border-radius:9px;margin-top:6px}.history-item-result{display:block;width:100%;border:0;border-bottom:1px solid #e2e8f0;background:#fff;padding:9px;text-align:left;cursor:pointer}.history-item-result:hover{background:#f8fafc}.history-edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.history-edit-note{font-size:12px;color:#64748b;margin:-6px 0 14px}.history-readonly{background:#f1f5f9!important;color:#475569}
     @media(max-width:700px){.history-edit-grid{grid-template-columns:1fr}.history-edit-grid .full{grid-column:auto}}
   `;
   document.head.appendChild(style);
@@ -75,7 +75,6 @@
         const job = jobs[index];
         if (!job) return;
         card.dataset.adminEditDecorated = "1";
-        if (job.task_type !== "Productive") return;
         const detail = card.querySelector(".history-detail");
         if (!detail) return;
         const row = document.createElement("div");
@@ -96,10 +95,11 @@
   }
 
   async function searchItems(modal) {
-    const q = modal.querySelector("#history-edit-item-search").value.trim();
+    const q = modal.querySelector("#history-edit-item-search")?.value.trim();
+    if (!q) return;
     const rows = await rpc("search_start_task_items_v2", {
       p_session_token: token(),
-      p_search_text: q || null,
+      p_search_text: q,
       p_department: null,
       p_make: null,
       p_result_limit: 30
@@ -116,36 +116,48 @@
   }
 
   async function openEditor(job) {
-    const [context, options] = await Promise.all([
-      rpc("get_qa_job_context", { p_session_token: token(), p_job_id: job.job_id }),
+    const [j, options] = await Promise.all([
+      rpc("get_history_job_edit_context", { p_session_token: token(), p_job_id: job.job_id }),
       rpc("get_start_task_options_v2", { p_session_token: token(), p_department: null, p_make: null })
     ]);
-    const j = context?.job;
-    if (!j) throw new Error("Unable to load the selected Job details.");
-    const productiveTask = (options?.task_types || []).find((t) => t.task_type_name === "Productive");
-    if (!productiveTask?.task_type_id) throw new Error("Productive task type is unavailable.");
-    currentItem = j.item_id ? { item_id: j.item_id, item_name: j.item_name } : null;
+    if (!j?.job_id) throw new Error("Unable to load the selected Job details.");
 
-    const backdrop = document.createElement("div");
-    backdrop.className = "history-edit-backdrop";
-    backdrop.innerHTML = `<div class="history-edit-modal"><h2 style="margin-top:0">Edit Job #${esc(j.job_number)}</h2><div class="history-edit-note">Administrator correction. Saving recalculates cycle time, expected minutes, and operation code and writes a structured correction audit.</div><div class="history-edit-grid">
-      <div class="full"><label>Correction Reason</label><input id="history-edit-reason" placeholder="Required"></div>
+    const fixedTask = (options?.task_types || []).find((t) => t.task_type_id === j.task_type_id || t.task_type_name === j.task_type_name);
+    if (!fixedTask?.task_type_id) throw new Error("The existing Task Type could not be resolved.");
+
+    const isProductive = j.task_type_name === "Productive";
+    currentItem = j.item_id ? { item_id: j.item_id, item_name: j.item_name } : null;
+    const nonProductiveOptions = (options?.non_productive_tasks || []).map((x) => `<option value="${esc(x.non_productive_task_id)}" ${x.non_productive_task_id === j.non_productive_task_id ? "selected" : ""}>${esc(x.task_name)}</option>`).join("");
+
+    const productiveFields = isProductive ? `
       <div class="full"><label>Item Search</label><input id="history-edit-item-search" value="${esc(j.item_name || "")}" placeholder="Search item or Internal ID"><div id="history-edit-item-results" class="history-item-results"></div><div id="history-edit-selected-item" style="font-size:12px;color:#64748b;margin-top:5px">Selected: ${esc(j.item_name || "—")}</div></div>
       <div><label>Assigned Quantity</label><input id="history-edit-qty" type="number" min="0.01" step="0.01" value="${esc(j.assigned_quantity ?? "")}"></div>
       <div><label>Work Order Number</label><input id="history-edit-wo" value="${esc(j.work_order_number || "")}"></div>
       <div><label>Work Order Type</label><select id="history-edit-wo-type">${(options?.work_order_types || ["Production","Priority"]).map((x) => `<option value="${esc(x)}" ${x === j.work_order_type ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
-      <div><label>Job Type</label><select id="history-edit-job-type">${(options?.job_types || ["Build Line","Solid Keys","Aftermarket","New In Bag"]).map((x) => `<option value="${esc(x)}" ${x === j.job_type ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>
+      <div><label>Job Type</label><select id="history-edit-job-type">${(options?.job_types || ["Build Line","Solid Keys","Aftermarket","New In Bag"]).map((x) => `<option value="${esc(x)}" ${x === j.job_type ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></div>` : `
+      <div class="full"><label>Non-Productive Activity</label><select id="history-edit-np-task"><option value="">Select activity...</option>${nonProductiveOptions}</select></div>`;
+
+    const backdrop = document.createElement("div");
+    backdrop.className = "history-edit-backdrop";
+    backdrop.innerHTML = `<div class="history-edit-modal"><h2 style="margin-top:0">Edit Job #${esc(j.job_number)}</h2><div class="history-edit-note">Administrator correction. Task Type is locked. Saving recalculates dependent values and writes a structured correction audit.</div><div class="history-edit-grid">
+      <div class="full"><label>Task Type</label><input class="history-readonly" value="${esc(j.task_type_name)}" readonly></div>
+      <div class="full"><label>Correction Reason</label><input id="history-edit-reason" placeholder="Required"></div>
+      ${productiveFields}
       <div class="full"><label>Job Comments</label><textarea id="history-edit-comments">${esc(j.comments || "")}</textarea></div>
     </div><div id="history-edit-message" class="msg" hidden></div><div class="history-edit-actions"><button id="history-edit-cancel" type="button" class="ghost">Cancel</button><button id="history-edit-save" type="button" class="primary">Save Correction</button></div></div>`;
     document.body.appendChild(backdrop);
     const modal = backdrop.querySelector(".history-edit-modal");
     modal.querySelector("#history-edit-cancel").onclick = () => backdrop.remove();
-    modal.querySelector("#history-edit-item-search").oninput = () => {
-      currentItem = null;
-      modal.querySelector("#history-edit-selected-item").textContent = "Select an item from the search results before saving.";
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => searchItems(modal).catch(() => {}), 250);
-    };
+
+    if (isProductive) {
+      modal.querySelector("#history-edit-item-search").oninput = () => {
+        currentItem = null;
+        modal.querySelector("#history-edit-selected-item").textContent = "Select an item from the search results before saving.";
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => searchItems(modal).catch(() => {}), 250);
+      };
+    }
+
     modal.querySelector("#history-edit-save").onclick = async () => {
       const msg = modal.querySelector("#history-edit-message");
       const reason = modal.querySelector("#history-edit-reason").value.trim();
@@ -155,12 +167,20 @@
         msg.hidden = false;
         return;
       }
-      if (!currentItem?.item_id) {
+      if (isProductive && !currentItem?.item_id) {
         msg.textContent = "Select a listed Item.";
         msg.dataset.type = "error";
         msg.hidden = false;
         return;
       }
+      const npTaskId = isProductive ? null : modal.querySelector("#history-edit-np-task").value;
+      if (!isProductive && !npTaskId) {
+        msg.textContent = "Select a Non-Productive Activity.";
+        msg.dataset.type = "error";
+        msg.hidden = false;
+        return;
+      }
+
       const save = modal.querySelector("#history-edit-save");
       save.disabled = true;
       save.textContent = "Saving...";
@@ -169,14 +189,14 @@
           p_session_token: token(),
           p_job_id: j.job_id,
           p_correction_reason: reason,
-          p_task_type_id: productiveTask.task_type_id,
-          p_assigned_quantity: Number(modal.querySelector("#history-edit-qty").value),
-          p_item_id: currentItem.item_id,
-          p_item_not_listed_detail: null,
-          p_non_productive_task_id: null,
-          p_work_order_number: modal.querySelector("#history-edit-wo").value,
-          p_work_order_type: modal.querySelector("#history-edit-wo-type").value,
-          p_job_type: modal.querySelector("#history-edit-job-type").value,
+          p_task_type_id: fixedTask.task_type_id,
+          p_assigned_quantity: isProductive ? Number(modal.querySelector("#history-edit-qty").value) : null,
+          p_item_id: isProductive ? currentItem.item_id : null,
+          p_item_not_listed_detail: isProductive ? (j.item_not_listed_detail || null) : null,
+          p_non_productive_task_id: npTaskId,
+          p_work_order_number: isProductive ? modal.querySelector("#history-edit-wo").value : null,
+          p_work_order_type: isProductive ? modal.querySelector("#history-edit-wo-type").value : null,
+          p_job_type: isProductive ? modal.querySelector("#history-edit-job-type").value : null,
           p_job_comments: modal.querySelector("#history-edit-comments").value.trim() || null
         });
         backdrop.remove();
