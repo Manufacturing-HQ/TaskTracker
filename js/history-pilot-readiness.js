@@ -90,3 +90,11 @@
   if(app) new MutationObserver(()=>{if(!app.hidden)setTimeout(init,50);}).observe(app,{attributes:true,attributeFilter:["hidden"]});
   setTimeout(init,800);
 })();
+
+(() => {
+  if (document.querySelector('script[data-pilot-helper="history-admin-edit"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/history-admin-job-edit.js";
+  script.dataset.pilotHelper = "history-admin-edit";
+  document.body.appendChild(script);
+})();
