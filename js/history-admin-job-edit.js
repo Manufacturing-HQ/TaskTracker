@@ -141,6 +141,8 @@
     const modal = backdrop.querySelector(".history-edit-modal");
     modal.querySelector("#history-edit-cancel").onclick = () => backdrop.remove();
     modal.querySelector("#history-edit-item-search").oninput = () => {
+      currentItem = null;
+      modal.querySelector("#history-edit-selected-item").textContent = "Select an item from the search results before saving.";
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => searchItems(modal).catch(() => {}), 250);
     };
