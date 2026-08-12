@@ -45,3 +45,11 @@
   new MutationObserver(()=>{polish();}).observe(summary,{childList:true,subtree:true,characterData:true});
   setTimeout(polish,500);
 })();
+
+(() => {
+  if (document.querySelector('script[data-pilot-helper="qa"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/qa-pilot-live-enhancements.js";
+  script.dataset.pilotHelper = "qa";
+  document.body.appendChild(script);
+})();
