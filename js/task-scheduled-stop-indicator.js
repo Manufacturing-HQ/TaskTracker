@@ -11,6 +11,7 @@
   });
   let busy = false;
   let timer = null;
+  let observer = null;
 
   const style = document.createElement("style");
   style.textContent = `
@@ -19,11 +20,17 @@
   `;
   document.head.appendChild(style);
 
+  function observeState() {
+    observer?.observe(stateBox, { childList: true, subtree: true, characterData: true });
+  }
+
   async function refreshIndicator() {
     if (busy) return;
     const token = sessionStorage.getItem(config.sessionStorageKey);
     if (!token || stateBox.textContent.includes("No active task")) {
+      observer?.disconnect();
       stateBox.querySelector(".scheduled-stop-confirmation")?.remove();
+      observeState();
       return;
     }
     busy = true;
@@ -31,23 +38,26 @@
       const { data, error } = await client.rpc("get_my_task_state_v2", { p_session_token: token });
       if (error) return;
       const active = data?.active_job;
+      observer?.disconnect();
       stateBox.querySelector(".scheduled-stop-confirmation")?.remove();
-      if (!active?.scheduled_end_at) return;
-      const end = new Date(active.scheduled_end_at);
-      const minutes = Number(active.scheduled_duration_minutes || 0);
-      const badge = document.createElement("div");
-      badge.className = "scheduled-stop-confirmation";
-      badge.innerHTML = `<span>⏱ Stop Timer Saved</span><small>Scheduled to stop at ${end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${minutes > 0 ? ` · ${minutes.toFixed(0)} min duration` : ""}</small>`;
-      stateBox.appendChild(badge);
+      if (active?.scheduled_end_at) {
+        const end = new Date(active.scheduled_end_at);
+        const minutes = Number(active.scheduled_duration_minutes || 0);
+        const badge = document.createElement("div");
+        badge.className = "scheduled-stop-confirmation";
+        badge.innerHTML = `<span>⏱ Stop Timer Saved</span><small>Scheduled to stop at ${end.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}${minutes > 0 ? ` · ${minutes.toFixed(0)} min duration` : ""}</small>`;
+        stateBox.appendChild(badge);
+      }
+      observeState();
     } finally {
       busy = false;
     }
   }
 
-  const observer = new MutationObserver(() => {
+  observer = new MutationObserver(() => {
     clearTimeout(timer);
     timer = setTimeout(refreshIndicator, 120);
   });
-  observer.observe(stateBox, { childList: true, subtree: true, characterData: true });
+  observeState();
   setTimeout(refreshIndicator, 500);
 })();
