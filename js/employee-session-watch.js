@@ -67,3 +67,11 @@
   window.addEventListener("focus",refreshSession);
   watchForLogin();
 })();
+
+(() => {
+  if (document.querySelector('script[data-employee-memo-actions="true"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/employee-memo-actions.js";
+  script.dataset.employeeMemoActions = "true";
+  document.body.appendChild(script);
+})();
