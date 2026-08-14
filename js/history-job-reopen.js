@@ -138,3 +138,11 @@
   document.getElementById("login-form")?.addEventListener("submit",()=>setTimeout(init,750));
   setTimeout(init,900);
 })();
+
+(() => {
+  if (document.querySelector('script[data-requested-enhancements="history"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/history-requested-enhancements.js";
+  script.dataset.requestedEnhancements = "history";
+  document.body.appendChild(script);
+})();
