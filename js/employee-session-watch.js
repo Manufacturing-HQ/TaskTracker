@@ -5,7 +5,7 @@
   if(!config||!supabaseLib)return;
   const sessionKey=config.sessionStorageKey;
   const client=supabaseLib.createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
-  let timer=null,expiryMs=null,checking=false,lastActivity=Date.now();
+  let timer=null,expiryMs=null,checking=false,lastActivity=Date.now(),tokenWatch=null;
 
   const style=document.createElement("style");
   style.textContent=`.session-expired-overlay{position:fixed;inset:0;z-index:5000;background:rgba(15,23,42,.78);display:grid;place-items:center;padding:20px}.session-expired-card{width:min(520px,96vw);background:#fff;border:3px solid #991b1b;border-radius:16px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center}.session-expired-card h2{margin:0 0 10px;font-size:26px}.session-expired-card p{margin:0 0 18px;color:#475569}.session-expired-card button{border:0;border-radius:10px;padding:12px 18px;background:#1d4ed8;color:#fff;font-weight:800;cursor:pointer}`;
@@ -42,13 +42,28 @@
 
   function noteActivity(){
     const now=Date.now();
+    if(!Number.isFinite(expiryMs)){
+      lastActivity=now;
+      refreshSession();
+      return;
+    }
     if(now-lastActivity<60000)return;
     lastActivity=now;
     refreshSession();
   }
 
+  function watchForLogin(){
+    if(sessionStorage.getItem(sessionKey)){refreshSession();return;}
+    tokenWatch=setInterval(()=>{
+      if(!sessionStorage.getItem(sessionKey))return;
+      clearInterval(tokenWatch);tokenWatch=null;
+      lastActivity=Date.now();
+      refreshSession();
+    },500);
+  }
+
   ["click","keydown","pointerdown","touchstart"].forEach(evt=>document.addEventListener(evt,noteActivity,{passive:true,capture:true}));
   document.addEventListener("visibilitychange",()=>{if(!document.hidden)refreshSession();});
   window.addEventListener("focus",refreshSession);
-  refreshSession();
+  watchForLogin();
 })();
