@@ -39,3 +39,11 @@
   script.dataset.pilotHelper = "management";
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-operations-hub="management"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/management-operations-hub.js";
+  script.dataset.operationsHub = "management";
+  document.body.appendChild(script);
+})();
