@@ -98,3 +98,11 @@
   script.dataset.pilotHelper = "history-admin-edit";
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-pilot-helper="history-job-reopen"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/history-job-reopen.js";
+  script.dataset.pilotHelper = "history-job-reopen";
+  document.body.appendChild(script);
+})();
