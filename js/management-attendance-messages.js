@@ -47,3 +47,11 @@
   script.dataset.operationsHub = "management";
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-requested-enhancements="management"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/management-requested-enhancements.js";
+  script.dataset.requestedEnhancements = "management";
+  document.body.appendChild(script);
+})();
