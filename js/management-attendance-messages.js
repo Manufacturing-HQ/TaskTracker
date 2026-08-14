@@ -55,3 +55,11 @@
   script.dataset.requestedEnhancements = "management";
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-master-edit-enhancement="management"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/management-master-edit-enhancement.js";
+  script.dataset.masterEditEnhancement = "management";
+  document.body.appendChild(script);
+})();
