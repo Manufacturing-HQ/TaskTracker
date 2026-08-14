@@ -26,13 +26,16 @@
     const cards=[...list.querySelectorAll("details.history-card")];if(!cards.length)return;
     let rows=[];try{rows=await jobs();}catch{return;}
     cards.forEach((card,i)=>{
-      const job=rows[i];if(!job)return;card.dataset.reqTaskType=job.task_type||"";card.classList.toggle("req-productive",job.task_type==="Productive");card.classList.toggle("req-nonproductive",job.task_type!=="Productive");
+      const job=rows[i];if(!job)return;card.dataset.reqTaskType=job.task_type||"";
+      if(card.dataset.reqHistoryDecorated==="1")return;
+      card.dataset.reqHistoryDecorated="1";
+      card.classList.toggle("req-productive",job.task_type==="Productive");card.classList.toggle("req-nonproductive",job.task_type!=="Productive");
       const grid=card.querySelector(".history-main-grid");if(!grid)return;grid.classList.add("req-history-grid");const cells=[...grid.querySelectorAll(".history-cell")];
       const variable=cells.find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Variable Field");if(variable)variable.querySelector(".hlabel").textContent="Item / Activity";
       const separateItem=cells.find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Item");if(separateItem)separateItem.remove();
-      const dateCell=[...grid.querySelectorAll(".history-cell")].find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Date");if(dateCell){const v=dateCell.querySelector(".hvalue"),first=job.sessions?.[0],last=job.sessions?.[job.sessions.length-1];if(v)v.innerHTML=`<div class="req-date-stack"><strong>${v.textContent}</strong><span class="req-time">Start: ${first?.start_time||"—"}</span><span class="req-time">Last stop: ${last?.stop_time||"Active"}</span><span class="req-status">${job.job_status||"—"}</span></div>`;}
+      const dateCell=[...grid.querySelectorAll(".history-cell")].find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Date");if(dateCell){const v=dateCell.querySelector(".hvalue"),dateText=v?.textContent||"—",first=job.sessions?.[0],last=job.sessions?.[job.sessions.length-1];if(v)v.innerHTML=`<div class="req-date-stack"><strong>${dateText}</strong><span class="req-time">Start: ${first?.start_time||"—"}</span><span class="req-time">Last stop: ${last?.stop_time||"Active"}</span><span class="req-status">${job.job_status||"—"}</span></div>`;}
       const prod=[...grid.querySelectorAll(".history-cell")].find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Productivity %");if(prod&&job.task_type==="Productive"){const txt=prod.querySelector(".hvalue")?.textContent||"",n=parseFloat(txt);classifyCell(prod,Number.isFinite(n)?n:null,v=>v<85);}
-      const err=[...grid.querySelectorAll(".history-cell")].find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Error Rate %");if(err&&job.task_type==="Productive"){const txt=err.querySelector(".hvalue")?.textContent||"";if(/pending/i.test(txt))classifyCell(err,null,()=>false);else{const n=parseFloat(txt);classifyCell(err,Number.isFinite(n)?n:null,v=>v>=1);}}
+      const err=[...grid.querySelectorAll(".history-cell")].find(c=>c.querySelector(".hlabel")?.textContent.trim()==="Error Rate %");if(err&&job.task_type==="Productive"){const hv=err.querySelector(".hvalue"),txt=hv?.textContent||"";if(/pending/i.test(txt))classifyCell(err,null,()=>false);else{const raw=parseFloat(txt),n=Number.isFinite(raw)?Math.min(100,raw):null;if(n!==null&&hv)hv.textContent=`${n.toFixed(2)}%`;classifyCell(err,n,v=>v>=1);}}
     });
     applyTaskFilter();
   }
