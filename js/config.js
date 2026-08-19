@@ -64,6 +64,25 @@ window.TaskTrackerConfig = Object.freeze({
     }
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addFeedbackLink);
-  else addFeedbackLink();
+  function loadPageEnhancements() {
+    const page = location.pathname.split('/').pop() || 'index.html';
+    const files = {
+      'qa.html': 'js/qa-manual-entry.js',
+      'management.html': 'js/management-task-tracker-exempt.js'
+    };
+    const src = files[page];
+    if (!src || document.querySelector(`script[data-tasktracker-enhancement="${src}"]`)) return;
+    const script = document.createElement('script');
+    script.src = src;
+    script.dataset.tasktrackerEnhancement = src;
+    document.body.appendChild(script);
+  }
+
+  function init() {
+    addFeedbackLink();
+    loadPageEnhancements();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();
