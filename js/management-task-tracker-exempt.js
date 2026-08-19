@@ -25,14 +25,29 @@
       rpc("get_operations_master_options",{p_session_token:token()}),
       rpc("search_operations_employees",{p_session_token:token(),p_search_text:null,p_include_inactive:true,p_result_limit:500,p_result_offset:0})
     ]);
-    departments=setup?.departments||[];
+    departments=[...new Set([...(setup?.departments||[]),"CKE","Receiving"])];
     employeeCache=result?.records||[];
   }
 
   function replaceDepartmentInput(form,current){
-    const old=form.querySelector("#oe-dept"); if(!old||old.tagName==="SELECT") return;
+    const old=form.querySelector("#oe-dept");
+    if(!old) return;
+    const values=[...new Set([...departments,"CKE","Receiving"])];
+    if(current&&!values.includes(current)) values.push(current);
+    if(old.tagName==="SELECT"){
+      const existing=new Set([...old.options].map(o=>o.value));
+      values.forEach(value=>{
+        if(!existing.has(value)){
+          const option=document.createElement("option");
+          option.value=value;
+          option.textContent=value;
+          old.appendChild(option);
+        }
+      });
+      old.value=current||"";
+      return;
+    }
     const select=document.createElement("select"); select.id="oe-dept";
-    const values=[...departments]; if(current&&!values.includes(current)) values.push(current);
     select.innerHTML='<option value="">Select department</option>'+values.map(x=>`<option value="${String(x).replaceAll('"','&quot;')}">${x}</option>`).join("");
     select.value=current||""; old.replaceWith(select);
   }
@@ -51,7 +66,7 @@
   async function enhanceForm(form){
     if(form.dataset.exemptEnhanced) return;
     form.dataset.exemptEnhanced="1";
-    try{await loadReferenceData();}catch(e){console.error(e);}
+    try{await loadReferenceData();}catch(e){console.error(e);departments=["CKE","Receiving"];}
     const row=employeeCache.find(x=>x.id===pendingEmployeeId)||null;
     replaceDepartmentInput(form,row?.department||form.querySelector("#oe-dept")?.value||"");
 
