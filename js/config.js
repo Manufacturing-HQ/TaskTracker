@@ -67,8 +67,7 @@ window.TaskTrackerConfig = Object.freeze({
   function loadPageEnhancements() {
     const page = location.pathname.split('/').pop() || 'index.html';
     const files = {
-      'qa.html': ['js/qa-manual-entry.js'],
-      'management.html': ['js/management-task-tracker-exempt.js','js/management-employee-form-v3.js?v=20260819-1212']
+      'qa.html': ['js/qa-manual-entry.js']
     };
     const sources = files[page] || [];
     sources.forEach((src) => {
