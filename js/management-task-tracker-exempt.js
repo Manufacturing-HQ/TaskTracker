@@ -63,20 +63,33 @@
     }
   }
 
+  function ensureExemptControl(form){
+    let exempt=form.querySelector("#oe-exempt");
+    if(exempt) return exempt;
+    const active=form.querySelector("#oe-active")?.closest("label");
+    const label=document.createElement("label"); label.className="full";
+    label.innerHTML='<input id="oe-exempt" type="checkbox"> Task Tracker Exempt <span style="display:block;color:#64748b;font-weight:500;margin-top:4px">Use for active employees who may appear in QA/manual work orders but are not expected to track tasks.</span>';
+    (active||form.querySelector(".ops-actions"))?.insertAdjacentElement("afterend",label);
+    exempt=form.querySelector("#oe-exempt");
+    exempt?.addEventListener("change",()=>syncPinRequirement(form,!pendingEmployeeId));
+    return exempt;
+  }
+
   async function enhanceForm(form){
     if(form.dataset.exemptEnhanced) return;
     form.dataset.exemptEnhanced="1";
+
+    // Render the control immediately so Edit Employee never waits on reference-data RPCs.
+    const exempt=ensureExemptControl(form);
+    syncPinRequirement(form,!pendingEmployeeId);
+
     try{await loadReferenceData();}catch(e){console.error(e);departments=["CKE","Receiving"];}
     const row=employeeCache.find(x=>x.id===pendingEmployeeId)||null;
     replaceDepartmentInput(form,row?.department||form.querySelector("#oe-dept")?.value||"");
-
-    const active=form.querySelector("#oe-active")?.closest("label");
-    const label=document.createElement("label"); label.className="full";
-    label.innerHTML=`<input id="oe-exempt" type="checkbox" ${row?.task_tracker_exempt?"checked":""}> Task Tracker Exempt <span style="display:block;color:#64748b;font-weight:500;margin-top:4px">Use for active employees who may appear in QA/manual work orders but are not expected to track tasks.</span>`;
-    (active||form.querySelector(".ops-actions"))?.insertAdjacentElement("afterend",label);
-    const exempt=form.querySelector("#oe-exempt");
-    exempt?.addEventListener("change",()=>syncPinRequirement(form,!pendingEmployeeId));
-    syncPinRequirement(form,!pendingEmployeeId);
+    if(exempt){
+      exempt.checked=!!row?.task_tracker_exempt;
+      syncPinRequirement(form,!pendingEmployeeId);
+    }
 
     form.addEventListener("submit",async(e)=>{
       e.preventDefault(); e.stopImmediatePropagation();
