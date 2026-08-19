@@ -67,15 +67,17 @@ window.TaskTrackerConfig = Object.freeze({
   function loadPageEnhancements() {
     const page = location.pathname.split('/').pop() || 'index.html';
     const files = {
-      'qa.html': 'js/qa-manual-entry.js',
-      'management.html': 'js/management-task-tracker-exempt.js'
+      'qa.html': ['js/qa-manual-entry.js'],
+      'management.html': ['js/management-task-tracker-exempt.js','js/management-employee-form-v3.js?v=20260819-1155']
     };
-    const src = files[page];
-    if (!src || document.querySelector(`script[data-tasktracker-enhancement="${src}"]`)) return;
-    const script = document.createElement('script');
-    script.src = src;
-    script.dataset.tasktrackerEnhancement = src;
-    document.body.appendChild(script);
+    const sources = files[page] || [];
+    sources.forEach((src) => {
+      if (document.querySelector(`script[data-tasktracker-enhancement="${src}"]`)) return;
+      const script = document.createElement('script');
+      script.src = src;
+      script.dataset.tasktrackerEnhancement = src;
+      document.body.appendChild(script);
+    });
   }
 
   function init() {
