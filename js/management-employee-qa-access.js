@@ -9,7 +9,7 @@
     auth: { autoRefreshToken:false, persistSession:false, detectSessionInUrl:false }
   });
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
-  const departments = ["Shipping","Build Line","Solid Keys","Quality Assurance","Inventory","System Testing","Director"];
+  const departments = ["Shipping","Build Line","Solid Keys","Quality Assurance","Inventory","System Testing","Director","CKE","Receiving"];
   let pendingEmployeeId = null;
 
   async function rpc(name,args={}) {
@@ -26,8 +26,22 @@
 
   function replaceDepartmentInput(modal) {
     const input = modal.querySelector("#oe-dept");
-    if (!input || input.tagName === "SELECT") return;
+    if (!input) return;
     const selected = input.value || "";
+    if (input.tagName === "SELECT") {
+      const existing = new Set([...input.options].map(o => o.value));
+      departments.forEach(d => {
+        if (!existing.has(d)) {
+          const option = document.createElement("option");
+          option.value = d;
+          option.textContent = d;
+          input.appendChild(option);
+        }
+      });
+      input.value = selected;
+      input.required = true;
+      return;
+    }
     const select = document.createElement("select");
     select.id = "oe-dept";
     select.required = true;
@@ -67,7 +81,7 @@
       const save = form.querySelector('button[type="submit"]');
       save.disabled = true;
       try {
-        const employee = await rpc("save_operations_employee", {
+        const employee = await rpc("save_operations_employee_v2", {
           p_session_token:token(),
           p_employee_id:pendingEmployeeId||null,
           p_employee_name:modal.querySelector("#oe-name").value,
@@ -78,6 +92,7 @@
           p_display_order:Number(modal.querySelector("#oe-order").value||0),
           p_hire_date:modal.querySelector("#oe-hire").value||null,
           p_probation_end_date:modal.querySelector("#oe-probation").value||null,
+          p_task_tracker_exempt:!!modal.querySelector("#oe-exempt")?.checked,
           p_new_pin:modal.querySelector("#oe-pin").value||null
         });
         await rpc("save_employee_qa_access", {
