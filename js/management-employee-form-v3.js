@@ -50,7 +50,7 @@
     field.value = current;
   }
 
-  function ensureExempt(form,row) {
+  function ensureExempt(form,row,applyValue=false) {
     let exempt = form.querySelector("#oe-exempt");
     if (!exempt) {
       const label = document.createElement("label");
@@ -62,7 +62,7 @@
       else actions?.insertAdjacentElement("beforebegin", label);
       exempt = form.querySelector("#oe-exempt");
     }
-    if (exempt) exempt.checked = !!row?.task_tracker_exempt;
+    if (exempt && applyValue) exempt.checked = !!row?.task_tracker_exempt;
     return exempt;
   }
 
@@ -77,18 +77,23 @@
     if (form.dataset.employeeFormV3 === "1") return;
     form.dataset.employeeFormV3 = "1";
 
-    let row = null;
-    try {
-      await loadReferenceData();
-      row = employeeCache.find(x => x.id === pendingEmployeeId) || null;
-    } catch (err) {
-      console.error("Employee form reference load failed", err);
-    }
-
-    ensureDepartmentSelect(form,row);
-    const exempt = ensureExempt(form,row);
+    // Apply visible form changes immediately. Do not wait for RPC calls.
+    ensureDepartmentSelect(form,null);
+    const exempt = ensureExempt(form,null,false);
     exempt?.addEventListener("change", () => syncPin(form));
     syncPin(form);
+
+    // Then load the authoritative employee/reference data and refresh values.
+    try {
+      await loadReferenceData();
+      const row = employeeCache.find(x => x.id === pendingEmployeeId) || null;
+      ensureDepartmentSelect(form,row);
+      ensureExempt(form,row,true);
+      syncPin(form);
+    } catch (err) {
+      console.error("Employee form reference load failed", err);
+      // The form remains usable with the built-in department list and unchecked exemption.
+    }
 
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
