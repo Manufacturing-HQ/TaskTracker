@@ -124,9 +124,11 @@
     if (!setup?.viewer?.can_edit) return;
     const roles = (setup.roles||[]).map((r)=>`<option value="${esc(r)}" ${r===(row?.role||"Employee")?"selected":""}>${esc(r)}</option>`).join("");
     const supervisors = optionRows(setup.supervisors,"id",r=>[r.employee_name,r.role].filter(Boolean).join(" · "),row?.supervisor_id);
-    const modal = modalShell(row?"Edit Employee":"New Employee", `<form id="ops-employee-form" class="ops-form-grid">
+    const departmentValues = [...new Set([...(setup?.departments||[]),"CKE","Receiving",row?.department].filter(Boolean))];
+    const departments = departmentValues.map((d)=>`<option value="${esc(d)}" ${d===(row?.department||"")?"selected":""}>${esc(d)}</option>`).join("");
+    const modal = modalShell(row?"Edit Employee":"New Employee", `<form id="ops-employee-form" class="ops-form-grid" data-exempt-enhanced="1" data-employee-form-v3="1">
       <label>Employee Name<input id="oe-name" required value="${esc(row?.employee_name||"")}"></label>
-      <label>Department<input id="oe-dept" value="${esc(row?.department||"")}"></label>
+      <label>Department<select id="oe-dept" required><option value="">Select Department</option>${departments}</select></label>
       <label>Role<select id="oe-role">${roles}</select></label>
       <label>Supervisor<select id="oe-supervisor"><option value="">None</option>${supervisors}</select></label>
       <label>Hire Date<input id="oe-hire" type="date" value="${esc(row?.hire_date||"")}"></label>
@@ -134,10 +136,14 @@
       <label>Display Order<input id="oe-order" type="number" min="0" value="${esc(row?.display_order??0)}"></label>
       <label>PIN ${row?"(leave blank to keep existing)":""}<input id="oe-pin" type="password" inputmode="numeric" ${row?"":"required"}></label>
       <label class="full"><input id="oe-active" type="checkbox" ${row?.is_active===false?"":"checked"}> Active</label>
+      <label class="full"><input id="oe-exempt" type="checkbox" style="width:auto;min-height:auto" ${row?.task_tracker_exempt?"checked":""}> Task Tracker Exempt <span style="display:block;color:#64748b;font-weight:500;margin-top:4px">Use for active employees who may appear in QA/manual work orders but are not expected to track tasks.</span></label>
       <div class="full ops-actions"><button type="button" class="ghost" id="oe-cancel">Cancel</button><button type="submit" class="primary">Save</button></div>
     </form>`);
     modal.querySelector("#oe-cancel").onclick=()=>modal.remove();
-    modal.querySelector("#ops-employee-form").onsubmit=async(e)=>{e.preventDefault();try{await rpc("save_operations_employee",{p_session_token:token(),p_employee_id:row?.id||null,p_employee_name:modal.querySelector("#oe-name").value,p_department:modal.querySelector("#oe-dept").value||null,p_supervisor_id:modal.querySelector("#oe-supervisor").value||null,p_employee_role:modal.querySelector("#oe-role").value,p_is_active:modal.querySelector("#oe-active").checked,p_display_order:Number(modal.querySelector("#oe-order").value||0),p_hire_date:modal.querySelector("#oe-hire").value||null,p_probation_end_date:modal.querySelector("#oe-probation").value||null,p_new_pin:modal.querySelector("#oe-pin").value||null});modal.remove();await loadSetup();await loadEmployees();}catch(err){alert(err.message);}};
+    const pin = modal.querySelector("#oe-pin");
+    const exempt = modal.querySelector("#oe-exempt");
+    if (!row) exempt.addEventListener("change",()=>{ pin.required=!exempt.checked; });
+    modal.querySelector("#ops-employee-form").onsubmit=async(e)=>{e.preventDefault();try{await rpc("save_operations_employee_v2",{p_session_token:token(),p_employee_id:row?.id||null,p_employee_name:modal.querySelector("#oe-name").value,p_department:modal.querySelector("#oe-dept").value||null,p_supervisor_id:modal.querySelector("#oe-supervisor").value||null,p_employee_role:modal.querySelector("#oe-role").value,p_is_active:modal.querySelector("#oe-active").checked,p_display_order:Number(modal.querySelector("#oe-order").value||0),p_hire_date:modal.querySelector("#oe-hire").value||null,p_probation_end_date:modal.querySelector("#oe-probation").value||null,p_task_tracker_exempt:modal.querySelector("#oe-exempt").checked,p_new_pin:modal.querySelector("#oe-pin").value||null});modal.remove();await loadSetup();await loadEmployees();}catch(err){alert(err.message);}};
   }
 
   function openItemModal(row) {
