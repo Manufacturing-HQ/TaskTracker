@@ -70,7 +70,7 @@
     const button = document.createElement("button");
     button.id = id;
     button.type = "button";
-    button.className = "secondary";
+    button.className = "ghost";
     button.textContent = label;
     button.addEventListener("click", () => handler(button).catch((error) => alert(error.message)));
     return button;
