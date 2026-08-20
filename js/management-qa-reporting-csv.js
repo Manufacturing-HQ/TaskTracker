@@ -11,6 +11,7 @@
   });
   const $ = (id) => document.getElementById(id);
   let installed = false;
+  let installing = false;
 
   async function rpc(name, args = {}) {
     const { data, error } = await client.rpc(name, args);
@@ -77,12 +78,28 @@
   }
 
   async function install() {
-    if (installed || !$("qa-report-load") || !$("app") || $("app").hidden) return;
+    if (installed || installing || !$("qa-report-load") || !$("app") || $("app").hidden) return;
+    if ($("qa-report-export-employee") || $("qa-report-export-date")) {
+      installed = true;
+      return;
+    }
+
     const token = sessionStorage.getItem(config.sessionStorageKey);
     if (!token) return;
+
+    installing = true;
     try {
       const options = await rpc("get_qa_reporting_options", { p_session_token: token });
-      if (!options?.viewer?.can_export) return;
+      if (!options?.viewer?.can_export) {
+        installed = true;
+        return;
+      }
+
+      if ($("qa-report-export-employee") || $("qa-report-export-date")) {
+        installed = true;
+        return;
+      }
+
       const toolbar = $("qa-report-load").closest(".qa-report-toolbar");
       const emp = makeButton("qa-report-export-employee", "Export By QA Employee CSV", exportByEmployee);
       const date = makeButton("qa-report-export-date", "Export By Date CSV", exportByDate);
@@ -92,7 +109,10 @@
         emp.insertAdjacentElement("afterend", date);
       }
       installed = true;
-    } catch {}
+    } catch {
+    } finally {
+      installing = false;
+    }
   }
 
   new MutationObserver(() => install()).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
