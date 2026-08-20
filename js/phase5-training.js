@@ -94,7 +94,7 @@
   async function loadSetupOptions() {
     try {
       setupOptions = await rpc("get_training_setup_options", { p_session_token: sessionToken });
-      $("setup-card").hidden = false;
+      $("setup-card").hidden = !setupOptions?.can_create_plan;
       fillSelect("trainee", setupOptions.trainees || [], "employee_id", (x) => [x.employee_name, x.department].filter(Boolean).join(" · "), "Select trainee");
       fillSelect("trainer", setupOptions.trainers || [], "employee_id", (x) => [x.employee_name, x.role].filter(Boolean).join(" · "), "Select trainer");
       fillSelect("template", setupOptions.templates || [], "template_id", (x) => `${x.template_name} v${x.version_number}`, "Select template");
@@ -196,7 +196,7 @@
     });
     if (!(plan.comments || []).length) commentsWrap.innerHTML = '<div class="muted">No comments yet.</div>';
 
-    $("comment-editor").hidden = !plan.can_edit_items;
+    $("comment-editor").hidden = !plan.can_add_comment;
     $("complete-plan-wrap").hidden = !plan.can_complete_plan || plan.status !== "Active";
   }
 
