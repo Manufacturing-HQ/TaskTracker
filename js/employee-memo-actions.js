@@ -3,10 +3,11 @@
 (() => {
   const config=window.TaskTrackerConfig,supabaseLib=window.supabase;
   if(!config||!supabaseLib)return;
+  if(!document.querySelector('.nav button[data-view="memos"]'))return;
   const client=supabaseLib.createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
   const sessionKey=config.sessionStorageKey;
   const esc=v=>String(v??"").replace(/[&<>'\"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'\"':"&quot;"}[ch]));
-  let lastPendingCount=null,lastLatestAssignment=null,pollTimer=null,rendering=false;
+  let lastPendingCount=null,lastLatestAssignment=null,pollTimer=null,rendering=false,noticeChecking=false;
 
   async function rpc(name,args={}){
     const {data,error}=await client.rpc(name,args);
@@ -54,7 +55,8 @@
   }
 
   async function checkNotice(showBannerForExisting=false){
-    const t=token();if(!t)return;
+    const t=token();if(!t||noticeChecking)return;
+    noticeChecking=true;
     try{
       const notice=await rpc("get_my_pending_memo_notice",{p_session_token:t});
       const count=Number(notice?.pending_count||0),latest=notice?.latest_assignment_id||null;
@@ -65,6 +67,8 @@
       lastPendingCount=count;lastLatestAssignment=latest;
     }catch(e){
       // Session expiration is handled by the dedicated session watcher.
+    }finally{
+      noticeChecking=false;
     }
   }
 
@@ -109,7 +113,7 @@
   function startPolling(){
     if(pollTimer)clearInterval(pollTimer);
     checkNotice(true);
-    pollTimer=setInterval(()=>{if(!document.hidden)checkNotice(false);},60000);
+    pollTimer=setInterval(()=>{if(!document.hidden)checkNotice(false);},120000);
     document.addEventListener("visibilitychange",()=>{if(!document.hidden)checkNotice(false);});
   }
 

@@ -69,9 +69,10 @@
 })();
 
 (() => {
+  if (!document.querySelector('.nav button[data-view="memos"]')) return;
   if (document.querySelector('script[data-employee-memo-actions="true"]')) return;
   const script = document.createElement("script");
-  script.src = "js/employee-memo-actions.js";
+  script.src = "js/employee-memo-actions.js?v=memo-poll-20260820-1117";
   script.dataset.employeeMemoActions = "true";
   document.body.appendChild(script);
 })();
