@@ -8,6 +8,7 @@
   const esc=v=>String(v??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
   const pct=v=>v===null||v===undefined?"—":`${Number(v).toFixed(1)}%`;
   const minutes=v=>{const n=Number(v||0);if(!n)return"—";if(n<60)return`${Math.round(n)} min`;const h=Math.floor(n/60),m=Math.round(n%60);return`${h}h ${m}m`;};
+  const elapsed=v=>{const n=Math.max(0,Math.floor(Number(v||0)));const h=Math.floor(n/3600),m=Math.floor((n%3600)/60),s=n%60;return h>0?`${h}h ${String(m).padStart(2,"0")}m ${String(s).padStart(2,"0")}s`:`${m}m ${String(s).padStart(2,"0")}s`;};
   let setup=null, role="", itemPage=0, itemPageSize=50, itemSort="item_name", itemDir="asc", employeeSort="employee_name", employeeDir="asc";
   let attendanceMap=new Map(), auditMap=new Map();
   async function rpc(name,args={}){const {data,error}=await client.rpc(name,args);if(error)throw new Error(error.message||`${name} failed.`);return data;}
@@ -15,6 +16,8 @@
   style.textContent=`
     .req-filterbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:10px 0 14px}.req-filterbar .field{margin:0}.req-filterbar select{min-height:40px;min-width:150px;border:1px solid #94a3b8;border-radius:9px;padding:0 8px;background:#fff}
     .req-overdue td{background:#fee2e2!important}.req-sort{cursor:pointer;user-select:none}.req-sort:hover{text-decoration:underline}.req-pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px}.req-pager .left,.req-pager .right{display:flex;align-items:center;gap:8px}.req-pager select{min-height:36px;border:1px solid #94a3b8;border-radius:8px;background:#fff}.req-muted{font-size:11px;color:#64748b}
+    .live-timer{font-variant-numeric:tabular-nums;white-space:nowrap}.paused-timer{font-weight:800;color:#92400e}
+    .prior-day-active td{background:#dc2626!important;color:#fff!important;font-weight:800}.prior-day-active .req-muted{color:#fff!important}.prior-day-active .status-pill{background:#fff!important;color:#991b1b!important}.prior-day-active .live-timer{font-weight:950;font-size:15px;color:#fff!important}.prior-day-note{margin-top:4px;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.03em;color:#fff}
   `;
   document.head.appendChild(style);
 
@@ -50,7 +53,19 @@
       const data=await rpc("get_live_status_dashboard_filtered",{p_session_token:token(),p_period:document.getElementById("performance-period")?.value||"WEEK",p_supervisor_id:document.getElementById("req-live-supervisor")?.value||null});
       const p=data?.performance||{};document.getElementById("perf-productivity").textContent=pct(p.productivity_percent);document.getElementById("perf-efficiency").textContent=pct(p.efficiency_percent);document.getElementById("perf-error").textContent=pct(p.error_rate_percent);
       const body=document.getElementById("status-body");if(!body)return;body.innerHTML="";
-      (data?.employees||[]).forEach(e=>{const task=e.has_active_task?[e.task_type,e.work_order_number,e.item_name||e.non_productive_task,e.job_type].filter(Boolean).join(" · "):"—";const tr=document.createElement("tr");const overdue=e.has_active_task&&e.task_type==="Productive"&&Number(e.expected_minutes)>0&&Number(e.minutes_on_task)>Number(e.expected_minutes);if(overdue)tr.className="req-overdue";tr.innerHTML=`<td><strong>${esc(e.employee_name)}</strong><div class="req-muted">${esc(e.department||"")}</div></td><td><span class="status-pill ${e.has_active_task?"":"status-idle"}">${esc(e.status||"No Active Task")}</span></td><td>${esc(task)}</td><td>${e.has_active_task?esc(minutes(e.minutes_on_task)):"—"}${overdue?`<div class="req-muted"><strong>Expected ${esc(minutes(e.expected_minutes))}</strong></div>`:""}</td><td>${esc(e.total_stops||0)}</td><td>${esc(e.supervisor_name||"—")}</td>`;body.appendChild(tr);});
+      const renderedAt=Date.now();
+      (data?.employees||[]).forEach(e=>{
+        const paused=!e.has_active_task&&e.has_paused_job;
+        const task=e.has_active_task?[e.task_type,e.work_order_number,e.item_name||e.non_productive_task,e.job_type].filter(Boolean).join(" · "):paused?[e.paused_task_type,e.paused_work_order_number,e.paused_item_name||e.paused_non_productive_task,e.paused_job_type].filter(Boolean).join(" · "):"—";
+        const overdue=e.has_active_task&&e.task_type==="Productive"&&Number(e.expected_minutes)>0&&Number(e.minutes_on_task)>Number(e.expected_minutes);
+        const timerKind=e.has_active_task?"active":paused?"paused":null;
+        const baseSeconds=e.has_active_task?Number(e.active_elapsed_seconds||0):paused?Number(e.paused_elapsed_seconds||0):0;
+        const timerHtml=timerKind?`<span class="live-timer ${paused?"paused-timer":""}" data-live-timer="1" data-timer-kind="${timerKind}" data-base-seconds="${baseSeconds}" data-rendered-at="${renderedAt}">${esc(`${paused?"Paused ":""}${elapsed(baseSeconds)}`)}</span>`:"—";
+        const tr=document.createElement("tr");
+        if(e.active_from_prior_day)tr.className="prior-day-active";else if(overdue)tr.className="req-overdue";
+        tr.innerHTML=`<td><strong>${esc(e.employee_name)}</strong><div class="req-muted">${esc(e.department||"")}</div></td><td><span class="status-pill ${e.has_active_task?"":"status-idle"}">${esc(e.status||"No Active Task")}</span>${e.active_from_prior_day?'<div class="prior-day-note">Active from prior day</div>':""}</td><td>${esc(task)}</td><td>${timerHtml}${overdue?`<div class="req-muted"><strong>Expected ${esc(minutes(e.expected_minutes))}</strong></div>`:""}</td><td>${esc(e.total_stops||0)}</td><td>${esc(e.supervisor_name||"—")}</td>`;
+        body.appendChild(tr);
+      });
       if(!body.children.length)body.innerHTML='<tr><td colspan="6">No employees are available for this filter.</td></tr>';
     }catch(e){console.warn("Filtered live status skipped:",e.message);}
   }
