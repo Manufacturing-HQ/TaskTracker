@@ -17,6 +17,19 @@
   let auditSetup = null;
   let tasks = [];
 
+  const liveStyle = document.createElement("style");
+  liveStyle.textContent = `
+    .employee-dept{color:#64748b;font-size:12px}
+    .live-timer{font-variant-numeric:tabular-nums;white-space:nowrap}
+    .paused-timer{font-weight:800;color:#92400e}
+    .prior-day-active td{background:#dc2626!important;color:#fff!important;font-weight:800}
+    .prior-day-active .employee-dept{color:#fff!important}
+    .prior-day-active .status-pill{background:#fff!important;color:#991b1b!important}
+    .prior-day-active .live-timer{font-weight:950;font-size:15px;color:#fff!important}
+    .prior-day-note{margin-top:4px;font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.03em;color:#fff}
+  `;
+  document.head.appendChild(liveStyle);
+
   function setMessage(message, type = "info") {
     const el = $("message");
     el.textContent = message || "";
@@ -54,6 +67,26 @@
     const h = Math.floor(n / 60);
     const m = Math.round(n % 60);
     return `${h}h ${m}m`;
+  }
+
+  function elapsedLabel(totalSeconds) {
+    const n = Math.max(0, Math.floor(Number(totalSeconds || 0)));
+    const h = Math.floor(n / 3600);
+    const m = Math.floor((n % 3600) / 60);
+    const s = n % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+    return `${m}m ${String(s).padStart(2, "0")}s`;
+  }
+
+  function updateLiveTimers() {
+    const now = Date.now();
+    document.querySelectorAll("[data-live-timer]").forEach((el) => {
+      const baseSeconds = Number(el.dataset.baseSeconds || 0);
+      const renderedAt = Number(el.dataset.renderedAt || now);
+      const elapsedSinceRender = Math.max(0, Math.floor((now - renderedAt) / 1000));
+      const prefix = el.dataset.timerKind === "paused" ? "Paused " : "";
+      el.textContent = `${prefix}${elapsedLabel(baseSeconds + elapsedSinceRender)}`;
+    });
   }
 
   async function listEmployees() {
@@ -182,20 +215,31 @@
     $("perf-error").textContent = pct(p.error_rate_percent);
     const body = $("status-body");
     body.innerHTML = "";
+    const renderedAt = Date.now();
     (data?.employees || []).forEach((e) => {
+      const paused = !e.has_active_task && e.has_paused_job;
       const task = e.has_active_task
         ? [e.task_type, e.work_order_number, e.item_name || e.non_productive_task, e.job_type].filter(Boolean).join(" · ")
+        : paused
+          ? [e.paused_task_type, e.paused_work_order_number, e.paused_item_name || e.paused_non_productive_task, e.paused_job_type].filter(Boolean).join(" · ")
+          : "—";
+      const timerKind = e.has_active_task ? "active" : paused ? "paused" : null;
+      const baseSeconds = e.has_active_task ? Number(e.active_elapsed_seconds || 0) : paused ? Number(e.paused_elapsed_seconds || 0) : 0;
+      const timerHtml = timerKind
+        ? `<span class="live-timer ${paused ? "paused-timer" : ""}" data-live-timer="1" data-timer-kind="${timerKind}" data-base-seconds="${baseSeconds}" data-rendered-at="${renderedAt}">${escapeHtml(`${paused ? "Paused " : ""}${elapsedLabel(baseSeconds)}`)}</span>`
         : "—";
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td><strong>${escapeHtml(e.employee_name)}</strong><div style="color:#64748b;font-size:12px">${escapeHtml(e.department || "")}</div></td>
-        <td><span class="status-pill ${e.has_active_task ? "" : "status-idle"}">${escapeHtml(e.status || "No Active Task")}</span></td>
+      if (e.active_from_prior_day) tr.className = "prior-day-active";
+      tr.innerHTML = `<td><strong>${escapeHtml(e.employee_name)}</strong><div class="employee-dept">${escapeHtml(e.department || "")}</div></td>
+        <td><span class="status-pill ${e.has_active_task ? "" : "status-idle"}">${escapeHtml(e.status || "No Active Task")}</span>${e.active_from_prior_day ? '<div class="prior-day-note">Active from prior day</div>' : ""}</td>
         <td>${escapeHtml(task)}</td>
-        <td>${e.has_active_task ? escapeHtml(minutesLabel(e.minutes_on_current_session)) : "—"}</td>
+        <td>${timerHtml}</td>
         <td>${escapeHtml(e.total_stops || 0)}</td>
         <td>${escapeHtml(e.supervisor_name || "—")}</td>`;
       body.appendChild(tr);
     });
     if (!body.children.length) body.innerHTML = '<tr><td colspan="6">No employees are available in your access scope.</td></tr>';
+    updateLiveTimers();
   }
 
   async function loadAttendance() {
@@ -387,5 +431,6 @@
   $("audit-submit").addEventListener("click", () => submitAudit().catch(showError));
   $("include-completed").addEventListener("change", () => loadQueue().catch(showError));
 
+  setInterval(updateLiveTimers, 1000);
   init();
 })();
