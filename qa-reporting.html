@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Tracker QA Reporting</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}.shell{max-width:1200px;margin:0 auto;padding:28px 20px 48px}.topbar,.row{display:flex;justify-content:space-between;gap:16px;align-items:center}.topbar{margin-bottom:22px}.brand h1{margin:0;font-size:28px}.brand p,.muted{color:#64748b}.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.04)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.full{grid-column:1/-1}label{display:block;font-weight:700;font-size:13px;margin-bottom:7px}input,select{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:11px 12px;background:#fff}.primary,.secondary{border-radius:10px;padding:11px 16px;font-weight:800}.primary{border:0;background:#1d4ed8;color:#fff}.secondary{border:1px solid #cbd5e1;background:#fff}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:18px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px}.toolbar>div{min-width:170px}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.metric{border:1px solid #94a3b8;border-radius:12px;padding:16px;background:#f8fafc}.metric .label{font-size:11px;text-transform:uppercase;color:#64748b;font-weight:800}.metric .value{font-size:28px;font-weight:900;margin-top:6px}.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:12px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:9px 10px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:12px}th{background:#1e293b;color:#fff}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:18px 0 10px}.section-title h2{margin:0;font-size:19px}.readonly{min-height:42px;border:1px solid #cbd5e1;border-radius:10px;padding:11px 12px;background:#f8fafc;font-weight:800}@media(max-width:900px){.metrics{grid-template-columns:1fr 1fr}}@media(max-width:720px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.topbar,.row{align-items:stretch;flex-direction:column}.metrics{grid-template-columns:1fr}.toolbar>div{min-width:100%}}
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}.shell{max-width:1200px;margin:0 auto;padding:28px 20px 48px}.topbar,.row{display:flex;justify-content:space-between;gap:16px;align-items:center}.topbar{margin-bottom:22px}.brand h1{margin:0;font-size:28px}.brand p,.muted{color:#64748b}.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.04)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.full{grid-column:1/-1}label{display:block;font-weight:700;font-size:13px;margin-bottom:7px}input,select{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:11px 12px;background:#fff}.primary,.secondary{border-radius:10px;padding:11px 16px;font-weight:800}.primary{border:0;background:#1d4ed8;color:#fff}.secondary{border:1px solid #cbd5e1;background:#fff}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:18px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px}.toolbar>div{min-width:170px}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}.metric{border:1px solid #94a3b8;border-radius:12px;padding:16px;background:#f8fafc}.metric .label{font-size:11px;text-transform:uppercase;color:#64748b;font-weight:800}.metric .value{font-size:28px;font-weight:900;margin-top:6px}.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:12px}table{width:100%;border-collapse:collapse;min-width:760px}th,td{padding:9px 10px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:12px}th{background:#1e293b;color:#fff}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin:18px 0 10px}.section-title h2{margin:0;font-size:19px}.readonly{min-height:42px;border:1px solid #cbd5e1;border-radius:10px;padding:11px 12px;background:#f8fafc;font-weight:800}.report-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.report-tab{border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:999px;padding:9px 16px;font-weight:800}.report-tab.active{background:#1d4ed8;color:#fff;border-color:#1d4ed8}.error-report-section{border:1px solid #dbe3ef;border-radius:14px;padding:16px;margin-top:14px;background:#fff}.error-report-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.error-report-title h3{margin:0;font-size:16px}.error-report-title span{font-size:12px;color:#64748b;font-weight:800}.error-report-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}.error-report-card{border:1px solid #dbe3ef;border-radius:10px;padding:14px;background:#f8fafc;text-align:center}.error-report-card strong{display:block;font-size:20px}.error-report-card span{display:block;margin-top:4px;color:#475569;font-size:11px}.builder-note{color:#64748b;font-size:12px;margin-top:-6px;margin-bottom:14px}@media(max-width:900px){.metrics{grid-template-columns:1fr 1fr}}@media(max-width:720px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.topbar,.row{align-items:stretch;flex-direction:column}.metrics{grid-template-columns:1fr}.toolbar>div{min-width:100%}}
 </style>
 </head>
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><h1>QA Reporting</h1><p>QA review activity by QA completion date</p></div>
-    <div class="top-actions"><a class="secondary" href="history.html" style="text-decoration:none;color:inherit">History</a><a class="secondary" href="training.html" style="text-decoration:none;color:inherit">Training</a><a class="secondary" href="qa.html" style="text-decoration:none;color:inherit">QA</a><a class="secondary" href="index.html" style="text-decoration:none;color:inherit">Home</a></div>
+    <div class="brand"><h1>QA Reporting</h1><p id="report-subtitle">QA review activity by QA completion date</p></div>
+    <div class="top-actions"><a class="secondary" href="history.html" style="text-decoration:none;color:inherit">History</a><a class="secondary" href="training.html" style="text-decoration:none;color:inherit">Training</a><a class="secondary" href="qa.html?v=qa-queue-20260824-1648" style="text-decoration:none;color:inherit">QA</a><a class="secondary" href="index.html" style="text-decoration:none;color:inherit">Home</a></div>
   </div>
   <div id="message" class="message" hidden></div>
   <section id="login" class="card">
@@ -24,7 +24,13 @@
   </section>
   <main id="app" hidden>
     <section class="card"><div class="row"><div><div class="muted">Signed in as</div><strong id="user-name"></strong><div id="viewer-meta" class="muted"></div></div><button id="sign-out" class="secondary" type="button">Sign Out</button></div></section>
-    <section class="card">
+
+    <div class="report-tabs">
+      <button id="tab-qa-report" class="report-tab active" type="button">QA Employee Reporting</button>
+      <button id="tab-builder-report" class="report-tab" type="button" hidden>Builder Reports</button>
+    </div>
+
+    <section id="qa-report-view" class="card">
       <div class="toolbar">
         <div><label for="qa-report-start">Start Date</label><input id="qa-report-start" type="date"></div>
         <div><label for="qa-report-end">End Date</label><input id="qa-report-end" type="date"></div>
@@ -37,11 +43,27 @@
       <div class="section-title"><h2>By QA Employee</h2></div><div id="qa-report-by-employee" class="table-wrap"></div>
       <div class="section-title"><h2>By Date</h2></div><div id="qa-report-by-date" class="table-wrap"></div>
     </section>
+
+    <section id="builder-report-view" class="card" hidden>
+      <div class="toolbar">
+        <div><label for="builder-report-start">Start Date</label><input id="builder-report-start" type="date"></div>
+        <div><label for="builder-report-end">End Date</label><input id="builder-report-end" type="date"></div>
+        <div><label for="builder-report-employee">Builder</label><select id="builder-report-employee"><option value="">All Builders</option></select></div>
+        <div><label for="builder-report-department">Department</label><select id="builder-report-department"><option value="">All Departments</option></select></div>
+        <div><label for="builder-report-supervisor">Supervisor</label><select id="builder-report-supervisor"><option value="">All Supervisors</option></select></div>
+        <button id="builder-report-load" class="primary" type="button">Load Report</button>
+      </div>
+      <div class="builder-note">Date range is based on when the builder completed the Productive job. Only QA-reviewed jobs are included, and errors come from the original QA pass.</div>
+      <div class="metrics"><div class="metric"><div class="label">Total Jobs</div><div id="builder-report-jobs" class="value">—</div></div><div class="metric"><div class="label">Total Quantity</div><div id="builder-report-quantity" class="value">—</div></div><div class="metric"><div class="label">Total Errors</div><div id="builder-report-errors" class="value">—</div></div><div class="metric"><div class="label">Error Rate</div><div id="builder-report-rate" class="value">—</div></div></div>
+      <div class="top-actions"><button id="builder-export-summary" class="secondary" type="button">Export Builder Summary CSV</button></div>
+      <div class="section-title"><h2>Builder Summary</h2></div><div id="builder-summary" class="table-wrap"></div>
+      <div class="section-title"><h2>Error Details</h2></div><div id="builder-errors"></div>
+    </section>
   </main>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
-<script src="js/csv-export.js?v=qa-reporting-20260820-0958"></script>
-<script src="js/qa-reporting.js?v=qa-reporting-20260820-0958"></script>
+<script src="js/csv-export.js?v=builder-reporting-20260824-1648"></script>
+<script src="js/qa-reporting.js?v=builder-reporting-20260824-1648"></script>
 </body>
 </html>
