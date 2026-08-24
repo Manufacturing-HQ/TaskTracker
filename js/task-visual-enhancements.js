@@ -68,7 +68,7 @@
 (() => {
   if (document.querySelector('script[data-pilot-helper="scheduled-stop"]')) return;
   const script = document.createElement("script");
-  script.src = "js/task-scheduled-stop-indicator.js";
+  script.src = "js/task-scheduled-stop-indicator.js?v=employee-ux-20260824-1154";
   script.dataset.pilotHelper = "scheduled-stop";
   document.body.appendChild(script);
 })();
