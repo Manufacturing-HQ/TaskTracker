@@ -8,6 +8,11 @@
   const main = document.querySelector("main.main");
   if (!config || !supabaseLib || !app || !nav || !main) return;
 
+  // QA Reporting now lives on the unified standalone page so leadership gets
+  // both QA Employee Reporting and Builder Reports. If Management already has
+  // that direct link, do not inject the legacy inline QA Reporting view.
+  if (nav.querySelector('a[href^="qa-reporting.html"]')) return;
+
   const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
     auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}
   });
