@@ -10,6 +10,7 @@
   });
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
   const departments = ["Shipping","Build Line","Solid Keys","Quality Assurance","Inventory","System Testing","Director","CKE","Receiving"];
+  const inheritedQaRoles = new Set(["Supervisor","Manager","Administrator"]);
   let pendingEmployeeId = null;
 
   async function rpc(name,args={}) {
@@ -41,26 +42,50 @@
     form.dataset.qaEnhanced = "true";
     replaceDepartmentInput(modal);
 
-    let qa = {qa_view:false,qa_review:false};
+    let qa = {qa_view:false,qa_review:false,qa_access_inherited:false};
     if (pendingEmployeeId) {
       try { qa = await rpc("get_employee_qa_access", {p_session_token:token(),p_employee_id:pendingEmployeeId}); }
       catch (e) { console.warn("Unable to load QA access", e); }
     }
 
+    const explicitView = qa.qa_access_inherited ? false : !!qa.qa_view;
+    const explicitReview = qa.qa_access_inherited ? false : !!qa.qa_review;
     const activeLabel = modal.querySelector("#oe-active")?.closest("label");
     const block = document.createElement("div");
     block.className = "full";
     block.style.cssText = "border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:#f8fafc";
     block.innerHTML = `<div style="font-weight:900;margin-bottom:4px">QA Access</div>
-      <div style="font-size:11px;color:#64748b;margin-bottom:8px">Department does not grant QA access. Permissions must be assigned explicitly.</div>
-      <label style="display:flex;gap:8px;align-items:center;margin:7px 0"><input id="oe-qa-view" type="checkbox" style="width:auto;min-height:auto" ${qa.qa_view?"checked":""}> QA View</label>
-      <label style="display:flex;gap:8px;align-items:center;margin:7px 0"><input id="oe-qa-review" type="checkbox" style="width:auto;min-height:auto" ${qa.qa_review?"checked":""}> QA Review</label>`;
+      <div id="oe-qa-note" style="font-size:11px;color:#64748b;margin-bottom:8px"></div>
+      <label style="display:flex;gap:8px;align-items:center;margin:7px 0"><input id="oe-qa-view" type="checkbox" style="width:auto;min-height:auto" ${explicitView?"checked":""}> QA View</label>
+      <label style="display:flex;gap:8px;align-items:center;margin:7px 0"><input id="oe-qa-review" type="checkbox" style="width:auto;min-height:auto" ${explicitReview?"checked":""}> QA Review</label>`;
     activeLabel?.insertAdjacentElement("afterend", block);
 
     const view = modal.querySelector("#oe-qa-view");
     const review = modal.querySelector("#oe-qa-review");
+    const role = modal.querySelector("#oe-role");
+    const note = modal.querySelector("#oe-qa-note");
+
+    function syncRoleAccess() {
+      const inherited = inheritedQaRoles.has(role?.value);
+      if (inherited) {
+        view.checked = true;
+        review.checked = true;
+        view.disabled = true;
+        review.disabled = true;
+        note.textContent = "Supervisors, Managers, and Administrators automatically have full QA access, including QA review.";
+      } else {
+        view.disabled = false;
+        review.disabled = false;
+        view.checked = explicitView;
+        review.checked = explicitReview;
+        note.textContent = "QA access for Employees is assigned explicitly and is not based on department.";
+      }
+    }
+
     review.addEventListener("change", () => { if (review.checked) view.checked = true; });
     view.addEventListener("change", () => { if (!view.checked) review.checked = false; });
+    role?.addEventListener("change", syncRoleAccess);
+    syncRoleAccess();
 
     form.onsubmit = async (e) => {
       e.preventDefault();
