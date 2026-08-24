@@ -14,10 +14,14 @@
   let sessionToken = sessionStorage.getItem(sessionKey);
   let sessionEmployee = null;
   let setup = null;
+  let builderSetup = null;
   let latestData = null;
+  let latestBuilderData = null;
+  let builderLoaded = false;
 
   const esc = (value) => String(value ?? "").replace(/[&<>'"]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
   const pct = (value) => value === null || value === undefined ? "—" : `${Number(value).toFixed(2)}%`;
+  const numberText = (value) => value === null || value === undefined ? "0" : Number(value).toLocaleString("en-US", {maximumFractionDigits:2});
 
   async function rpc(name, args = {}) {
     const { data, error } = await client.rpc(name, args);
@@ -44,8 +48,11 @@
 
   function setDefaultDates() {
     const end = todayEastern();
+    const start = shiftDate(end, -30);
     $("qa-report-end").value = end;
-    $("qa-report-start").value = shiftDate(end, -30);
+    $("qa-report-start").value = start;
+    $("builder-report-end").value = end;
+    $("builder-report-start").value = start;
   }
 
   async function listEmployees() {
@@ -93,6 +100,16 @@
     message("Signed out.");
   }
 
+  function switchView(view) {
+    const builder = view === "builder";
+    $("qa-report-view").hidden = builder;
+    $("builder-report-view").hidden = !builder;
+    $("tab-qa-report").classList.toggle("active", !builder);
+    $("tab-builder-report").classList.toggle("active", builder);
+    $("report-subtitle").textContent = builder ? "Builder quality by productive completion date" : "QA review activity by QA completion date";
+    if (builder && !builderLoaded) loadBuilderReport().catch((error) => message(error.message, "error"));
+  }
+
   function renderEmployee(rows) {
     const body = (rows || []).map((r) => `<tr><td>${esc(r.qa_rep)}</td><td>${esc(r.total_jobs)}</td><td>${esc(r.total_pieces_reviewed)}</td><td>${esc(r.total_errors)}</td><td>${pct(r.error_rate_percent)}</td><td>${esc(r.scrap_pieces)}</td><td>${esc(r.rework_returned)}</td></tr>`).join("");
     $("qa-report-by-employee").innerHTML = `<table><thead><tr><th>QA Employee</th><th>Jobs</th><th>Pieces Reviewed</th><th>Errors</th><th>Error Rate</th><th>Scrap</th><th>Rework Returned</th></tr></thead><tbody>${body || '<tr><td colspan="7">No QA reviews found.</td></tr>'}</tbody></table>`;
@@ -115,12 +132,51 @@
     });
     const s = latestData?.summary || {};
     $("qa-report-jobs").textContent = s.total_jobs ?? 0;
-    $("qa-report-pieces").textContent = s.total_pieces_reviewed ?? 0;
-    $("qa-report-errors").textContent = s.total_errors ?? 0;
+    $("qa-report-pieces").textContent = numberText(s.total_pieces_reviewed);
+    $("qa-report-errors").textContent = numberText(s.total_errors);
     $("qa-report-rate").textContent = pct(s.error_rate_percent);
     renderEmployee(latestData?.by_employee || []);
     renderDate(latestData?.by_date || []);
     message("QA Reporting loaded.", "success");
+  }
+
+  function renderBuilderSummary(rows) {
+    const body = (rows || []).map((r) => `<tr><td>${esc(r.builder_name)}</td><td>${numberText(r.total_jobs)}</td><td>${numberText(r.quantity)}</td><td>${numberText(r.errors)}</td><td>${pct(r.error_rate_percent)}</td></tr>`).join("");
+    $("builder-summary").innerHTML = `<table><thead><tr><th>Builder</th><th>Total Jobs</th><th>Quantity</th><th>Errors</th><th>Error Rate</th></tr></thead><tbody>${body || '<tr><td colspan="5">No QA-reviewed builder jobs found for the selected filters.</td></tr>'}</tbody></table>`;
+  }
+
+  function renderBuilderErrors(categories) {
+    const host = $("builder-errors");
+    const rows = categories || [];
+    if (!rows.length) {
+      host.innerHTML = '<div class="muted">No configured QA error categories were found.</div>';
+      return;
+    }
+    host.innerHTML = rows.map((category) => `<section class="error-report-section"><div class="error-report-title"><h3>${esc(category.category_name)}</h3><span>${numberText(category.total_errors)} total</span></div><div class="error-report-grid">${(category.error_types || []).map((type) => `<div class="error-report-card"><strong>${numberText(type.total_errors)}</strong><span>${esc(type.error_name)}</span></div>`).join("") || '<div class="muted">No error types configured.</div>'}</div></section>`).join("");
+  }
+
+  async function loadBuilderReport() {
+    if (!setup?.viewer?.can_view_builder_reports) throw new Error("Builder Reports are not available for this account.");
+    const start = $("builder-report-start").value;
+    const end = $("builder-report-end").value;
+    if (!start || !end) throw new Error("Select a valid Builder Report date range.");
+    latestBuilderData = await rpc("get_builder_reporting", {
+      p_session_token: sessionToken,
+      p_start_date: start,
+      p_end_date: end,
+      p_builder_employee_id: $("builder-report-employee").value || null,
+      p_department: $("builder-report-department").value || null,
+      p_supervisor_id: $("builder-report-supervisor").value || null
+    });
+    const s = latestBuilderData?.summary || {};
+    $("builder-report-jobs").textContent = numberText(s.total_jobs);
+    $("builder-report-quantity").textContent = numberText(s.total_quantity);
+    $("builder-report-errors").textContent = numberText(s.total_errors);
+    $("builder-report-rate").textContent = pct(s.error_rate_percent);
+    renderBuilderSummary(latestBuilderData?.builder_summary || []);
+    renderBuilderErrors(latestBuilderData?.error_categories || []);
+    builderLoaded = true;
+    message("Builder Reports loaded.", "success");
   }
 
   async function exportSection(kind, button) {
@@ -144,6 +200,28 @@
     }
   }
 
+  async function exportBuilderSummary(button) {
+    if (!setup?.viewer?.can_view_builder_reports || !csv) return;
+    button.disabled = true;
+    const old = button.textContent;
+    button.textContent = "Exporting...";
+    try {
+      await loadBuilderReport();
+      const start = $("builder-report-start").value;
+      const end = $("builder-report-end").value;
+      csv.download(`builder-report-summary-${start}-to-${end}.csv`, ["Builder","Total Jobs","Quantity","Errors","Error Rate %"], (latestBuilderData?.builder_summary || []).map((r) => [r.builder_name,r.total_jobs,r.quantity,r.errors,r.error_rate_percent]));
+    } finally {
+      button.disabled = false;
+      button.textContent = old;
+    }
+  }
+
+  function fillBuilderOptions() {
+    $("builder-report-employee").innerHTML = '<option value="">All Builders</option>' + (builderSetup?.builders || []).map((r) => `<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");
+    $("builder-report-department").innerHTML = '<option value="">All Departments</option>' + (builderSetup?.departments || []).map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
+    $("builder-report-supervisor").innerHTML = '<option value="">All Supervisors</option>' + (builderSetup?.supervisors || []).map((r) => `<option value="${esc(r.supervisor_id)}">${esc(r.supervisor_name)}</option>`).join("");
+  }
+
   async function enter() {
     setup = await rpc("get_qa_reporting_options", { p_session_token: sessionToken });
     $("login").hidden = true;
@@ -158,6 +236,16 @@
     $("qa-report-self").textContent = setup.viewer?.employee_name || "";
     $("qa-report-rep").innerHTML = '<option value="">All QA Employees</option>' + (setup.qa_reps || []).map((r) => `<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");
     $("qa-export-actions").hidden = !setup.viewer?.can_export;
+
+    const canBuilder = !!setup.viewer?.can_view_builder_reports;
+    $("tab-builder-report").hidden = !canBuilder;
+    if (canBuilder) {
+      builderSetup = await rpc("get_builder_reporting_options", { p_session_token: sessionToken });
+      fillBuilderOptions();
+    }
+
+    builderLoaded = false;
+    switchView("qa");
     message("");
     await loadReport();
   }
@@ -182,8 +270,12 @@
 
   $("login-form").addEventListener("submit", (event) => login(event).catch((error) => message(error.message, "error")));
   $("sign-out").addEventListener("click", () => logout().catch(() => {}));
+  $("tab-qa-report").addEventListener("click", () => switchView("qa"));
+  $("tab-builder-report").addEventListener("click", () => switchView("builder"));
   $("qa-report-load").addEventListener("click", () => loadReport().catch((error) => message(error.message, "error")));
+  $("builder-report-load").addEventListener("click", () => loadBuilderReport().catch((error) => message(error.message, "error")));
   $("qa-export-employee").addEventListener("click", () => exportSection("employee", $("qa-export-employee")).catch((error) => message(error.message, "error")));
   $("qa-export-date").addEventListener("click", () => exportSection("date", $("qa-export-date")).catch((error) => message(error.message, "error")));
+  $("builder-export-summary").addEventListener("click", () => exportBuilderSummary($("builder-export-summary")).catch((error) => message(error.message, "error")));
   init();
 })();
