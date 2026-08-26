@@ -99,3 +99,11 @@
   new MutationObserver(() => install()).observe($("app"), { attributes: true, attributeFilter: ["hidden"] });
   setTimeout(install, 700);
 })();
+
+(() => {
+  if (document.querySelector('script[data-reporting-transaction-metrics]')) return;
+  const script = document.createElement("script");
+  script.src = "js/reporting-transaction-metrics.js?v=transaction-metrics-20260826";
+  script.dataset.reportingTransactionMetrics = "1";
+  document.body.appendChild(script);
+})();
