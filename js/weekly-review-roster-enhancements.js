@@ -140,3 +140,11 @@
   document.addEventListener("DOMContentLoaded", start);
   start();
 })();
+
+(() => {
+  if (document.querySelector('script[data-weekly-review-transactions]')) return;
+  const script = document.createElement("script");
+  script.src = "js/weekly-review-transactions.js?v=weekly-transactions-20260826";
+  script.dataset.weeklyReviewTransactions = "1";
+  document.body.appendChild(script);
+})();
