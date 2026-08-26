@@ -47,8 +47,8 @@
       if (absence >= 3) cells[2].classList.add("attendance-corrective");
       else if (absence >= 2) cells[2].classList.add("attendance-coaching");
 
-      if (tardies >= 5) cells[3].classList.add("attendance-corrective");
-      else if (tardies >= 4) cells[3].classList.add("attendance-coaching");
+      if (tardies >= 6) cells[3].classList.add("attendance-corrective");
+      else if (tardies >= 5) cells[3].classList.add("attendance-coaching");
     });
   }
 
