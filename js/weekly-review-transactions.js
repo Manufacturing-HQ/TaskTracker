@@ -1,6 +1,6 @@
 "use strict";
 
-/* Weekly review transaction activity. */
+/* Weekly review transaction activity. Uses a lightweight metrics RPC after the main review has rendered. */
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
@@ -37,11 +37,11 @@
     { label: "Inventory Transfers", countKey: "inventory_transfers_count", qtyKey: "inventory_transfers_quantity" }
   ];
 
-  let lastManagementEmployeeId = null;
   let lastEmployeeWeek = null;
-  let ownEmployeeId = null;
   let managementRequestKey = "";
   let employeeRequestKey = "";
+  let managementTimer = null;
+  let employeeTimer = null;
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -97,86 +97,81 @@
     const section = document.createElement("div");
     section.id = id;
     section.style.margin = "18px 0 6px";
-    section.innerHTML = `<h3 style="margin:0 0 6px">Transaction Activity</h3><div class="muted" style="margin-bottom:10px">Only transaction metrics with activity during this review week are shown.</div><div class="metrics">${active.map((group) => groupCard(group, metrics)).join("")}</div>`;
+    const note = metrics.source === "LEGACY_FINALIZED_HISTORY"
+      ? "Historical transaction metrics were imported after this review was finalized; the original finalized review remains unchanged."
+      : "Only transaction metrics with activity during this review week are shown.";
+    section.innerHTML = `<h3 style="margin:0 0 6px">Transaction Activity</h3><div class="muted" style="margin-bottom:10px">${esc(note)}</div><div class="metrics">${active.map((group) => groupCard(group, metrics)).join("")}</div>`;
     anchor.insertAdjacentElement("afterend", section);
   }
 
-  async function loadOwnEmployeeId() {
-    if (ownEmployeeId) return ownEmployeeId;
+  async function refreshManagement() {
     const token = sessionStorage.getItem(sessionKey);
-    if (!token) return null;
-    const rows = await rpc("get_employee_session_context", { p_session_token: token });
-    const row = Array.isArray(rows) ? rows[0] : rows;
-    ownEmployeeId = row?.employee_id || null;
-    return ownEmployeeId;
-  }
-
-  async function refreshManagement(force = false) {
-    const token = sessionStorage.getItem(sessionKey);
-    const employeeId = lastManagementEmployeeId || document.querySelector("#roster-body tr.selected-row")?.dataset.id;
+    const employeeId = document.querySelector("#roster-body tr.selected-row")?.dataset.id;
     const week = $("week-ending")?.value;
     if (!token || !employeeId || !week || $("detail-card")?.hidden) return;
     const key = `${employeeId}|${week}`;
-    if (!force && key === managementRequestKey) return;
+    if (key === managementRequestKey) return;
     managementRequestKey = key;
     try {
-      const detail = await rpc("get_weekly_review_detail", {
+      const metrics = await rpc("get_weekly_review_transaction_metrics", {
         p_session_token: token,
         p_employee_id: employeeId,
         p_week_ending_date: week
       });
-      renderSection(detail?.assessment?.metrics || {}, $("metric-cards"), "weekly-review-transaction-activity");
+      renderSection(metrics || {}, $("metric-cards"), "weekly-review-transaction-activity");
     } catch {
       managementRequestKey = "";
     }
   }
 
-  async function refreshEmployee(force = false) {
+  async function refreshEmployee() {
     const token = sessionStorage.getItem(sessionKey);
     const week = lastEmployeeWeek;
     if (!token || !week || $("employee-detail")?.hidden) return;
-    const employeeId = await loadOwnEmployeeId();
-    if (!employeeId) return;
-    const key = `${employeeId}|${week}`;
-    if (!force && key === employeeRequestKey) return;
+    const key = `self|${week}`;
+    if (key === employeeRequestKey) return;
     employeeRequestKey = key;
     try {
-      const detail = await rpc("get_weekly_review_detail", {
+      const metrics = await rpc("get_weekly_review_transaction_metrics", {
         p_session_token: token,
-        p_employee_id: employeeId,
+        p_employee_id: null,
         p_week_ending_date: week
       });
-      renderSection(detail?.assessment?.metrics || {}, $("employee-metrics"), "employee-weekly-transaction-activity");
+      renderSection(metrics || {}, $("employee-metrics"), "employee-weekly-transaction-activity");
     } catch {
       employeeRequestKey = "";
     }
   }
 
+  function scheduleManagementRefresh() {
+    clearTimeout(managementTimer);
+    managementTimer = setTimeout(refreshManagement, 80);
+  }
+
+  function scheduleEmployeeRefresh() {
+    clearTimeout(employeeTimer);
+    employeeTimer = setTimeout(refreshEmployee, 80);
+  }
+
   document.addEventListener("click", (event) => {
     const reviewButton = event.target.closest?.("#roster-body .review-btn");
     if (reviewButton) {
-      lastManagementEmployeeId = reviewButton.dataset.id || null;
       managementRequestKey = "";
-      setTimeout(() => refreshManagement(true), 350);
-      setTimeout(() => refreshManagement(true), 850);
       return;
     }
     const publishedButton = event.target.closest?.(".published-btn");
     if (publishedButton) {
       lastEmployeeWeek = publishedButton.dataset.week || null;
       employeeRequestKey = "";
-      setTimeout(() => refreshEmployee(true), 350);
-      setTimeout(() => refreshEmployee(true), 850);
     }
   }, true);
 
   $("load-week")?.addEventListener("click", () => {
     managementRequestKey = "";
-    setTimeout(() => refreshManagement(true), 800);
   });
 
   const managementAnchor = $("metric-cards");
-  if (managementAnchor) new MutationObserver(() => setTimeout(() => refreshManagement(true), 80)).observe(managementAnchor, { childList: true });
+  if (managementAnchor) new MutationObserver(scheduleManagementRefresh).observe(managementAnchor, { childList: true });
   const employeeAnchor = $("employee-metrics");
-  if (employeeAnchor) new MutationObserver(() => setTimeout(() => refreshEmployee(true), 80)).observe(employeeAnchor, { childList: true });
+  if (employeeAnchor) new MutationObserver(scheduleEmployeeRefresh).observe(employeeAnchor, { childList: true });
 })();
