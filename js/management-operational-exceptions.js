@@ -320,11 +320,9 @@
       const date = attendanceDate.value;
       const [audit, reporting] = await Promise.all([
         rpc("get_attendance_audit", { p_session_token: token(), p_business_date: date }),
-        rpc("get_reporting_daily", {
+        rpc("get_attendance_reconciliation_daily", {
           p_session_token: token(),
-          p_start_date: date,
-          p_end_date: date,
-          p_employee_id: null
+          p_business_date: date
         })
       ]);
       state.eventTypes = new Map((audit?.event_types || []).map((row) => [row.event_type_id, row]));
