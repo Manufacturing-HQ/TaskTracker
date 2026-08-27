@@ -71,3 +71,11 @@
   script.dataset.overdueHighlight = "management";
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-operational-exceptions="management"]')) return;
+  const script = document.createElement("script");
+  script.src = "js/management-operational-exceptions.js";
+  script.dataset.operationalExceptions = "management";
+  document.body.appendChild(script);
+})();
