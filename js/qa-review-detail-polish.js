@@ -14,13 +14,28 @@
 
   const style=document.createElement("style");
   style.textContent=`
-    .qa-job-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.qa-job-detail{border:1px solid #bfdbfe;border-radius:10px;background:#fff;padding:10px 11px}.qa-job-detail .label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:900;margin-bottom:4px}.qa-job-detail .value{font-weight:800;color:#172033;overflow-wrap:anywhere}.qa-job-detail.comments{grid-column:1/-1}@media(max-width:720px){.qa-job-detail-grid{grid-template-columns:1fr 1fr}.qa-job-detail.comments{grid-column:1/-1}}
+    .qa-job-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.qa-job-detail{border:1px solid #bfdbfe;border-radius:10px;background:#fff;padding:10px 11px}.qa-job-detail .label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;font-weight:900;margin-bottom:4px}.qa-job-detail .value{font-weight:800;color:#172033;overflow-wrap:anywhere}.qa-job-detail.comments{grid-column:1/-1}
+    .qa-training-callout{grid-column:1/-1;border:2px solid #111827!important;border-radius:12px;padding:13px 15px!important;background:#f8fafc}.qa-training-callout label{display:flex;align-items:center;gap:10px;margin:0!important;font-size:15px;font-weight:900}.qa-training-callout #training{width:auto!important;margin:0!important;transform:scale(1.25)}.qa-training-help{font-size:12px;color:#64748b;margin-top:6px;margin-left:28px}
+    @media(max-width:720px){.qa-job-detail-grid{grid-template-columns:1fr 1fr}.qa-job-detail.comments{grid-column:1/-1}}
   `;
   document.head.appendChild(style);
 
   async function rpc(name,args={}){const {data,error}=await client.rpc(name,args);if(error)throw new Error(error.message||`${name} failed.`);return data;}
 
+  function emphasizeTraining(){
+    const checkbox=document.getElementById("training");
+    const wrap=checkbox?.closest("#review-form .grid > div");
+    if(!checkbox||!wrap||wrap.dataset.trainingCalloutReady==="1") return;
+    wrap.dataset.trainingCalloutReady="1";
+    wrap.classList.add("qa-training-callout","full");
+    const help=document.createElement("div");
+    help.className="qa-training-help";
+    help.textContent="Check this when the reviewed job was performed as part of builder training.";
+    wrap.appendChild(help);
+  }
+
   async function polish(){
+    emphasizeTraining();
     if(busy || summary.querySelector(".qa-job-detail-grid")) return;
     const match=(summary.textContent||"").match(/Job\s*#\s*(\d+)/i);
     if(!match) return;
@@ -43,6 +58,7 @@
   }
 
   new MutationObserver(()=>{polish();}).observe(summary,{childList:true,subtree:true,characterData:true});
+  emphasizeTraining();
   setTimeout(polish,500);
 })();
 

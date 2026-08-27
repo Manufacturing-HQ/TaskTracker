@@ -148,3 +148,11 @@
   script.dataset.weeklyReviewTransactions = "1";
   document.body.appendChild(script);
 })();
+
+(() => {
+  if (document.querySelector('script[data-report-ui-enhancements]')) return;
+  const script = document.createElement("script");
+  script.src = "js/report-ui-enhancements.js?v=report-ui-20260827";
+  script.dataset.reportUiEnhancements = "1";
+  document.body.appendChild(script);
+})();

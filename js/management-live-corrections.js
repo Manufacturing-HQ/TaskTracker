@@ -23,8 +23,8 @@
     .live-correction-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.live-correction-grid input,.live-correction-grid select,.live-correction-grid textarea{width:100%;min-height:42px;border:1px solid #94a3b8;border-radius:9px;padding:8px 10px;background:#fff}
     .live-correction-grid textarea{min-height:90px;resize:vertical}.live-correction-warning{margin-top:14px;padding:10px;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;font-weight:700}
     .live-correction-message{margin-top:12px;padding:10px;border-radius:8px;background:#e2e8f0}.live-correction-message[data-type="error"]{background:#fee2e2;color:#991b1b}
-    .live-correction-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
-    @media(max-width:700px){.live-correction-grid{grid-template-columns:1fr}.live-correction-grid .full{grid-column:auto}}
+    .live-correction-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.live-time-row{display:grid;grid-template-columns:80px 20px 90px 82px;gap:6px;align-items:center}.live-time-row input,.live-time-row select{min-height:42px}.live-time-colon{text-align:center;font-weight:900}
+    @media(max-width:700px){.live-correction-grid{grid-template-columns:1fr}.live-correction-grid .full{grid-column:auto}.live-time-row{grid-template-columns:78px 18px 88px 78px}}
   `;
   document.head.appendChild(style);
 
@@ -49,15 +49,12 @@
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
-      hour12: false
+      hour12: true
     }).formatToParts(d);
     const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
-    return {
-      date: `${map.year}-${map.month}-${map.day}`,
-      time: `${map.hour === "24" ? "00" : map.hour}:${map.minute}`
-    };
+    return { date: `${map.year}-${map.month}-${map.day}`, hour: String(Number(map.hour)), minute: map.minute, period: (map.dayPeriod || "AM").toUpperCase() };
   }
 
   function displayReportingTime(iso) {
@@ -72,6 +69,18 @@
       hour: "numeric",
       minute: "2-digit"
     }).format(d) + " ET";
+  }
+
+  function hourOptions(selected="") { return '<option value="">Hour</option>' + Array.from({length:12},(_,i)=>i+1).map((h)=>`<option value="${h}" ${String(h)===String(selected)?"selected":""}>${h}</option>`).join(""); }
+  function periodOptions(selected="") { return `<option value="">AM/PM</option><option value="AM" ${selected==="AM"?"selected":""}>AM</option><option value="PM" ${selected==="PM"?"selected":""}>PM</option>`; }
+  function readStopTime(modal) {
+    const date=modal.querySelector("#live-correction-date")?.value;
+    const hour=Number(modal.querySelector("#live-correction-hour")?.value);
+    const minute=Number(modal.querySelector("#live-correction-minute")?.value);
+    const period=modal.querySelector("#live-correction-period")?.value;
+    if(!date||!hour||hour<1||hour>12||!Number.isInteger(minute)||minute<0||minute>59||!["AM","PM"].includes(period)) return null;
+    const h24=(hour%12)+(period==="PM"?12:0);
+    return `${date}T${String(h24).padStart(2,"0")}:${String(minute).padStart(2,"0")}:00`;
   }
 
   function taskLabel(e) {
@@ -111,7 +120,7 @@
         <div class="full"><label>Employee / Task</label><select id="live-correction-task"></select></div>
         <div class="full" id="live-correction-task-summary"></div>
         <div><label>Actual Stop Date</label><input id="live-correction-date" type="date" required></div>
-        <div><label>Actual Stop Time</label><input id="live-correction-time" type="time" required></div>
+        <div><label>Actual Stop Time</label><div class="live-time-row"><select id="live-correction-hour">${hourOptions()}</select><div class="live-time-colon">:</div><input id="live-correction-minute" type="number" inputmode="numeric" min="0" max="59" step="1" placeholder="00"><select id="live-correction-period">${periodOptions()}</select></div></div>
         <div class="full"><label>Correction Reason</label><input id="live-correction-reason" value="Employee forgot to stop task" required></div>
         <div class="full"><label>Comments <span style="font-weight:400;color:#64748b">(optional)</span></label><textarea id="live-correction-comments" placeholder="Optional details about the correction"></textarea></div>
       </div>
@@ -125,7 +134,9 @@
     const select = modal.querySelector("#live-correction-task");
     const summary = modal.querySelector("#live-correction-task-summary");
     const dateInput = modal.querySelector("#live-correction-date");
-    const timeInput = modal.querySelector("#live-correction-time");
+    const hourInput = modal.querySelector("#live-correction-hour");
+    const minuteInput = modal.querySelector("#live-correction-minute");
+    const periodInput = modal.querySelector("#live-correction-period");
     const reasonInput = modal.querySelector("#live-correction-reason");
     const commentsInput = modal.querySelector("#live-correction-comments");
     const message = modal.querySelector("#live-correction-message");
@@ -142,7 +153,9 @@
       const parts = reportingParts(e.started_at);
       summary.innerHTML = `<div class="live-correction-task"><strong>${esc(e.employee_name)}</strong><span>${esc(taskLabel(e))}</span><span>Job #${esc(e.job_number || "—")} · Session started ${esc(displayReportingTime(e.started_at))}</span></div>`;
       dateInput.value = parts?.date || "";
-      timeInput.value = "";
+      hourInput.value = "";
+      minuteInput.value = "";
+      periodInput.value = "";
       message.hidden = true;
     }
 
@@ -152,13 +165,12 @@
 
     save.addEventListener("click", async () => {
       const e = selectedTask();
-      const date = dateInput.value;
-      const time = timeInput.value;
+      const localStop = readStopTime(modal);
       const reason = reasonInput.value.trim();
       const comments = commentsInput.value.trim();
       message.hidden = true;
-      if (!date || !time || !reason) {
-        message.textContent = "Actual Stop Date, Actual Stop Time, and Correction Reason are required.";
+      if (!localStop || !reason) {
+        message.textContent = "Actual Stop Date, Stop Time, and Correction Reason are required.";
         message.dataset.type = "error";
         message.hidden = false;
         return;
@@ -170,7 +182,7 @@
         await rpc("force_stop_history_session_local", {
           p_session_token: token(),
           p_job_id: e.job_id,
-          p_forced_ended_local: `${date}T${time}:00`,
+          p_forced_ended_local: localStop,
           p_correction_reason: reason,
           p_comments: comments || null
         });
