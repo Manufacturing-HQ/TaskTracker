@@ -124,7 +124,12 @@
     if (!setup?.viewer?.can_edit) return;
     const roles = (setup.roles||[]).map((r)=>`<option value="${esc(r)}" ${r===(row?.role||"Employee")?"selected":""}>${esc(r)}</option>`).join("");
     const supervisors = optionRows(setup.supervisors,"id",r=>[r.employee_name,r.role].filter(Boolean).join(" · "),row?.supervisor_id);
-    const departmentValues = [...new Set([...(setup?.departments||[]),"CKE","Receiving",row?.department].filter(Boolean))];
+    const departmentValues = [
+      ...new Set([
+        ...(setup?.departments || []),
+        row?.department
+      ].filter(Boolean))
+    ];
     const departmentOptions = departmentValues.map((d)=>`<option value="${esc(d)}" ${d===(row?.department||"")?"selected":""}>${esc(d)}</option>`).join("");
     const modal = modalShell(row?"Edit Employee":"New Employee", `<form id="ops-employee-form" class="ops-form-grid">
       <label>Employee Name<input id="oe-name" required value="${esc(row?.employee_name||"")}"></label>
