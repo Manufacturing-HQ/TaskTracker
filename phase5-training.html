@@ -1,23 +1,13 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Task Tracker Training Pilot</title>
-  <style>
-    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{max-width:1200px;margin:0 auto;padding:28px 20px 48px}.topbar,.row{display:flex;justify-content:space-between;gap:16px;align-items:center}.topbar{margin-bottom:22px}.brand h1{margin:0;font-size:28px}.brand p,.muted{color:#64748b}.card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.04)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.full{grid-column:1/-1}label{display:block;font-weight:700;font-size:13px;margin-bottom:7px}input,select,textarea{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:11px 12px;background:#fff}textarea{min-height:90px}.primary,.secondary{border-radius:10px;padding:11px 16px;font-weight:800}.primary{border:0;background:#1d4ed8;color:white}.secondary{border:1px solid #cbd5e1;background:white}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:18px}.message[data-type="error"]{background:#fee2e2;color:#991b1b}.message[data-type="success"]{background:#dcfce7;color:#166534}.plans,.items,.comments{display:grid;gap:12px}.mini{border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#f8fafc}.item-row{display:grid;grid-template-columns:26px minmax(0,1fr);gap:12px;align-items:start}.item-row input{width:auto;margin-top:3px}.section-title{margin:18px 0 8px;font-size:14px;font-weight:900;color:#334155;text-transform:uppercase;letter-spacing:.04em}.pill{display:inline-flex;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}[hidden]{display:none!important}@media(max-width:720px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.topbar,.row{align-items:stretch;flex-direction:column}}
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Task Tracker</title>
+  <meta http-equiv="refresh" content="0; url=index.html">
+  <script>window.location.replace("index.html");</script>
 </head>
 <body>
-<div class="shell">
-  <div class="topbar"><div class="brand"><h1>Task Tracker Training Pilot</h1><p>Phase 5 training workflow validation</p></div><a class="secondary" href="phase5-pilot.html" style="text-decoration:none;color:inherit">Employee Pilot</a></div>
-  <div id="message" class="message" hidden></div>
-  <section id="login" class="card"><form id="login-form" class="grid"><div><label for="employee">Employee</label><select id="employee" required><option value="">Loading employees...</option></select></div><div><label for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" required></div><div class="full"><button class="primary" type="submit">Sign In</button></div></form></section>
-  <main id="app" hidden>
-    <section class="card"><div class="row"><div><div class="muted">Signed in as</div><strong id="user-name"></strong></div><button id="refresh" class="secondary" type="button">Refresh</button></div></section>
-    <section id="setup-card" class="card" hidden><h2 style="margin-top:0">Create Training Plan</h2><form id="setup-form" class="grid"><div><label for="trainee">Trainee</label><select id="trainee"></select></div><div><label for="trainer">Trainer</label><select id="trainer"></select></div><div><label for="template">Template</label><select id="template"></select></div><div class="full"><button class="primary" type="submit">Create Training Plan</button></div></form></section>
-    <section class="card"><div class="row"><div><h2 style="margin:0">Training Plans</h2><div class="muted">Plans visible to this employee</div></div></div><div id="plans" class="plans" style="margin-top:16px"></div></section>
-    <section id="detail-card" class="card" hidden><div class="row"><div><h2 id="detail-title" style="margin:0"></h2><div id="detail-meta" class="muted"></div></div><span id="detail-status" class="pill"></span></div><div id="items" class="items"></div><h3>Comments</h3><div id="comments" class="comments"></div><div id="comment-editor" style="margin-top:14px" hidden><label for="new-comment">Add training comment</label><textarea id="new-comment"></textarea><button id="add-comment" class="secondary" type="button" style="margin-top:10px">Add Comment</button></div><div id="complete-plan-wrap" style="margin-top:16px" hidden><button id="complete-plan" class="primary" type="button">Complete Training Plan</button></div></section>
-  </main>
-</div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script src="js/phase5-training.js"></script>
-</body></html>
+  <p>This legacy Task Tracker page has been retired. <a href="index.html">Open Task Tracker</a>.</p>
+</body>
+</html>

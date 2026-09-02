@@ -3,39 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Task Tracker Staging</title>
-  <style>
-    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb;--navy:#0b1220;--navy2:#17233c;--blue:#2563eb;--slate:#64748b;--border:#dbe3ef}
-    *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh}button,select,input{font:inherit}button{cursor:pointer}
-    .shell{min-height:100vh;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(480px,1.1fr)}
-    .brand{padding:52px;color:#fff;background:linear-gradient(145deg,#0b1220,#17233c);display:flex;flex-direction:column;justify-content:space-between}.brand h1{font-size:58px;line-height:1.02;letter-spacing:-.055em;margin:20px 0}.brand p{color:#c4cfdf;font-size:18px;line-height:1.7;max-width:580px}.mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-weight:900}.login-side{display:grid;place-items:center;padding:42px;background:linear-gradient(135deg,#f8fafc,#e8eef5)}.card{width:min(520px,100%);background:#fff;border:1px solid var(--border);border-radius:24px;padding:38px;box-shadow:0 26px 70px rgba(11,18,32,.16)}.card h2{font-size:32px;margin:0 0 10px}.muted{color:var(--slate)}label{display:block;font-weight:800;font-size:13px;margin:18px 0 8px}select,input{width:100%;min-height:52px;border:1px solid #cbd5e1;border-radius:12px;padding:0 14px;background:#fff}.primary{border:0;border-radius:11px;padding:12px 16px;font-weight:800;background:var(--blue);color:#fff;width:100%;margin-top:20px;min-height:54px}.message{margin-top:16px;padding:12px 14px;border-radius:10px;background:#e2e8f0}.message[data-type="error"]{background:#fee2e2;color:#991b1b}.routing{text-align:center}.routing .spinner{width:42px;height:42px;border:4px solid #dbe3ef;border-top-color:#2563eb;border-radius:50%;margin:0 auto 18px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
-    @media(max-width:900px){.shell{grid-template-columns:1fr}.brand{display:none}.login-side{padding:20px}}
-  </style>
+  <title>Task Tracker</title>
+  <meta http-equiv="refresh" content="0; url=index.html">
+  <script>window.location.replace("index.html");</script>
 </head>
 <body>
-  <div class="shell">
-    <section class="brand">
-      <div><div class="mark">TT</div><h1>Task Tracker</h1><p>Single staging entry point for the redesigned Employee and Management workspaces.</p></div>
-      <div style="color:#8d9aaf;font-size:12px">Phase 5.5 staging router · production index remains unchanged</div>
-    </section>
-    <section class="login-side">
-      <form id="login-form" class="card">
-        <h2>Sign in</h2>
-        <div class="muted">Your role will automatically open the correct staging workspace.</div>
-        <label for="employee">Employee</label>
-        <select id="employee" required><option value="">Loading employees...</option></select>
-        <label for="pin">PIN</label>
-        <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
-        <button class="primary" type="submit">Sign In</button>
-        <div id="message" class="message" hidden></div>
-      </form>
-      <div id="routing" class="card routing" hidden>
-        <div class="spinner"></div>
-        <h2 style="font-size:24px">Opening your workspace…</h2>
-        <div id="routing-message" class="muted">Checking your role and session.</div>
-      </div>
-    </section>
-  </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script src="js/phase5-main.js"></script>
+  <p>This legacy Task Tracker page has been retired. <a href="index.html">Open Task Tracker</a>.</p>
 </body>
 </html>
