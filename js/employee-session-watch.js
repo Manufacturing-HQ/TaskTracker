@@ -8,7 +8,18 @@
 
   const sessionKey = config.sessionStorageKey;
   const heartbeatIntervalMs = 5 * 60 * 1000;
-  const loginWatchIntervalMs = 500;
+
+  function goToNeutralLogin() {
+    sessionStorage.removeItem(sessionKey);
+    window.top.location.replace("index.html");
+  }
+
+  // Protected Task Tracker pages are no longer login surfaces. A direct link or
+  // old bookmark without an active platform session always returns to index.html.
+  if (!sessionStorage.getItem(sessionKey)) {
+    goToNeutralLogin();
+    return;
+  }
 
   const client = supabaseLib.createClient(
     config.supabaseUrl,
@@ -24,7 +35,6 @@
 
   let expiryTimer = null;
   let heartbeatTimer = null;
-  let loginWatchTimer = null;
   let heartbeatInFlight = false;
   let lastHeartbeatAttemptAt = 0;
   let expiryMs = null;
@@ -39,20 +49,14 @@
   `;
   document.head.appendChild(style);
 
-  function goToNeutralLogin() {
-    sessionStorage.removeItem(sessionKey);
-    window.top.location.replace("index.html");
-  }
-
   function showExpired() {
     if (document.getElementById("session-expired-overlay")) return;
 
+    sessionStorage.removeItem(sessionKey);
     document
       .querySelectorAll("button, input, select, textarea")
       .forEach((element) => {
-        if (!element.closest("#session-expired-overlay")) {
-          element.disabled = true;
-        }
+        if (!element.closest("#session-expired-overlay")) element.disabled = true;
       });
 
     const overlay = document.createElement("div");
@@ -75,51 +79,35 @@
 
     expiryMs = parsedExpiry;
     if (expiryTimer) clearTimeout(expiryTimer);
-
-    expiryTimer = window.setTimeout(
-      showExpired,
-      Math.max(0, expiryMs - Date.now())
-    );
+    expiryTimer = window.setTimeout(showExpired, Math.max(0, expiryMs - Date.now()));
   }
 
   function isMissingHeartbeatFunction(error) {
     const message = String(error?.message || "").toLowerCase();
-    return (
-      error?.code === "PGRST202" ||
-      (message.includes("heartbeat_employee_session") &&
-        message.includes("schema cache"))
-    );
+    return error?.code === "PGRST202" ||
+      (message.includes("heartbeat_employee_session") && message.includes("schema cache"));
   }
 
   async function requestSessionHeartbeat(token) {
-    let response = await client.rpc("heartbeat_employee_session", {
-      p_session_token: token
-    });
+    let response = await client.rpc("heartbeat_employee_session", { p_session_token: token });
 
-    // Backward-compatible during deployment: before the heartbeat migration
-    // exists, validate through the existing session-context endpoint.
     if (response.error && isMissingHeartbeatFunction(response.error)) {
-      response = await client.rpc("get_employee_session_context", {
-        p_session_token: token
-      });
+      response = await client.rpc("get_employee_session_context", { p_session_token: token });
     }
 
     if (response.error) throw response.error;
-
-    const row = Array.isArray(response.data)
-      ? response.data[0]
-      : response.data;
-
-    if (!row?.expires_at) {
-      throw new Error("The login session is invalid or has expired.");
-    }
-
+    const row = Array.isArray(response.data) ? response.data[0] : response.data;
+    if (!row?.expires_at) throw new Error("The login session is invalid or has expired.");
     return row;
   }
 
   async function heartbeat(force = false) {
     const token = sessionStorage.getItem(sessionKey);
-    if (!token || heartbeatInFlight) return;
+    if (!token) {
+      goToNeutralLogin();
+      return;
+    }
+    if (heartbeatInFlight) return;
 
     const now = Date.now();
     if (!force && now - lastHeartbeatAttemptAt < heartbeatIntervalMs) return;
@@ -131,15 +119,11 @@
       const session = await requestSessionHeartbeat(token);
       scheduleExpiry(session.expires_at);
     } catch (error) {
-      console.warn(
-        "Task Tracker session heartbeat failed:",
-        error?.message || error
-      );
-
-      // Do not strand someone because of one brief network interruption. If the
-      // known expiration has passed, end the session; otherwise the next timer,
-      // focus, or visibility change will try again.
-      if (Number.isFinite(expiryMs) && expiryMs <= Date.now()) {
+      console.warn("Task Tracker session heartbeat failed:", error?.message || error);
+      const message = String(error?.message || "").toLowerCase();
+      if (message.includes("invalid or has expired") || message.includes("valid login session is required")) {
+        showExpired();
+      } else if (Number.isFinite(expiryMs) && expiryMs <= Date.now()) {
         showExpired();
       }
     } finally {
@@ -147,35 +131,13 @@
     }
   }
 
-  function beginHeartbeat() {
-    if (heartbeatTimer) clearInterval(heartbeatTimer);
-    heartbeat(true);
-    heartbeatTimer = window.setInterval(
-      () => heartbeat(false),
-      heartbeatIntervalMs
-    );
-  }
-
-  function watchForLogin() {
-    if (sessionStorage.getItem(sessionKey)) {
-      beginHeartbeat();
-      return;
-    }
-
-    loginWatchTimer = window.setInterval(() => {
-      if (!sessionStorage.getItem(sessionKey)) return;
-      clearInterval(loginWatchTimer);
-      loginWatchTimer = null;
-      beginHeartbeat();
-    }, loginWatchIntervalMs);
-  }
-
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) heartbeat(false);
   });
   window.addEventListener("focus", () => heartbeat(false));
 
-  watchForLogin();
+  heartbeat(true);
+  heartbeatTimer = window.setInterval(() => heartbeat(false), heartbeatIntervalMs);
 })();
 
 (() => {
