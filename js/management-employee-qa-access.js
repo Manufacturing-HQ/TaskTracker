@@ -1,5 +1,12 @@
 "use strict";
 
+/**
+ * Authoritative Phase 1 Employee Master editor.
+ *
+ * This module owns Employee create/edit actions in Management Operations.
+ * Tables may render [data-edit-employee] buttons, but no other module should
+ * create or save an Employee modal.
+ */
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
@@ -10,16 +17,11 @@
   });
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
   const esc = (v) => String(v ?? "").replace(/[&<>'\"]/g, (ch) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'\"':"&quot;"}[ch]));
-  const EDIT_PLACEHOLDER = "Use existing Edit control after Refresh";
-
   let editorOpening = false;
-  let repairTimer = null;
-  let directoryLoading = false;
-  let employeeDirectory = new Map();
 
   async function rpc(name,args={}) {
-    const {data,error}=await client.rpc(name,args);
-    if(error) throw new Error(error.message||`${name} failed.`);
+    const {data,error} = await client.rpc(name,args);
+    if (error) throw new Error(error.message || `${name} failed.`);
     return data;
   }
 
@@ -40,11 +42,9 @@
     return labels[code] || code;
   }
 
-  function boolLabel(value) {
-    return value ? "Allowed" : "Denied";
-  }
+  const boolLabel = (value) => value ? "Allowed" : "Denied";
 
-  function buildModal(title, body) {
+  function buildModal(title,body) {
     document.querySelector(".ops-modal-backdrop[data-phase1-employee-editor='1']")?.remove();
     const backdrop = document.createElement("div");
     backdrop.className = "ops-modal-backdrop";
@@ -54,15 +54,15 @@
     return backdrop;
   }
 
-  function supervisorOptions(rows, selected) {
-    return '<option value="">None</option>' + (rows||[]).map((r) =>
-      `<option value="${esc(r.id)}" ${String(r.id)===String(selected||"")?"selected":""}>${esc(r.employee_name)} · ${esc(r.role)}</option>`
+  function supervisorOptions(rows,selected) {
+    return '<option value="">None</option>' + (rows || []).map((r) =>
+      `<option value="${esc(r.id)}" ${String(r.id)===String(selected || "") ? "selected" : ""}>${esc(r.employee_name)} · ${esc(r.role)}</option>`
     ).join("");
   }
 
-  function roleOptions(rows, selected) {
-    return (rows||[]).map((role) =>
-      `<option value="${esc(role)}" ${String(role)===String(selected||"Employee")?"selected":""}>${esc(role)}</option>`
+  function roleOptions(rows,selected) {
+    return (rows || []).map((role) =>
+      `<option value="${esc(role)}" ${String(role)===String(selected || "Employee") ? "selected" : ""}>${esc(role)}</option>`
     ).join("");
   }
 
@@ -73,10 +73,10 @@
     editorOpening = true;
 
     try {
-      const [editor, setup] = await Promise.all([
+      const [editor,setup] = await Promise.all([
         rpc("get_employee_master_editor", {
           p_session_token:sessionToken,
-          p_employee_id:employeeId||null
+          p_employee_id:employeeId || null
         }),
         rpc("get_operations_master_options", {
           p_session_token:sessionToken
@@ -96,18 +96,18 @@
 
       const modal = buildModal(employee ? "Edit Employee" : "New Employee", `
         <form id="ops-employee-form" class="ops-form-grid" data-phase1-master-editor="1">
-          <label>Employee Name<input id="oe-name" required value="${esc(employee?.employee_name||"")}"></label>
-          <label>Department<select id="oe-dept" required><option value="">Select Department</option>${departments.map((d)=>`<option value="${esc(d.id)}" ${String(d.id)===String(employee?.department_id||"")?"selected":""}>${esc(d.department_name)}</option>`).join("")}</select></label>
+          <label>Employee Name<input id="oe-name" required value="${esc(employee?.employee_name || "")}"></label>
+          <label>Department<select id="oe-dept" required><option value="">Select Department</option>${departments.map((d) => `<option value="${esc(d.id)}" ${String(d.id)===String(employee?.department_id || "") ? "selected" : ""}>${esc(d.department_name)}</option>`).join("")}</select></label>
           <label>Team<select id="oe-team"><option value="">No Team Assigned</option></select></label>
           <label>Classification<input id="oe-classification" readonly value=""></label>
-          <label>Role<select id="oe-role">${roleOptions(roles,employee?.role||"Employee")}</select></label>
+          <label>Role<select id="oe-role">${roleOptions(roles,employee?.role || "Employee")}</select></label>
           <label>Supervisor<select id="oe-supervisor">${supervisorOptions(supervisors,employee?.supervisor_id)}</select></label>
-          <label>Hire Date<input id="oe-hire" type="date" value="${esc(employee?.hire_date||"")}"></label>
-          <label>Probation End Date<input id="oe-probation" type="date" value="${esc(employee?.probation_end_date||"")}"></label>
-          <label>Display Order<input id="oe-order" type="number" min="0" value="${esc(employee?.display_order??0)}"></label>
-          <label>PIN ${employee?"(leave blank to keep existing)":""}<input id="oe-pin" type="password" inputmode="numeric" ${employee?"":"required"}></label>
-          <label class="full"><input id="oe-active" type="checkbox" ${employee?.is_active===false?"":"checked"}> Active</label>
-          <label class="full"><input id="oe-exempt" type="checkbox" style="width:auto;min-height:auto" ${employee?.task_tracker_exempt?"checked":""}> Task Tracker Exempt <span style="display:block;color:#64748b;font-weight:500;margin-top:4px">Use for active employees who may appear in QA/manual work orders but are not expected to track tasks.</span></label>
+          <label>Hire Date<input id="oe-hire" type="date" value="${esc(employee?.hire_date || "")}"></label>
+          <label>Probation End Date<input id="oe-probation" type="date" value="${esc(employee?.probation_end_date || "")}"></label>
+          <label>Display Order<input id="oe-order" type="number" min="0" value="${esc(employee?.display_order ?? 0)}"></label>
+          <label>PIN ${employee ? "(leave blank to keep existing)" : ""}<input id="oe-pin" type="password" inputmode="numeric" ${employee ? "" : "required"}></label>
+          <label class="full"><input id="oe-active" type="checkbox" ${employee?.is_active === false ? "" : "checked"}> Active</label>
+          <label class="full"><input id="oe-exempt" type="checkbox" style="width:auto;min-height:auto" ${employee?.task_tracker_exempt ? "checked" : ""}> Task Tracker Exempt <span style="display:block;color:#64748b;font-weight:500;margin-top:4px">Use for active employees who may appear in QA/manual work orders but are not expected to track tasks.</span></label>
           <div class="full" id="oe-permission-block" style="border:1px solid #cbd5e1;border-radius:10px;padding:12px;background:#f8fafc">
             <div style="font-weight:900;margin-bottom:4px">Platform Permissions</div>
             <div style="font-size:11px;color:#64748b;margin-bottom:10px">Role and Department provide defaults. Choose Allow or Deny only when this employee needs an exception.</div>
@@ -132,9 +132,9 @@
         const source = p.source && p.source !== "NONE" ? p.source : "Default";
         row.innerHTML = `<div><strong>${esc(permissionLabel(p.permission_code))}</strong><div style="font-size:10px;color:#64748b">${esc(p.permission_code)}</div></div>
           <select data-permission-code="${esc(p.permission_code)}">
-            <option value="" ${overrideValue===""?"selected":""}>Use Default</option>
-            <option value="true" ${overrideValue==="true"?"selected":""}>Allow</option>
-            <option value="false" ${overrideValue==="false"?"selected":""}>Deny</option>
+            <option value="" ${overrideValue === "" ? "selected" : ""}>Use Default</option>
+            <option value="true" ${overrideValue === "true" ? "selected" : ""}>Allow</option>
+            <option value="false" ${overrideValue === "false" ? "selected" : ""}>Deny</option>
           </select>
           <div style="font-size:11px;color:#475569">${esc(effective)} · ${esc(source)}</div>`;
         permissionHost.appendChild(row);
@@ -146,7 +146,7 @@
         const previousTeam = team.value || employee?.team_id || "";
         const availableTeams = teams.filter((t) => String(t.department_id) === String(departmentId));
         team.innerHTML = '<option value="">No Team Assigned</option>' + availableTeams.map((t) =>
-          `<option value="${esc(t.id)}" ${String(t.id)===String(previousTeam)?"selected":""}>${esc(t.team_name)}</option>`
+          `<option value="${esc(t.id)}" ${String(t.id)===String(previousTeam) ? "selected" : ""}>${esc(t.team_name)}</option>`
         ).join("");
         classification.value = selectedDepartment?.classification_code || "";
       }
@@ -155,8 +155,8 @@
         if (!employee) pin.required = !exempt.checked;
       }
 
-      department.addEventListener("change", syncDepartment);
-      exempt.addEventListener("change", syncPinRequirement);
+      department.addEventListener("change",syncDepartment);
+      exempt.addEventListener("change",syncPinRequirement);
       syncDepartment();
       syncPinRequirement();
 
@@ -168,7 +168,7 @@
         save.disabled = true;
         try {
           const overrides = [...permissionHost.querySelectorAll("select[data-permission-code]")].map((select) => {
-            const item = { permission_code:select.dataset.permissionCode };
+            const item = {permission_code:select.dataset.permissionCode};
             if (select.value === "true") item.is_granted = true;
             if (select.value === "false") item.is_granted = false;
             return item;
@@ -176,25 +176,23 @@
 
           await rpc("save_operations_employee_v3", {
             p_session_token:token(),
-            p_employee_id:employee?.id||null,
+            p_employee_id:employee?.id || null,
             p_employee_name:modal.querySelector("#oe-name").value.trim(),
             p_department_id:department.value,
-            p_team_id:team.value||null,
-            p_supervisor_id:modal.querySelector("#oe-supervisor").value||null,
+            p_team_id:team.value || null,
+            p_supervisor_id:modal.querySelector("#oe-supervisor").value || null,
             p_employee_role:modal.querySelector("#oe-role").value,
             p_is_active:modal.querySelector("#oe-active").checked,
-            p_display_order:Number(modal.querySelector("#oe-order").value||0),
-            p_hire_date:modal.querySelector("#oe-hire").value||null,
-            p_probation_end_date:modal.querySelector("#oe-probation").value||null,
+            p_display_order:Number(modal.querySelector("#oe-order").value || 0),
+            p_hire_date:modal.querySelector("#oe-hire").value || null,
+            p_probation_end_date:modal.querySelector("#oe-probation").value || null,
             p_task_tracker_exempt:exempt.checked,
-            p_new_pin:pin.value||null,
+            p_new_pin:pin.value || null,
             p_permission_overrides:overrides
           });
 
           modal.remove();
-          employeeDirectory = new Map();
           document.getElementById("ops-employee-refresh")?.click();
-          scheduleActionRepair();
         } catch (error) {
           alert(error.message || "Unable to save Employee Master changes.");
           save.disabled = false;
@@ -205,64 +203,6 @@
     } finally {
       editorOpening = false;
     }
-  }
-
-  async function loadEmployeeDirectory() {
-    if (directoryLoading) return employeeDirectory;
-    directoryLoading = true;
-    try {
-      const result = await rpc("search_operations_employees", {
-        p_session_token:token(),
-        p_search_text:null,
-        p_include_inactive:true,
-        p_result_limit:500,
-        p_result_offset:0
-      });
-      const map = new Map();
-      (result?.records||[]).forEach((row) => {
-        const name = String(row.employee_name||"").trim();
-        if (!name) return;
-        if (!map.has(name)) map.set(name,row.id);
-        else map.set(name,null);
-      });
-      employeeDirectory = map;
-      return employeeDirectory;
-    } finally {
-      directoryLoading = false;
-    }
-  }
-
-  async function repairEnhancedEmployeeActions() {
-    const host = document.getElementById("ops-employees-table");
-    if (!host || !token()) return;
-    const placeholders = [...host.querySelectorAll("tbody tr")].filter((tr) => {
-      const cells = tr.querySelectorAll("td");
-      return cells.length >= 8 && cells[cells.length-1].textContent.trim() === EDIT_PLACEHOLDER;
-    });
-    if (!placeholders.length) return;
-
-    let setup;
-    try {
-      setup = await rpc("get_operations_master_options", { p_session_token:token() });
-    } catch {
-      return;
-    }
-    if (!setup?.viewer?.can_edit_employees) return;
-
-    const directory = employeeDirectory.size ? employeeDirectory : await loadEmployeeDirectory();
-    placeholders.forEach((tr) => {
-      const cells = tr.querySelectorAll("td");
-      const name = tr.querySelector("td strong")?.textContent?.trim() || "";
-      const employeeId = directory.get(name);
-      if (!employeeId) return;
-      const action = cells[cells.length-1];
-      action.innerHTML = `<button class="ghost" type="button" data-edit-employee="${esc(employeeId)}">Edit</button>`;
-    });
-  }
-
-  function scheduleActionRepair() {
-    clearTimeout(repairTimer);
-    repairTimer = setTimeout(() => repairEnhancedEmployeeActions().catch(console.error), 30);
   }
 
   document.addEventListener("click", (event) => {
@@ -282,15 +222,7 @@
     }
   }, true);
 
-  const tableObserver = new MutationObserver(() => scheduleActionRepair());
-  const bodyObserver = new MutationObserver(() => {
-    const host = document.getElementById("ops-employees-table");
-    if (host && host.dataset.phase1ActionObserved !== "1") {
-      host.dataset.phase1ActionObserved = "1";
-      tableObserver.observe(host,{childList:true,subtree:true});
-      scheduleActionRepair();
-    }
+  window.TaskTrackerEmployeeMaster = Object.assign(window.TaskTrackerEmployeeMaster || {}, {
+    openEditor:openEmployeeEditor
   });
-  bodyObserver.observe(document.body,{childList:true,subtree:true});
-  scheduleActionRepair();
 })();
