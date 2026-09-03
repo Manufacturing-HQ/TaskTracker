@@ -61,6 +61,10 @@
     return $("item-tab")?.classList.contains("active") === true;
   }
 
+  function rootReportBody() {
+    return tableWrap.querySelector(":scope > table > tbody");
+  }
+
   function formatNumber(value, digits = 2) {
     if (value === null || value === undefined || value === "") return "--";
     const n = Number(value);
@@ -359,7 +363,10 @@
 
   function markSummaryRows() {
     if (!isItemMode()) return;
-    tableWrap.querySelectorAll("table tbody > tr:not(.item-report-drilldown-row)").forEach((row) => {
+    const body = rootReportBody();
+    if (!body) return;
+    Array.from(body.children).forEach((row) => {
+      if (row.classList.contains("item-report-drilldown-row")) return;
       row.classList.add("item-report-summary-row");
       row.title = "Click to view the jobs contributing to this row";
     });
@@ -374,8 +381,9 @@
       return;
     }
     if (!isItemMode()) return;
+    const body = rootReportBody();
     const row = event.target.closest?.("tbody > tr");
-    if (!row || !tableWrap.contains(row) || row.classList.contains("item-report-drilldown-row")) return;
+    if (!body || !row || row.parentElement !== body || row.classList.contains("item-report-drilldown-row")) return;
     if (event.target.closest?.("button,a,input,select,details,summary")) return;
     toggleSummaryRow(row);
   });
@@ -389,8 +397,13 @@
   new MutationObserver(() => setTimeout(markSummaryRows, 0)).observe(tableWrap, { childList: true, subtree: true });
   document.addEventListener("click", (event) => {
     if (event.target.closest?.("#item-tab")) setTimeout(markSummaryRows, 100);
-    if (event.target.closest?.("#daily-tab,#weekly-tab,#transactions-tab,#run-report")) closeOpenRows();
-  });
+    if (event.target.closest?.("#run-report")) {
+      jobsCache.clear();
+      detailCache.clear();
+      closeOpenRows();
+    }
+    if (event.target.closest?.("#daily-tab,#weekly-tab,#transactions-tab")) closeOpenRows();
+  }, true);
 
   ensureModal();
   setTimeout(markSummaryRows, 700);
