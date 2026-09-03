@@ -1,5 +1,12 @@
 "use strict";
 
+/**
+ * Attendance-specific message bridge only.
+ *
+ * Phase 1 cleanup: this file intentionally does not load other Management
+ * scripts. All Management modules are declared explicitly in management.html
+ * so their ownership and execution order are visible and predictable.
+ */
 (() => {
   const globalMessage = document.getElementById("message");
   const attendanceMessage = document.getElementById("attendance-message");
@@ -30,52 +37,4 @@
       attendanceMessage.textContent = "";
     });
   });
-})();
-
-(() => {
-  if (document.querySelector('script[data-pilot-helper="management"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/management-pilot-live-enhancements.js";
-  script.dataset.pilotHelper = "management";
-  document.body.appendChild(script);
-})();
-
-(() => {
-  if (document.querySelector('script[data-operations-hub="management"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/management-operations-hub.js";
-  script.dataset.operationsHub = "management";
-  document.body.appendChild(script);
-})();
-
-(() => {
-  if (document.querySelector('script[data-requested-enhancements="management"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/management-requested-enhancements.js";
-  script.dataset.requestedEnhancements = "management";
-  document.body.appendChild(script);
-})();
-
-(() => {
-  if (document.querySelector('script[data-master-edit-enhancement="management"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/management-master-edit-enhancement.js";
-  script.dataset.masterEditEnhancement = "management";
-  document.body.appendChild(script);
-})();
-
-(() => {
-  if (document.querySelector('script[data-overdue-highlight="management"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/management-overdue-highlight.js";
-  script.dataset.overdueHighlight = "management";
-  document.body.appendChild(script);
-})();
-
-(() => {
-  if (document.querySelector('script[data-operational-exceptions="management"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/management-operational-exceptions.js";
-  script.dataset.operationalExceptions = "management";
-  document.body.appendChild(script);
 })();
