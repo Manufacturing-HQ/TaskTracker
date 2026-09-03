@@ -237,7 +237,6 @@
       return;
     }
 
-    closeOpenRows(row);
     const detailRow = document.createElement("tr");
     detailRow.className = "item-report-drilldown-row";
     const cell = document.createElement("td");
