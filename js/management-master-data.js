@@ -79,9 +79,17 @@
 
   async function loadSetup() {
     setup = await rpc("get_operations_master_options", { p_session_token: token() });
-    const canEdit = !!setup?.viewer?.can_edit;
-    document.getElementById("ops-permission-note").textContent = canEdit ? "Administrator access: master data can be edited." : "Read-only access: only Administrators can edit master data.";
-    ["ops-employee-new","ops-item-new","ops-import-apply"].forEach((id) => { document.getElementById(id).hidden = !canEdit; });
+    const canEditMaster = !!setup?.viewer?.can_edit;
+    const canEditEmployees = !!setup?.viewer?.can_edit_employees;
+
+    let note = "Read-only access.";
+    if (canEditMaster && canEditEmployees) note = "Employee Master and Operations master data can be edited.";
+    else if (canEditEmployees) note = "Employee Master can be edited.";
+    else if (canEditMaster) note = "Operations master data can be edited.";
+    document.getElementById("ops-permission-note").textContent = note;
+
+    document.getElementById("ops-employee-new").hidden = !canEditEmployees;
+    ["ops-item-new","ops-import-apply"].forEach((id) => { document.getElementById(id).hidden = !canEditMaster; });
   }
 
   async function loadEmployees() {
@@ -91,8 +99,8 @@
       p_include_inactive: document.getElementById("ops-employee-inactive").checked, p_result_limit: 500, p_result_offset: 0
     });
     employeeRows = result?.records || [];
-    const canEdit = !!setup?.viewer?.can_edit;
-    const rows = employeeRows.map((r) => `<tr><td><strong>${esc(r.employee_name)}</strong>${r.is_probationary ? ' <span class="ops-badge probation">Probationary</span>' : ""}</td><td>${esc(r.department||"—")}</td><td>${esc(r.role)}</td><td>${esc(r.supervisor_name||"—")}</td><td>${esc(r.hire_date||"—")}</td><td>${esc(r.probation_end_date||"—")}</td><td>${r.is_active?"Active":"Inactive"}</td><td>${canEdit?`<button class="ghost" data-edit-employee="${r.id}">Edit</button>`:"—"}</td></tr>`).join("");
+    const canEditEmployees = !!setup?.viewer?.can_edit_employees;
+    const rows = employeeRows.map((r) => `<tr><td><strong>${esc(r.employee_name)}</strong>${r.is_probationary ? ' <span class="ops-badge probation">Probationary</span>' : ""}</td><td>${esc(r.department||"—")}</td><td>${esc(r.role)}</td><td>${esc(r.supervisor_name||"—")}</td><td>${esc(r.hire_date||"—")}</td><td>${esc(r.probation_end_date||"—")}</td><td>${r.is_active?"Active":"Inactive"}</td><td>${canEditEmployees?`<button class="ghost" data-edit-employee="${r.id}">Edit</button>`:"—"}</td></tr>`).join("");
     document.getElementById("ops-employees-table").innerHTML = `<table class="ops-table"><thead><tr><th>Employee</th><th>Department</th><th>Role</th><th>Supervisor</th><th>Hire Date</th><th>Probation Ends</th><th>Status</th><th>Action</th></tr></thead><tbody>${rows || '<tr><td colspan="8" class="ops-empty">No employees found.</td></tr>'}</tbody></table>`;
     document.querySelectorAll("[data-edit-employee]").forEach((b) => b.addEventListener("click", () => openEmployeeModal(employeeRows.find((r) => r.id === b.dataset.editEmployee))));
   }
@@ -121,7 +129,7 @@
   }
 
   function openEmployeeModal(row) {
-    if (!setup?.viewer?.can_edit) return;
+    if (!setup?.viewer?.can_edit_employees) return;
     const roles = (setup.roles||[]).map((r)=>`<option value="${esc(r)}" ${r===(row?.role||"Employee")?"selected":""}>${esc(r)}</option>`).join("");
     const supervisors = optionRows(setup.supervisors,"id",r=>[r.employee_name,r.role].filter(Boolean).join(" · "),row?.supervisor_id);
     const departmentValues = [
