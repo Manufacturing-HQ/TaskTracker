@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Task Tracker Change Log</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb;--blue:#1d4ed8;--border:#cbd5e1;--muted:#64748b}
+    *{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}button{cursor:pointer}[hidden]{display:none!important}
+    .shell{width:100%;max-width:1900px;margin:0 auto;padding:24px 16px 48px}.topbar,.row{display:flex;justify-content:space-between;gap:16px;align-items:center}.topbar{margin-bottom:22px}.brand h1{margin:0;font-size:28px}.brand p,.muted{color:var(--muted)}
+    .card{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 8px 24px rgba(15,23,42,.04)}
+    .login-card{max-width:620px;margin:60px auto}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.filters{grid-template-columns:repeat(4,minmax(180px,1fr))}.full{grid-column:1/-1}
+    label{display:block;font-weight:700;font-size:13px;margin-bottom:7px}input,select{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 11px;background:#fff;min-height:42px}
+    .primary,.secondary{border-radius:10px;padding:11px 16px;font-weight:800}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid var(--border);background:#fff;color:#172033;text-decoration:none}
+    .actions{display:flex;gap:10px;align-items:end}.actions button{min-width:110px}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:18px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
+    .report-head{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:12px}.report-head h2{margin:0}.note{font-size:12px;color:var(--muted);margin-top:10px}.table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:12px;width:100%}
+    table{width:100%;border-collapse:collapse;min-width:1650px}th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;vertical-align:top}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:1}tr:nth-child(even) td{background:#f8fafc}
+    .value-cell{min-width:170px;max-width:310px;white-space:normal;word-break:break-word}.reason-cell{min-width:210px;max-width:360px;white-space:normal}.context-cell{min-width:220px;white-space:normal}.record-cell{min-width:150px}.pill{display:inline-flex;padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800;white-space:nowrap}
+    .pager{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:14px}.pager-buttons{display:flex;gap:8px}.empty{padding:24px;color:var(--muted);text-align:center}
+    @media(max-width:1100px){.grid,.filters{grid-template-columns:1fr 1fr}}@media(max-width:650px){.shell{padding:18px 10px 36px}.grid,.filters{grid-template-columns:1fr}.topbar,.row,.report-head,.pager{align-items:stretch;flex-direction:column}.actions{align-items:stretch}.actions button{flex:1}.login-card{margin:20px auto}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <div class="brand"><h1>Task Tracker Change Log</h1><p>Task and session edits · Eastern Time</p></div>
+      <a class="secondary" href="management.html">Management</a>
+    </div>
+
+    <div id="message" class="message" hidden></div>
+
+    <section id="login" class="card login-card">
+      <form id="login-form" class="grid">
+        <div><label for="employee">Employee</label><select id="employee" required><option value="">Loading employees...</option></select></div>
+        <div><label for="pin">PIN</label><input id="pin" type="password" inputmode="numeric" autocomplete="off" required></div>
+        <div class="full"><button class="primary" type="submit">Sign In</button></div>
+      </form>
+    </section>
+
+    <main id="app" hidden>
+      <section class="card">
+        <div class="row">
+          <div><div class="muted">Signed in as</div><strong id="user-name"></strong><div id="viewer-meta" class="muted"></div></div>
+          <button id="sign-out" class="secondary" type="button">Sign Out</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="grid filters">
+          <div><label for="start-date">Start Date</label><input id="start-date" type="date"></div>
+          <div><label for="end-date">End Date</label><input id="end-date" type="date"></div>
+          <div><label for="affected-employee">Employee Affected</label><select id="affected-employee"></select></div>
+          <div><label for="changed-by">Changed By</label><select id="changed-by"></select></div>
+          <div><label for="department">Department</label><select id="department"></select></div>
+          <div><label for="change-type">Type of Change</label><select id="change-type"></select></div>
+          <div><label for="field-changed">Field Changed</label><select id="field-changed"></select></div>
+          <div><label for="module">Module</label><select id="module"></select></div>
+          <div class="full"><label for="search-text">Search Job / Session / Work Order / Item / Value</label><input id="search-text" placeholder="Job number, session ID, work order, item, reason, old/new value..."></div>
+          <div class="full actions"><button id="run-report" class="primary" type="button">Run Report</button><button id="reset-filters" class="secondary" type="button">Reset</button></div>
+        </div>
+        <div class="note">This report shows changes captured after the universal Change Log rollout. Earlier correction history was intentionally not imported.</div>
+      </section>
+
+      <section class="card">
+        <div class="report-head">
+          <div><h2>Task Changes</h2><div id="row-count" class="muted">0 changes</div></div>
+        </div>
+        <div id="table" class="table-wrap"><div class="empty">Run the report to view captured task changes.</div></div>
+        <div class="pager">
+          <div id="page-info" class="muted">0 results</div>
+          <div class="pager-buttons"><button id="previous-page" class="secondary" type="button">Previous</button><button id="next-page" class="secondary" type="button">Next</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=recovery-20260819-1316"></script>
+  <script src="js/change-log.js?v=phase2-change-log-20260903-1"></script>
+  <script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+  <script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
