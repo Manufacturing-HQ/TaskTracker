@@ -1,20 +1,13 @@
 "use strict";
 
-(() => {
-  const departments=["Shipping","Build Line","Solid Keys","Quality Assurance","Inventory","System Testing","Director"];
-
-  function replaceDepartmentInput(){
-    const input=document.getElementById("oe-dept");
-    if(!input || input.tagName==="SELECT") return;
-    const select=document.createElement("select");
-    select.id="oe-dept";
-    select.required=true;
-    select.innerHTML='<option value="">Select Department</option>'+departments.map(d=>`<option value="${d.replace(/"/g,"&quot;")}">${d}</option>`).join("");
-    if(input.value && departments.includes(input.value)) select.value=input.value;
-    input.replaceWith(select);
-  }
-
-  const observer=new MutationObserver(()=>replaceDepartmentInput());
-  observer.observe(document.body,{childList:true,subtree:true});
-  replaceDepartmentInput();
-})();
+/**
+ * Retired Phase 1 legacy shim.
+ *
+ * This file previously converted the Employee Department field with a
+ * hard-coded Department list. The authoritative Employee Master editor now
+ * loads Departments from the database and owns that field directly.
+ *
+ * Kept temporarily as a no-op so older cached Management pages can request it
+ * without reintroducing the legacy behavior.
+ */
+(() => {})();
