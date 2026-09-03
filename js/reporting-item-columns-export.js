@@ -1,6 +1,8 @@
 "use strict";
 
-/* Phase 3 Item Reporting column choosers and visible-column CSV exports. */
+/* Phase 3 Item Reporting column choosers and visible-column CSV exports.
+   Summary-table and drill-down behavior are intentionally isolated: opening a
+   drill-down must never cause the summary table to be reprocessed. */
 (() => {
   const tableWrap = document.getElementById("table");
   if (!tableWrap) return;
@@ -65,14 +67,14 @@
     return new Set(defaults);
   }
 
-  let selectedSummary = loadSelection(SUMMARY_STORAGE_KEY, SUMMARY_DEFAULTS);
-  let selectedJobs = loadSelection(JOB_STORAGE_KEY, JOB_DEFAULTS);
-
   function saveSelection(key, values) {
     try {
       localStorage.setItem(key, JSON.stringify(Array.from(values)));
     } catch (_) {}
   }
+
+  let selectedSummary = loadSelection(SUMMARY_STORAGE_KEY, SUMMARY_DEFAULTS);
+  let selectedJobs = loadSelection(JOB_STORAGE_KEY, JOB_DEFAULTS);
 
   function installStyle() {
     if (document.getElementById("item-column-chooser-style")) return;
@@ -92,33 +94,31 @@
       .item-column-note{font-size:11px;color:#64748b;margin-top:8px}
       .item-job-column-actions{display:flex;gap:8px;align-items:flex-start;justify-content:flex-end;flex-wrap:wrap;margin-left:auto}
       .item-job-column-actions .item-column-picker{min-width:150px}
-      .item-job-column-actions .item-export-jobs{white-space:nowrap}
+      .item-job-column-actions .item-export-jobs,.item-job-column-actions .item-collapse-jobs{white-space:nowrap}
       @media(max-width:1000px){.item-drilldown-head{align-items:flex-start!important;flex-direction:column}.item-job-column-actions{justify-content:flex-start;margin-left:0}}
     `;
     document.head.appendChild(style);
   }
 
-  function summaryHeadersForPicker() {
-    return SUMMARY_HEADERS[currentGroupBy()] || SUMMARY_HEADERS.ITEM;
-  }
-
   function visibleSummarySet(groupBy = currentGroupBy()) {
-    const primary = primarySummaryHeader(groupBy);
-    return new Set([primary, ...Array.from(selectedSummary)]);
+    return new Set([primarySummaryHeader(groupBy), ...Array.from(selectedSummary)]);
   }
 
   function renderSummaryPicker() {
     const panel = document.getElementById("item-summary-column-panel");
     const summary = document.getElementById("item-summary-column-summary");
     if (!panel || !summary) return;
+
     const groupBy = currentGroupBy();
     const headers = SUMMARY_HEADERS[groupBy] || SUMMARY_HEADERS.ITEM;
     const primary = primarySummaryHeader(groupBy);
     const visible = visibleSummarySet(groupBy);
-    const count = headers.filter((header) => visible.has(header)).length;
-    summary.textContent = `Columns (${count}/${headers.length})`;
+    summary.textContent = `Columns (${headers.filter((header) => visible.has(header)).length}/${headers.length})`;
     panel.innerHTML = `
-      <div class="item-column-picker-actions"><button type="button" data-summary-columns-all>Select All</button><button type="button" data-summary-columns-reset>Reset Default</button></div>
+      <div class="item-column-picker-actions">
+        <button type="button" data-summary-columns-all>Select All</button>
+        <button type="button" data-summary-columns-reset>Reset Default</button>
+      </div>
       ${headers.map((header) => {
         const fixed = header === primary;
         const checked = fixed || selectedSummary.has(header);
@@ -129,12 +129,13 @@
 
   function ensureSummaryPicker() {
     const filters = document.getElementById("item-report-filters");
-    if (!filters || document.getElementById("item-summary-column-control")) return;
+    if (!filters || document.getElementById("item-summary-column-control")) return false;
     const wrap = document.createElement("div");
     wrap.id = "item-summary-column-control";
     wrap.innerHTML = `<label>Visible Columns</label><details class="item-column-picker"><summary id="item-summary-column-summary">Columns</summary><div id="item-summary-column-panel" class="item-column-picker-panel"></div></details>`;
     filters.appendChild(wrap);
     renderSummaryPicker();
+    return true;
   }
 
   function rootSummaryTable() {
@@ -145,32 +146,34 @@
   function applySummaryColumns() {
     const table = rootSummaryTable();
     if (!table) return;
+
     const headers = Array.from(table.querySelectorAll(":scope > thead > tr > th"));
     if (!headers.length) return;
+
     const groupBy = headers.some((th) => th.textContent.trim() === "Item")
       ? "ITEM"
       : headers.some((th) => th.textContent.trim() === "SKU Group")
         ? "SKU_GROUP"
         : "JOB_TYPE";
     const visible = visibleSummarySet(groupBy);
-    const bodyRows = Array.from(table.querySelectorAll(":scope > tbody > tr"));
+    const rows = Array.from(table.querySelectorAll(":scope > tbody > tr:not(.item-report-drilldown-row)"));
     let visibleCount = 0;
+
     headers.forEach((header, index) => {
-      const label = header.textContent.trim();
-      const show = visible.has(label);
+      const show = visible.has(header.textContent.trim());
       header.hidden = !show;
       if (show) visibleCount += 1;
-      bodyRows.forEach((row) => {
-        if (row.classList.contains("item-report-drilldown-row")) return;
+      rows.forEach((row) => {
         if (row.cells[index]) row.cells[index].hidden = !show;
       });
     });
+
     table.style.minWidth = `${Math.max(760, visibleCount * 108)}px`;
     renderSummaryPicker();
   }
 
   function jobTableForPanel(panel) {
-    return panel?.querySelector(".item-job-table") || null;
+    return panel?.querySelector(":scope .item-job-table") || null;
   }
 
   function renderJobPicker(panel) {
@@ -178,36 +181,29 @@
     const pickerPanel = panel?.querySelector("[data-job-column-panel]");
     const pickerSummary = panel?.querySelector("[data-job-column-summary]");
     if (!table || !pickerPanel || !pickerSummary) return;
+
     const headers = Array.from(table.querySelectorAll(":scope > thead > tr > th")).map((th) => th.textContent.trim());
     const optional = headers.filter((header) => header !== "Job");
     const visibleCount = optional.filter((header) => selectedJobs.has(header)).length + 1;
     pickerSummary.textContent = `Columns (${visibleCount}/${headers.length})`;
     pickerPanel.innerHTML = `
-      <div class="item-column-picker-actions"><button type="button" data-job-columns-all>Select All</button><button type="button" data-job-columns-reset>Reset Default</button></div>
+      <div class="item-column-picker-actions">
+        <button type="button" data-job-columns-all>Select All</button>
+        <button type="button" data-job-columns-reset>Reset Default</button>
+      </div>
       <label class="item-column-option is-fixed"><input type="checkbox" checked disabled><span>Job (required)</span></label>
       ${optional.map((header) => `<label class="item-column-option"><input type="checkbox" data-job-column="${esc(header)}" ${selectedJobs.has(header) ? "checked" : ""}><span>${esc(header)}</span></label>`).join("")}
       <div class="item-column-note">View Job always stays visible. Your other choices are remembered in this browser.</div>`;
   }
 
-  function ensureJobControls(panel) {
-    if (!panel || panel.querySelector(".item-job-column-actions")) return;
-    const head = panel.querySelector(".item-drilldown-head");
-    const table = jobTableForPanel(panel);
-    if (!head || !table) return;
-    const actions = document.createElement("div");
-    actions.className = "item-job-column-actions";
-    actions.innerHTML = `<button type="button" class="secondary item-export-jobs">Export Jobs</button><details class="item-column-picker"><summary data-job-column-summary>Columns</summary><div class="item-column-picker-panel" data-job-column-panel></div></details>`;
-    head.appendChild(actions);
-    renderJobPicker(panel);
-    applyJobColumns(panel);
-  }
-
   function applyJobColumns(panel) {
     const table = jobTableForPanel(panel);
     if (!table) return;
+
     const headers = Array.from(table.querySelectorAll(":scope > thead > tr > th"));
     const rows = Array.from(table.querySelectorAll(":scope > tbody > tr"));
     let visibleCount = 0;
+
     headers.forEach((header, index) => {
       const label = header.textContent.trim();
       const show = label === "Job" || selectedJobs.has(label);
@@ -217,15 +213,31 @@
         if (row.cells[index]) row.cells[index].hidden = !show;
       });
     });
+
     table.style.minWidth = `${Math.max(820, visibleCount * 118)}px`;
     renderJobPicker(panel);
   }
 
+  function ensureJobControls(panel) {
+    const table = jobTableForPanel(panel);
+    const head = panel?.querySelector(".item-drilldown-head");
+    if (!panel || !table || !head) return;
+
+    if (!panel.querySelector(".item-job-column-actions")) {
+      const actions = document.createElement("div");
+      actions.className = "item-job-column-actions";
+      actions.innerHTML = `
+        <button type="button" class="secondary item-collapse-jobs">Collapse Jobs</button>
+        <button type="button" class="secondary item-export-jobs">Export Jobs</button>
+        <details class="item-column-picker"><summary data-job-column-summary>Columns</summary><div class="item-column-picker-panel" data-job-column-panel></div></details>`;
+      head.appendChild(actions);
+    }
+
+    applyJobColumns(panel);
+  }
+
   function applyAllJobColumns() {
-    tableWrap.querySelectorAll(".item-drilldown-panel").forEach((panel) => {
-      ensureJobControls(panel);
-      applyJobColumns(panel);
-    });
+    tableWrap.querySelectorAll("tr.item-report-drilldown-row .item-drilldown-panel").forEach(ensureJobControls);
   }
 
   function slug(value) {
@@ -238,11 +250,11 @@
     const csv = window.TaskTrackerCsv;
     const table = rootSummaryTable();
     if (!csv || !table) throw new Error("Item Reporting CSV export is unavailable.");
+
     const headers = Array.from(table.querySelectorAll(":scope > thead > tr > th"));
     const visibleIndexes = headers.map((header, index) => header.hidden ? -1 : index).filter((index) => index >= 0);
     const exportHeaders = visibleIndexes.map((index) => headers[index].textContent.trim());
-    const rows = Array.from(table.querySelectorAll(":scope > tbody > tr"))
-      .filter((row) => !row.classList.contains("item-report-drilldown-row"))
+    const rows = Array.from(table.querySelectorAll(":scope > tbody > tr:not(.item-report-drilldown-row)"))
       .map((row) => visibleIndexes.map((index) => row.cells[index]?.textContent?.trim() || ""));
     const start = document.getElementById("start-date")?.value || "start";
     const end = document.getElementById("end-date")?.value || "end";
@@ -253,6 +265,7 @@
     const csv = window.TaskTrackerCsv;
     const table = jobTableForPanel(panel);
     if (!csv || !table) throw new Error("Job CSV export is unavailable.");
+
     const headers = Array.from(table.querySelectorAll(":scope > thead > tr > th"));
     const visibleIndexes = headers.map((header, index) => header.hidden ? -1 : index).filter((index) => index >= 0);
     const exportHeaders = visibleIndexes.map((index) => headers[index].textContent.trim() === "Job" ? "Job Number" : headers[index].textContent.trim());
@@ -261,6 +274,7 @@
       if (headers[index].textContent.trim() === "Job") value = value.replace(/^View Job\s*#?/i, "").trim();
       return value;
     }));
+
     const detailRow = panel.closest("tr.item-report-drilldown-row");
     const summaryRow = detailRow?.previousElementSibling;
     const summaryCell = summaryRow ? Array.from(summaryRow.cells).find((cell) => !cell.hidden) : null;
@@ -270,22 +284,11 @@
     csv.download(`task-tracker-item-jobs-${slug(label)}-${start}-to-${end}.csv`, exportHeaders, rows);
   }
 
-  function handleSummaryPickerChange(checkbox) {
-    const header = checkbox.dataset.summaryColumn;
-    if (!header) return;
-    if (checkbox.checked) selectedSummary.add(header);
-    else selectedSummary.delete(header);
-    saveSelection(SUMMARY_STORAGE_KEY, selectedSummary);
-    applySummaryColumns();
-  }
-
-  function handleJobPickerChange(checkbox) {
-    const header = checkbox.dataset.jobColumn;
-    if (!header) return;
-    if (checkbox.checked) selectedJobs.add(header);
-    else selectedJobs.delete(header);
-    saveSelection(JOB_STORAGE_KEY, selectedJobs);
-    applyAllJobColumns();
+  function collapsePanel(panel) {
+    const detailRow = panel?.closest("tr.item-report-drilldown-row");
+    const summaryRow = detailRow?.previousElementSibling;
+    summaryRow?.classList.remove("item-report-expanded");
+    detailRow?.remove();
   }
 
   function installEvents() {
@@ -298,17 +301,15 @@
         return;
       }
 
-      const summaryAll = event.target.closest?.("[data-summary-columns-all]");
-      if (summaryAll) {
+      if (event.target.closest?.("[data-summary-columns-all]")) {
         event.preventDefault();
-        summaryHeadersForPicker().forEach((header) => selectedSummary.add(header));
+        (SUMMARY_HEADERS[currentGroupBy()] || SUMMARY_HEADERS.ITEM).forEach((header) => selectedSummary.add(header));
         saveSelection(SUMMARY_STORAGE_KEY, selectedSummary);
         applySummaryColumns();
         return;
       }
 
-      const summaryReset = event.target.closest?.("[data-summary-columns-reset]");
-      if (summaryReset) {
+      if (event.target.closest?.("[data-summary-columns-reset]")) {
         event.preventDefault();
         selectedSummary = new Set(SUMMARY_DEFAULTS);
         saveSelection(SUMMARY_STORAGE_KEY, selectedSummary);
@@ -321,14 +322,16 @@
         event.preventDefault();
         const panel = jobAll.closest(".item-drilldown-panel");
         const table = jobTableForPanel(panel);
-        Array.from(table?.querySelectorAll(":scope > thead > tr > th") || []).map((th) => th.textContent.trim()).filter((header) => header !== "Job").forEach((header) => selectedJobs.add(header));
+        Array.from(table?.querySelectorAll(":scope > thead > tr > th") || [])
+          .map((th) => th.textContent.trim())
+          .filter((header) => header !== "Job")
+          .forEach((header) => selectedJobs.add(header));
         saveSelection(JOB_STORAGE_KEY, selectedJobs);
         applyAllJobColumns();
         return;
       }
 
-      const jobReset = event.target.closest?.("[data-job-columns-reset]");
-      if (jobReset) {
+      if (event.target.closest?.("[data-job-columns-reset]")) {
         event.preventDefault();
         selectedJobs = new Set(JOB_DEFAULTS);
         saveSelection(JOB_STORAGE_KEY, selectedJobs);
@@ -341,51 +344,88 @@
         event.preventDefault();
         event.stopPropagation();
         try { exportJobCsv(exportJobs.closest(".item-drilldown-panel")); } catch (error) { alert(error.message || String(error)); }
+        return;
+      }
+
+      const collapse = event.target.closest?.(".item-collapse-jobs");
+      if (collapse) {
+        event.preventDefault();
+        event.stopPropagation();
+        collapsePanel(collapse.closest(".item-drilldown-panel"));
       }
     }, true);
 
     document.addEventListener("change", (event) => {
       const summaryCheckbox = event.target.closest?.("[data-summary-column]");
       if (summaryCheckbox) {
-        handleSummaryPickerChange(summaryCheckbox);
+        const header = summaryCheckbox.dataset.summaryColumn;
+        if (summaryCheckbox.checked) selectedSummary.add(header);
+        else selectedSummary.delete(header);
+        saveSelection(SUMMARY_STORAGE_KEY, selectedSummary);
+        applySummaryColumns();
         return;
       }
+
       const jobCheckbox = event.target.closest?.("[data-job-column]");
-      if (jobCheckbox) handleJobPickerChange(jobCheckbox);
-    });
+      if (jobCheckbox) {
+        const header = jobCheckbox.dataset.jobColumn;
+        if (jobCheckbox.checked) selectedJobs.add(header);
+        else selectedJobs.delete(header);
+        saveSelection(JOB_STORAGE_KEY, selectedJobs);
+        applyAllJobColumns();
+        return;
+      }
 
-    document.addEventListener("change", (event) => {
-      if (event.target?.id === "item-group-by") setTimeout(() => {
-        renderSummaryPicker();
-        applySummaryColumns();
-      }, 0);
+      if (event.target?.id === "item-group-by") renderSummaryPicker();
     });
-  }
-
-  function refreshTableFeatures() {
-    if (isItemMode()) applySummaryColumns();
-    applyAllJobColumns();
   }
 
   installStyle();
   installEvents();
 
+  // Wait only for the Item filter bar to exist; this observer disconnects as
+  // soon as the column chooser is installed and never watches report rows.
   const filterObserver = new MutationObserver(() => {
-    ensureSummaryPicker();
-    if (document.getElementById("item-summary-column-control")) filterObserver.disconnect();
+    if (ensureSummaryPicker()) filterObserver.disconnect();
   });
   filterObserver.observe(document.body, { childList: true, subtree: true });
-  ensureSummaryPicker();
-  if (document.getElementById("item-summary-column-control")) filterObserver.disconnect();
+  if (ensureSummaryPicker()) filterObserver.disconnect();
 
-  const tableObserver = new MutationObserver((mutations) => {
-    const relevant = mutations.some((mutation) => Array.from(mutation.addedNodes).some((node) => {
-      if (!(node instanceof Element)) return false;
-      return node.matches("table,tr.item-report-drilldown-row,.item-drilldown-panel")
-        || Boolean(node.querySelector?.(".item-drilldown-panel,.item-job-table"));
-    }));
-    if (relevant) setTimeout(refreshTableFeatures, 0);
+  // Summary columns are reapplied only when Item Reporting replaces the direct
+  // child table in #table. Adding a drill-down row inside tbody does NOT fire
+  // this observer because subtree is deliberately false.
+  const summaryTableObserver = new MutationObserver((mutations) => {
+    const rendered = mutations.some((mutation) => Array.from(mutation.addedNodes).some((node) =>
+      node instanceof HTMLTableElement
+    ));
+    if (rendered) setTimeout(applySummaryColumns, 0);
   });
-  tableObserver.observe(tableWrap, { childList: true, subtree: true });
-  setTimeout(() => { ensureSummaryPicker(); refreshTableFeatures(); }, 800);
+  summaryTableObserver.observe(tableWrap, { childList: true, subtree: false });
+
+  // Drill-down job controls are applied only when the nested job table itself
+  // is rendered. This observer never calls applySummaryColumns().
+  const jobTableObserver = new MutationObserver((mutations) => {
+    const panels = new Set();
+    mutations.forEach((mutation) => {
+      Array.from(mutation.addedNodes).forEach((node) => {
+        if (!(node instanceof Element)) return;
+        if (node.matches(".item-job-table")) {
+          const panel = node.closest(".item-drilldown-panel");
+          if (panel) panels.add(panel);
+        }
+        node.querySelectorAll?.(".item-job-table").forEach((table) => {
+          const panel = table.closest(".item-drilldown-panel");
+          if (panel) panels.add(panel);
+        });
+      });
+    });
+    panels.forEach(ensureJobControls);
+  });
+  jobTableObserver.observe(tableWrap, { childList: true, subtree: true });
+
+  setTimeout(() => {
+    ensureSummaryPicker();
+    applySummaryColumns();
+    applyAllJobColumns();
+  }, 800);
 })();
