@@ -1,6 +1,6 @@
 "use strict";
 
-/* Item Reporting job drawer. This intentionally never mutates the report table structure. */
+/* Item Reporting inline job drill-down. Keeps summary rows visible and caps the expanded section height. */
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
@@ -14,6 +14,7 @@
   const sessionKey = config.sessionStorageKey;
   const jobsCache = new Map();
   let activeRow = null;
+  let activeDetailRow = null;
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -23,36 +24,52 @@
     .replaceAll("'", "&#039;");
 
   const style = document.createElement("style");
-  style.id = "item-report-body-drawer-style";
+  style.id = "item-report-inline-drilldown-style";
   style.textContent = `
-    #item-report-job-drawer{
-      position:fixed;
-      top:84px;
-      right:18px;
-      width:min(720px,46vw);
-      min-width:540px;
-      max-height:calc(100vh - 102px);
-      overflow:hidden;
-      z-index:5000;
-      border:1px solid #93c5fd;
-      border-radius:14px;
-      background:#fff;
-      padding:14px;
-      box-shadow:0 24px 70px rgba(15,23,42,.24);
-    }
-    #item-report-job-drawer .item-drawer-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:12px}
-    #item-report-job-drawer .item-drawer-head h3{margin:0;font-size:16px}
-    #item-report-job-drawer .item-drawer-note{font-size:12px;color:#64748b;margin-top:4px}
-    #item-report-job-drawer .item-drawer-table-wrap{max-height:calc(100vh - 245px);overflow:auto;border:1px solid #e2e8f0;border-radius:10px}
-    #item-report-job-drawer .item-job-table{min-width:2200px}
-    #item-report-job-drawer .item-job-table td.item-job-comments{white-space:normal;min-width:280px;max-width:420px}
-    #item-report-job-drawer .item-job-table td.item-entered{font-weight:800;background:#fff7ed}
-    #item-report-job-drawer .item-view-job{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:6px 10px;font-weight:800;white-space:nowrap}
-    #item-report-job-drawer .item-view-job:hover{background:#eff6ff;border-color:#60a5fa}
     #table tbody tr.item-report-summary-row.item-report-expanded td{background:#eff6ff}
-    @media(max-width:1100px){
-      #item-report-job-drawer{right:12px;top:72px;width:calc(100vw - 24px);min-width:0;max-height:calc(100vh - 84px)}
-      #item-report-job-drawer .item-drawer-table-wrap{max-height:calc(100vh - 225px)}
+    #table tbody tr.item-report-drilldown-row>td{
+      padding:0!important;
+      background:#f8fafc!important;
+      white-space:normal!important;
+      border-bottom:2px solid #bfdbfe;
+    }
+    #table .item-inline-drilldown{
+      padding:14px 16px 16px;
+      border-top:2px solid #bfdbfe;
+      background:#f8fafc;
+    }
+    #table .item-inline-drilldown .item-drilldown-head{
+      display:flex;
+      justify-content:space-between;
+      gap:14px;
+      align-items:flex-start;
+      margin-bottom:10px;
+    }
+    #table .item-inline-drilldown .item-drilldown-head h3{margin:0;font-size:16px}
+    #table .item-inline-drilldown .item-drilldown-note{font-size:12px;color:#64748b;margin-top:4px}
+    #table .item-inline-drilldown .item-inline-job-scroll{
+      max-height:290px;
+      overflow:auto;
+      border:1px solid #e2e8f0;
+      border-radius:10px;
+      background:#fff;
+    }
+    #table .item-inline-drilldown .item-job-table{min-width:2200px}
+    #table .item-inline-drilldown .item-job-table td.item-job-comments{white-space:normal;min-width:280px;max-width:420px}
+    #table .item-inline-drilldown .item-job-table td.item-entered{font-weight:800;background:#fff7ed}
+    #table .item-inline-drilldown .item-view-job{
+      border:1px solid #94a3b8;
+      background:#fff;
+      border-radius:8px;
+      padding:6px 10px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    #table .item-inline-drilldown .item-view-job:hover{background:#eff6ff;border-color:#60a5fa}
+    #table .item-inline-close{white-space:nowrap}
+    @media(max-width:900px){
+      #table .item-inline-drilldown .item-drilldown-head{flex-direction:column}
+      #table .item-inline-drilldown .item-inline-job-scroll{max-height:260px}
     }
   `;
   document.head.appendChild(style);
@@ -175,29 +192,32 @@
     return [summary.item_name || summary.internal_id, summary.job_type].filter(Boolean).join(" - ") || "Selected Item";
   }
 
-  function drawer() {
-    return document.getElementById("item-report-job-drawer");
-  }
-
-  function closeDrawer() {
+  function closeInline() {
     activeRow?.classList.remove("item-report-expanded");
+    activeDetailRow?.remove();
     activeRow = null;
-    drawer()?.remove();
+    activeDetailRow = null;
   }
 
-  function ensureDrawer() {
-    let panel = drawer();
-    if (!panel) {
-      panel = document.createElement("aside");
-      panel.id = "item-report-job-drawer";
-      panel.className = "item-drilldown-panel";
-      document.body.appendChild(panel);
-    }
-    return panel;
+  function createDetailRow(row) {
+    const detailRow = document.createElement("tr");
+    detailRow.className = "item-report-drilldown-row";
+    detailRow.dataset.itemInlineDetail = "1";
+
+    const cell = document.createElement("td");
+    cell.colSpan = Math.max(1, row.cells.length);
+
+    const panel = document.createElement("div");
+    panel.className = "item-drilldown-panel item-inline-drilldown";
+    panel.innerHTML = '<div class="muted">Loading jobs...</div>';
+
+    cell.appendChild(panel);
+    detailRow.appendChild(cell);
+    row.insertAdjacentElement("afterend", detailRow);
+    return { detailRow, panel };
   }
 
   function renderJobs(panel, jobs, label) {
-    panel.dataset.exportLabel = label;
     const body = jobs.map((job) => {
       const isNotListed = job.internal_id === "SYSTEM-ITEM-NOT-LISTED";
       const itemText = isNotListed
@@ -232,14 +252,14 @@
     }).join("");
 
     panel.innerHTML = `
-      <div class="item-drawer-head">
+      <div class="item-drilldown-head">
         <div>
           <h3>${esc(label)}</h3>
-          <div class="item-drawer-note">${jobs.length} contributing job${jobs.length === 1 ? "" : "s"}. The Item report remains untouched behind this drawer.</div>
+          <div class="item-drilldown-note">${jobs.length} contributing job${jobs.length === 1 ? "" : "s"}. Scroll this section to review jobs; the remaining Item rows stay directly below it.</div>
         </div>
-        <button type="button" class="secondary item-drawer-close">Close Jobs</button>
+        <button type="button" class="secondary item-inline-close">Collapse Jobs</button>
       </div>
-      ${jobs.length ? `<div class="item-drawer-table-wrap"><table class="item-job-table"><thead><tr>
+      ${jobs.length ? `<div class="item-inline-job-scroll"><table class="item-job-table"><thead><tr>
         <th>Job</th><th>Employee</th><th>Employee Dept</th><th>Completion Date</th><th>Item / Item Entered</th>
         <th>Work Order</th><th>WO Type</th><th>WO Department</th><th>Job Type</th><th>Operation</th>
         <th>Assigned Qty</th><th>Completed Qty</th><th>Productive Min</th><th>Target Cycle</th><th>Actual Cycle</th><th>Productivity</th>
@@ -248,17 +268,16 @@
   }
 
   async function openSummaryRow(row) {
-    if (activeRow === row && drawer()) {
-      closeDrawer();
+    if (activeRow === row && activeDetailRow?.isConnected) {
+      closeInline();
       return;
     }
 
-    activeRow?.classList.remove("item-report-expanded");
+    closeInline();
     activeRow = row;
     activeRow.classList.add("item-report-expanded");
-
-    const panel = ensureDrawer();
-    panel.innerHTML = '<div class="muted">Loading jobs...</div>';
+    const { detailRow, panel } = createDetailRow(row);
+    activeDetailRow = detailRow;
 
     try {
       const { args, summary } = await resolveSummaryRow(row);
@@ -269,30 +288,33 @@
         jobs = Array.isArray(data) ? data : [];
         jobsCache.set(key, jobs);
       }
-      if (activeRow === row && panel.isConnected) renderJobs(panel, jobs, summaryLabel(summary, args.p_group_by));
+      if (activeRow === row && activeDetailRow === detailRow && panel.isConnected) {
+        renderJobs(panel, jobs, summaryLabel(summary, args.p_group_by));
+      }
     } catch (error) {
-      if (activeRow === row && panel.isConnected) {
+      if (activeRow === row && activeDetailRow === detailRow && panel.isConnected) {
         panel.innerHTML = `
-          <div class="item-drawer-head"><div><h3>Jobs</h3></div><button type="button" class="secondary item-drawer-close">Close Jobs</button></div>
+          <div class="item-drilldown-head">
+            <div><h3>Jobs</h3></div>
+            <button type="button" class="secondary item-inline-close">Collapse Jobs</button>
+          </div>
           <div class="message" data-type="error">${esc(error.message || String(error))}</div>`;
       }
     }
   }
 
-  function openLegacyJobModal(jobId) {
-    if (!jobId) return;
-    const proxy = document.createElement("button");
-    proxy.type = "button";
-    proxy.className = "item-view-job";
-    proxy.dataset.jobId = jobId;
-    proxy.hidden = true;
-    tableWrap.appendChild(proxy);
-    proxy.click();
-    proxy.remove();
-  }
-
   tableWrap.addEventListener("click", (event) => {
     if (!isItemMode()) return;
+
+    const close = event.target.closest?.(".item-inline-close");
+    if (close) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      event.stopPropagation();
+      closeInline();
+      return;
+    }
+
     const body = rootReportBody();
     const row = event.target.closest?.("tbody > tr");
     if (!body || !row || row.parentElement !== body || row.classList.contains("item-report-drilldown-row")) return;
@@ -305,29 +327,13 @@
   }, true);
 
   document.addEventListener("click", (event) => {
-    const close = event.target.closest?.("#item-report-job-drawer .item-drawer-close");
-    if (close) {
-      event.preventDefault();
-      event.stopPropagation();
-      closeDrawer();
-      return;
-    }
-
-    const view = event.target.closest?.("#item-report-job-drawer .item-view-job");
-    if (view) {
-      event.preventDefault();
-      event.stopPropagation();
-      openLegacyJobModal(view.dataset.jobId);
-      return;
-    }
-
     if (event.target.closest?.("#run-report,#daily-tab,#weekly-tab,#transactions-tab")) {
       jobsCache.clear();
-      closeDrawer();
+      closeInline();
     }
   }, true);
 
   document.addEventListener("change", (event) => {
-    if (event.target?.closest?.("#item-group-by,#item-wo-department,#item-employee-department,#item-job-type,#item-sku-group,#item-search,#report-employee,#start-date,#end-date")) closeDrawer();
+    if (event.target?.closest?.("#item-group-by,#item-wo-department,#item-employee-department,#item-job-type,#item-sku-group,#item-search,#report-employee,#start-date,#end-date")) closeInline();
   });
 })();
