@@ -172,15 +172,15 @@
   }
 
   function dimensionHeaders(groupBy) {
-    if (groupBy === "SKU_GROUP") return ["SKU Group", "WO Department", "Job Type", "Operation"];
-    if (groupBy === "JOB_TYPE") return ["Job Type", "Operation"];
-    return ["Item", "Internal ID", "SKU Group", "WO Department", "Job Type", "Operation"];
+    if (groupBy === "SKU_GROUP") return ["SKU Group", "Make", "Build Type", "WO Department", "Job Type", "Operation"];
+    if (groupBy === "JOB_TYPE") return ["Job Type", "Make", "Build Type", "Operation"];
+    return ["Item", "Internal ID", "SKU Group", "Make", "Build Type", "WO Department", "Job Type", "Operation"];
   }
 
   function dimensionCells(row, groupBy) {
-    if (groupBy === "SKU_GROUP") return [row.sku_group, row.work_order_department, row.job_type, row.operation_code];
-    if (groupBy === "JOB_TYPE") return [row.job_type, row.operation_code];
-    return [row.item_name, row.internal_id, row.sku_group, row.work_order_department, row.job_type, row.operation_code];
+    if (groupBy === "SKU_GROUP") return [row.sku_group, row.make, row.build_type, row.work_order_department, row.job_type, row.operation_code];
+    if (groupBy === "JOB_TYPE") return [row.job_type, row.make, row.build_type, row.operation_code];
+    return [row.item_name, row.internal_id, row.sku_group, row.make, row.build_type, row.work_order_department, row.job_type, row.operation_code];
   }
 
   function renderTable(rows) {
