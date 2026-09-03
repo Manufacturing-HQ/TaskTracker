@@ -37,6 +37,7 @@
       "master_data.edit":"Edit Master Data",
       "time.correct":"Correct Time",
       "reporting.view":"View Reporting",
+      "change_log.view":"View Change Log",
       "project_management.admin":"Administer Project Management"
     };
     return labels[code] || code;
