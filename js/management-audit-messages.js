@@ -1,5 +1,11 @@
 "use strict";
 
+/**
+ * Task Tracker Audit message bridge only.
+ *
+ * Phase 1 cleanup: legacy Department/modal patches are no longer loaded from
+ * this helper. Employee Master behavior is owned by the Phase 1 master editor.
+ */
 (() => {
   const globalMessage = document.getElementById("message");
   const auditView = document.getElementById("view-audit");
@@ -40,10 +46,4 @@
     auditMessage.hidden = true;
     auditMessage.textContent = "";
   });
-
-  if (!document.querySelector('script[src="js/management-pilot-readiness.js"]')) {
-    const script = document.createElement("script");
-    script.src = "js/management-pilot-readiness.js";
-    document.body.appendChild(script);
-  }
 })();
