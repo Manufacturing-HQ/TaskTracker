@@ -38,7 +38,7 @@
       "time.correct":"Correct Time",
       "reporting.view":"View Reporting",
       "change_log.view":"View Change Log",
-      "project_management.admin":"Administer Project Management"
+      "project_management.admin":"Access Work Hub Pilot"
     };
     return labels[code] || code;
   }
@@ -98,6 +98,7 @@
       const modal = buildModal(employee ? "Edit Employee" : "New Employee", `
         <form id="ops-employee-form" class="ops-form-grid" data-phase1-master-editor="1">
           <label>Employee Name<input id="oe-name" required value="${esc(employee?.employee_name || "")}"></label>
+          <label>Email <span style="color:#64748b;font-weight:500">(optional)</span><input id="oe-email" type="email" value="${esc(employee?.email || "")}" placeholder="name@company.com"></label>
           <label>Department<select id="oe-dept" required><option value="">Select Department</option>${departments.map((d) => `<option value="${esc(d.id)}" ${String(d.id)===String(employee?.department_id || "") ? "selected" : ""}>${esc(d.department_name)}</option>`).join("")}</select></label>
           <label>Team<select id="oe-team"><option value="">No Team Assigned</option></select></label>
           <label>Classification<input id="oe-classification" readonly value=""></label>
@@ -175,10 +176,11 @@
             return item;
           });
 
-          await rpc("save_operations_employee_v3", {
+          await rpc("save_operations_employee_v4", {
             p_session_token:token(),
             p_employee_id:employee?.id || null,
             p_employee_name:modal.querySelector("#oe-name").value.trim(),
+            p_email:modal.querySelector("#oe-email").value.trim() || null,
             p_department_id:department.value,
             p_team_id:team.value || null,
             p_supervisor_id:modal.querySelector("#oe-supervisor").value || null,
