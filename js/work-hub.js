@@ -20,6 +20,7 @@
   let activeProject = null;
   let activeProjectDetail = null;
   let queuedMentionIds = new Set();
+  let projectCommentSort = "NEWEST";
 
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -181,7 +182,7 @@
       p_target_employee_id: $("routine-employee").value || bootstrap.viewer.employee_id,
       p_view_date: $("routine-date").value || todayLocal()
     });
-    routineTasks = data?.tasks || [];
+    routineTasks = (data?.tasks || []).slice().reverse();
     renderRoutines();
   }
 
@@ -430,15 +431,40 @@
     const p = activeProjectDetail.project;
     const tasks = activeProjectDetail.tasks || [];
     const updates = activeProjectDetail.updates || [];
+    const sortedUpdates = [...updates].sort((a, b) => {
+      const aTime = new Date(a.created_at).getTime() || 0;
+      const bTime = new Date(b.created_at).getTime() || 0;
+      return projectCommentSort === "OLDEST" ? aTime - bTime : bTime - aTime;
+    });
+
     $("drawer-content").innerHTML = `
-      <div style="background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px"><div style="white-space:pre-wrap">${esc(p.description)}</div><div class="project-meta"><span>Participants: ${(p.participants || []).map((x) => esc(x.employee_name)).join(", ") || "None"}</span></div><div class="project-actions"><button id="drawer-edit-project" class="ghost small" type="button">Project Settings</button></div></div>
-      <div class="drawer-grid">
-        <section><div class="section-title"><h2>Project Tasks</h2><button id="drawer-add-task" class="success small" type="button">+ Add Task</button></div><div id="drawer-task-list">${tasks.map((t) => `<div class="task-item ${t.status === "COMPLETE" ? "done" : ""}"><div class="card-title">${esc(t.description)}</div><div class="muted" style="font-size:12px;margin-top:5px">${esc(t.assigned_employee_name)}${t.due_date ? ` · Due ${esc(t.due_date)}` : ""}</div>${t.link_url ? `<div class="links"><a href="${esc(t.link_url)}" target="_blank" rel="noopener noreferrer">${esc(t.link_text || "Task Link")}</a></div>` : ""}<div class="project-actions"><button class="ghost small edit-project-task" data-id="${esc(t.project_task_id)}" type="button">Edit</button>${t.status === "OPEN" ? `<button class="success small complete-project-task" data-id="${esc(t.project_task_id)}" type="button">Complete</button>` : `<button class="ghost small reopen-project-task" data-id="${esc(t.project_task_id)}" type="button">Reopen</button>`}</div></div>`).join("") || '<div class="empty">No project tasks yet.</div>'}</div></section>
-        <section><div class="section-title"><div><h2>Updates</h2><div class="muted">General updates are the default. Choose a task only when the update is specifically about that task.</div></div></div>
-          <div class="composer"><div class="field" style="margin:0 0 8px"><label>Update Type</label><select id="comment-task"><option value="">General Update</option>${tasks.map((t) => `<option value="${esc(t.project_task_id)}">Task: ${esc(t.description)}</option>`).join("")}</select></div><div style="position:relative"><textarea id="project-comment" placeholder="Post an update. Type @ to mention someone."></textarea></div><div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px"><span class="muted" style="font-size:11px">Screenshot/file paste is next after the core pilot is validated.</span><button id="post-project-comment" class="primary small" type="button">Post Update</button></div></div>
-          <div id="project-feed">${updates.map(renderUpdate).join("") || '<div class="empty">No updates yet.</div>'}</div>
-        </section>
-      </div>`;
+      <section class="project-section project-summary-section">
+        <div class="section-title"><h2>Project Description</h2><button id="drawer-edit-project" class="ghost small" type="button">Project Settings</button></div>
+        <div class="project-description">${esc(p.description)}</div>
+        <div class="project-meta"><span><strong>Participants:</strong> ${(p.participants || []).map((x) => esc(x.employee_name)).join(", ") || "None"}</span></div>
+      </section>
+
+      <section class="project-section project-comments-section">
+        <div class="project-comments-toolbar">
+          <div><h2>Comments</h2><div class="muted">Project conversation and activity.</div></div>
+          <div class="field"><label>Sort Comments</label><select id="comment-sort"><option value="NEWEST" ${projectCommentSort === "NEWEST" ? "selected" : ""}>Newest to Oldest</option><option value="OLDEST" ${projectCommentSort === "OLDEST" ? "selected" : ""}>Oldest to Newest</option></select></div>
+        </div>
+        <div id="project-feed">${sortedUpdates.map(renderUpdate).join("") || '<div class="empty">No comments yet.</div>'}</div>
+      </section>
+
+      <section class="project-section project-tasks-section">
+        <div class="section-title"><h2>Project Tasks</h2><button id="drawer-add-task" class="success small" type="button">+ Add Task</button></div>
+        <div id="drawer-task-list" class="project-task-list">${tasks.map((t) => `<div class="task-item ${t.status === "COMPLETE" ? "done" : ""}"><div class="card-title">${esc(t.description)}</div><div class="muted" style="font-size:12px;margin-top:5px">${esc(t.assigned_employee_name)}${t.due_date ? ` · Due ${esc(t.due_date)}` : ""}</div>${t.link_url ? `<div class="links"><a href="${esc(t.link_url)}" target="_blank" rel="noopener noreferrer">${esc(t.link_text || "Task Link")}</a></div>` : ""}<div class="project-actions"><button class="ghost small edit-project-task" data-id="${esc(t.project_task_id)}" type="button">Edit</button>${t.status === "OPEN" ? `<button class="success small complete-project-task" data-id="${esc(t.project_task_id)}" type="button">Complete</button>` : `<button class="ghost small reopen-project-task" data-id="${esc(t.project_task_id)}" type="button">Reopen</button>`}</div></div>`).join("") || '<div class="empty">No project tasks yet.</div>'}</div>
+      </section>
+
+      <section class="project-section project-update-section">
+        <div class="section-title"><div><h2>Add Update</h2><div class="muted">General updates are the default. Choose a task only when the update is specifically about that task.</div></div></div>
+        <div class="composer">
+          <div class="field" style="margin:0 0 10px"><label>Update Type</label><select id="comment-task"><option value="">General Update</option>${tasks.map((t) => `<option value="${esc(t.project_task_id)}">Task: ${esc(t.description)}</option>`).join("")}</select></div>
+          <div style="position:relative"><textarea id="project-comment" placeholder="Post an update. Type @ to mention someone."></textarea></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px"><span class="muted" style="font-size:11px">Screenshot/file paste is next after the core pilot is validated.</span><button id="post-project-comment" class="primary small" type="button">Post Update</button></div>
+        </div>
+      </section>`;
 
     $("drawer-edit-project")?.addEventListener("click", () => openProjectModal(projects.find((x) => x.project_id === p.project_id) || p));
     $("drawer-add-task")?.addEventListener("click", () => openProjectTaskModal());
@@ -446,6 +472,10 @@
     $("drawer-content").querySelectorAll(".complete-project-task").forEach((el) => el.addEventListener("click", () => toggleProjectTask(el.dataset.id, true)));
     $("drawer-content").querySelectorAll(".reopen-project-task").forEach((el) => el.addEventListener("click", () => toggleProjectTask(el.dataset.id, false)));
     $("drawer-content").querySelectorAll(".pin-update").forEach((el) => el.addEventListener("click", () => togglePin(el.dataset.id, el.dataset.pinned !== "true")));
+    $("comment-sort")?.addEventListener("change", (event) => {
+      projectCommentSort = event.target.value === "OLDEST" ? "OLDEST" : "NEWEST";
+      renderProjectDrawer();
+    });
     $("post-project-comment")?.addEventListener("click", postProjectUpdate);
     $("project-comment")?.addEventListener("input", handleMentionInput);
     queuedMentionIds = new Set();
