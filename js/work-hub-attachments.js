@@ -13,11 +13,15 @@
   const MAX_FILE_BYTES = 10 * 1024 * 1024;
   const MAX_FILES = 10;
   const ACCEPTED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "pdf", "txt", "csv", "docx", "xlsx"]);
+  const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);
 
   let activeProjectId = null;
   let pendingFiles = [];
   let peopleCache = null;
   let enhancementScheduled = false;
+  let inlineObserver = null;
+  const inlinePreviewUrls = new Map();
+  const inlinePreviewPromises = new Map();
 
   function token() {
     return sessionStorage.getItem(config.sessionStorageKey) || "";
@@ -43,6 +47,10 @@
     return dot >= 0 ? text.slice(dot + 1) : "";
   }
 
+  function isImageFileName(name) {
+    return IMAGE_EXTENSIONS.has(extensionOf(name));
+  }
+
   function isAccepted(file) {
     return ACCEPTED_EXTENSIONS.has(extensionOf(file.name));
   }
@@ -51,12 +59,24 @@
     return [file.name, file.size, file.lastModified, file.type].join("|");
   }
 
+  function previewKey(updateId, attachmentIndex) {
+    return `${updateId}:${attachmentIndex}`;
+  }
+
   function clearPendingFiles() {
     pendingFiles.forEach((entry) => {
       if (entry.previewUrl) URL.revokeObjectURL(entry.previewUrl);
     });
     pendingFiles = [];
     renderPendingFiles();
+  }
+
+  function clearInlinePreviewCache() {
+    inlinePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+    inlinePreviewUrls.clear();
+    inlinePreviewPromises.clear();
+    if (inlineObserver) inlineObserver.disconnect();
+    inlineObserver = null;
   }
 
   function addFiles(files) {
@@ -99,13 +119,27 @@
     }
 
     host.hidden = false;
-    host.innerHTML = pendingFiles.map((entry, index) => `
-      <div class="wh-attachment-chip">
-        ${entry.previewUrl ? `<img src="${entry.previewUrl}" alt="">` : `<span class="wh-file-icon">📎</span>`}
-        <div class="wh-attachment-name" title="${escapeHtml(entry.file.name)}">${escapeHtml(entry.file.name)}</div>
-        <button type="button" class="wh-remove-attachment" data-index="${index}" aria-label="Remove ${escapeHtml(entry.file.name)}">×</button>
-      </div>
-    `).join("");
+    host.innerHTML = pendingFiles.map((entry, index) => {
+      const fileName = escapeHtml(entry.file.name);
+      if (entry.previewUrl) {
+        return `
+          <div class="wh-pending-image-card">
+            <div class="wh-pending-image-head">
+              <div class="wh-attachment-name" title="${fileName}">${fileName}</div>
+              <button type="button" class="wh-remove-attachment" data-index="${index}" aria-label="Remove ${fileName}">×</button>
+            </div>
+            <img class="wh-pending-image-preview" src="${entry.previewUrl}" alt="${fileName}">
+          </div>
+        `;
+      }
+      return `
+        <div class="wh-attachment-chip">
+          <span class="wh-file-icon">📎</span>
+          <div class="wh-attachment-name" title="${fileName}">${fileName}</div>
+          <button type="button" class="wh-remove-attachment" data-index="${index}" aria-label="Remove ${fileName}">×</button>
+        </div>
+      `;
+    }).join("");
 
     host.querySelectorAll(".wh-remove-attachment").forEach((button) => {
       button.addEventListener("click", () => {
@@ -133,14 +167,24 @@
     style.textContent = `
       .wh-attachment-tools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
       .wh-attachment-helper{font-size:12px;color:var(--muted)}
-      .wh-pending-attachments{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-      .wh-attachment-chip{display:flex;align-items:center;gap:7px;max-width:280px;border:1px solid #94a3b8;border-radius:9px;background:#fff;padding:6px 7px}
-      .wh-attachment-chip img{width:48px;height:38px;object-fit:cover;border-radius:6px;border:1px solid #cbd5e1}
+      .wh-pending-attachments{display:flex;flex-direction:column;gap:10px;margin-top:10px;align-items:flex-start}
+      .wh-pending-image-card{width:min(760px,100%);border:1px solid #94a3b8;border-radius:11px;background:#fff;padding:8px;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+      .wh-pending-image-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+      .wh-pending-image-preview{display:block;max-width:100%;width:auto;max-height:380px;object-fit:contain;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc}
+      .wh-attachment-chip{display:flex;align-items:center;gap:7px;max-width:320px;border:1px solid #94a3b8;border-radius:9px;background:#fff;padding:6px 7px}
       .wh-file-icon{font-size:20px}
-      .wh-attachment-name{min-width:0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:750}
-      .wh-remove-attachment{border:0;background:transparent;color:#991b1b;font-size:20px;line-height:1;cursor:pointer;padding:0 2px}
+      .wh-attachment-name{min-width:0;max-width:620px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:750}
+      .wh-remove-attachment{border:0;background:transparent;color:#991b1b;font-size:20px;line-height:1;cursor:pointer;padding:0 2px;flex:0 0 auto}
       .wh-attachment-link{border:0;background:transparent;padding:0;color:var(--blue);font:inherit;font-size:13px;font-weight:800;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
       .wh-attachment-link:disabled{opacity:.6;cursor:wait}
+      .feed-item .links{align-items:flex-start}
+      .wh-inline-attachment{flex:1 1 100%;width:min(760px,100%);max-width:760px;margin-top:8px}
+      .wh-inline-image-button{display:block;width:100%;padding:0;border:1px solid #94a3b8;border-radius:10px;background:#f8fafc;overflow:hidden;cursor:zoom-in;text-align:left}
+      .wh-inline-image-button img{display:block;max-width:100%;width:auto;max-height:500px;object-fit:contain;background:#f8fafc;margin:0 auto}
+      .wh-inline-image-placeholder{min-height:150px;display:grid;place-items:center;padding:24px;color:#64748b;font-size:13px;font-weight:750;background:linear-gradient(135deg,#f8fafc,#eef4fb)}
+      .wh-inline-image-meta{margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+      .wh-inline-image-note{font-size:11px;color:#64748b}
+      .wh-inline-attachment.preview-error .wh-inline-image-placeholder{color:#991b1b;background:#fef2f2}
       #project-comment.wh-drop-ready{outline:3px solid #93c5fd;outline-offset:2px;background:#eff6ff}
     `;
     document.head.appendChild(style);
@@ -208,6 +252,136 @@
     renderPendingFiles();
   }
 
+  async function fetchAttachmentBlob(updateId, attachmentIndex) {
+    const response = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "apikey": config.supabasePublishableKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        operation: "download",
+        session_token: token(),
+        update_id: updateId,
+        attachment_index: Number(attachmentIndex || 0)
+      })
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Attachment could not be opened.");
+    }
+
+    return await response.blob();
+  }
+
+  async function getInlinePreviewUrl(updateId, attachmentIndex) {
+    const key = previewKey(updateId, attachmentIndex);
+    if (inlinePreviewUrls.has(key)) return inlinePreviewUrls.get(key);
+    if (inlinePreviewPromises.has(key)) return await inlinePreviewPromises.get(key);
+
+    const promise = (async () => {
+      const blob = await fetchAttachmentBlob(updateId, attachmentIndex);
+      const url = URL.createObjectURL(blob);
+      inlinePreviewUrls.set(key, url);
+      inlinePreviewPromises.delete(key);
+      return url;
+    })().catch((error) => {
+      inlinePreviewPromises.delete(key);
+      throw error;
+    });
+
+    inlinePreviewPromises.set(key, promise);
+    return await promise;
+  }
+
+  function getInlineObserver() {
+    if (inlineObserver) return inlineObserver;
+    inlineObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        observer.unobserve(entry.target);
+        loadInlinePreview(entry.target);
+      });
+    }, { root: null, rootMargin: "350px 0px", threshold: 0.01 });
+    return inlineObserver;
+  }
+
+  async function loadInlinePreview(wrapper) {
+    if (!wrapper || wrapper.dataset.previewState === "loaded" || wrapper.dataset.previewState === "loading") return;
+    const button = wrapper.querySelector(".wh-inline-image-button");
+    const placeholder = wrapper.querySelector(".wh-inline-image-placeholder");
+    if (!button || !placeholder) return;
+
+    wrapper.dataset.previewState = "loading";
+    placeholder.textContent = "Loading screenshot...";
+
+    try {
+      const url = await getInlinePreviewUrl(wrapper.dataset.updateId, Number(wrapper.dataset.attachmentIndex || 0));
+      if (!wrapper.isConnected) return;
+      const img = document.createElement("img");
+      img.src = url;
+      img.alt = wrapper.dataset.fileName || "Project screenshot";
+      img.loading = "lazy";
+      img.decoding = "async";
+      button.replaceChildren(img);
+      wrapper.dataset.previewState = "loaded";
+    } catch (error) {
+      wrapper.dataset.previewState = "error";
+      wrapper.classList.add("preview-error");
+      placeholder.textContent = "Preview unavailable. Click the file name to open it.";
+    }
+  }
+
+  function openCachedInlinePreview(wrapper, fallbackButton) {
+    const key = previewKey(wrapper.dataset.updateId, Number(wrapper.dataset.attachmentIndex || 0));
+    const cachedUrl = inlinePreviewUrls.get(key);
+    if (!cachedUrl) {
+      openAttachment(fallbackButton);
+      return;
+    }
+    const previewWindow = window.open(cachedUrl, "_blank");
+    if (previewWindow) previewWindow.opener = null;
+  }
+
+  function createInlineImageAttachment(updateId, attachmentIndex, fileName) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "wh-inline-attachment";
+    wrapper.dataset.updateId = updateId;
+    wrapper.dataset.attachmentIndex = String(attachmentIndex);
+    wrapper.dataset.fileName = fileName;
+    wrapper.dataset.previewState = "waiting";
+
+    const imageButton = document.createElement("button");
+    imageButton.type = "button";
+    imageButton.className = "wh-inline-image-button";
+    imageButton.setAttribute("aria-label", `Open ${fileName} full size`);
+    imageButton.innerHTML = `<div class="wh-inline-image-placeholder">Screenshot preview</div>`;
+
+    const meta = document.createElement("div");
+    meta.className = "wh-inline-image-meta";
+
+    const linkButton = document.createElement("button");
+    linkButton.type = "button";
+    linkButton.className = "wh-attachment-link";
+    linkButton.textContent = `📎 ${fileName} · Open full size`;
+    linkButton.dataset.updateId = updateId;
+    linkButton.dataset.attachmentIndex = String(attachmentIndex);
+    linkButton.dataset.fileName = fileName;
+
+    const note = document.createElement("span");
+    note.className = "wh-inline-image-note";
+    note.textContent = "Loads only when it is near the visible comment area.";
+
+    imageButton.addEventListener("click", () => openCachedInlinePreview(wrapper, linkButton));
+    linkButton.addEventListener("click", () => openCachedInlinePreview(wrapper, linkButton));
+
+    meta.append(linkButton, note);
+    wrapper.append(imageButton, meta);
+    getInlineObserver().observe(wrapper);
+    return wrapper;
+  }
+
   function enhanceExistingAttachments() {
     document.querySelectorAll(".feed-item").forEach((article) => {
       const updateId = article.querySelector(".pin-update")?.dataset.id;
@@ -216,6 +390,13 @@
       spans.forEach((span, attachmentIndex) => {
         if (span.dataset.attachmentEnhanced === "true") return;
         const fileName = span.textContent.replace(/^\s*📎\s*/, "").trim() || "Attachment";
+        span.dataset.attachmentEnhanced = "true";
+
+        if (isImageFileName(fileName)) {
+          span.replaceWith(createInlineImageAttachment(updateId, attachmentIndex, fileName));
+          return;
+        }
+
         const button = document.createElement("button");
         button.type = "button";
         button.className = "wh-attachment-link";
@@ -285,7 +466,8 @@
   function refreshActiveProjectDrawer() {
     if (!activeProjectId) return;
     const card = Array.from(document.querySelectorAll(".project-card[data-id]")).find((el) => el.dataset.id === activeProjectId);
-    if (card) card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    if (!card) return;
+    card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   }
 
   async function postWithAttachments(button) {
@@ -358,26 +540,7 @@
     button.textContent = "Opening...";
 
     try {
-      const response = await fetch(ENDPOINT, {
-        method: "POST",
-        headers: {
-          "apikey": config.supabasePublishableKey,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          operation: "download",
-          session_token: sessionToken,
-          update_id: button.dataset.updateId,
-          attachment_index: Number(button.dataset.attachmentIndex || 0)
-        })
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload.error || "Attachment could not be opened.");
-      }
-
-      const blob = await response.blob();
+      const blob = await fetchAttachmentBlob(button.dataset.updateId, Number(button.dataset.attachmentIndex || 0));
       const url = URL.createObjectURL(blob);
       if (shouldOpen && previewWindow) {
         previewWindow.location.href = url;
@@ -414,12 +577,16 @@
   document.addEventListener("click", (event) => {
     const projectCard = event.target.closest?.(".project-card[data-id]");
     if (projectCard && !event.target.closest?.("button,a")) {
-      if (activeProjectId !== projectCard.dataset.id) clearPendingFiles();
+      if (activeProjectId !== projectCard.dataset.id) {
+        clearPendingFiles();
+        clearInlinePreviewCache();
+      }
       activeProjectId = projectCard.dataset.id;
     }
 
     if (event.target.closest?.("#close-drawer,#drawer-overlay")) {
       clearPendingFiles();
+      clearInlinePreviewCache();
       activeProjectId = null;
     }
 
@@ -429,6 +596,8 @@
     event.stopImmediatePropagation();
     postWithAttachments(postButton);
   }, true);
+
+  window.addEventListener("beforeunload", clearInlinePreviewCache);
 
   const observer = new MutationObserver(scheduleEnhancement);
   observer.observe(document.body, { childList: true, subtree: true });
