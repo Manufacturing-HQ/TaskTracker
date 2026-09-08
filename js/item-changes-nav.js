@@ -18,12 +18,20 @@
     const token = sessionStorage.getItem(config.sessionStorageKey);
     if (!token) {
       setVisible(false);
-      return;
+      return false;
     }
     const { error } = await client.rpc("get_item_change_bootstrap", { p_session_token: token });
     setVisible(!error);
+    return !error;
   }
 
-  setTimeout(refresh, 500);
+  let attempts = 0;
+  const retry = window.setInterval(async () => {
+    attempts += 1;
+    const ready = await refresh();
+    if (ready || attempts >= 15) window.clearInterval(retry);
+  }, 1000);
+
+  setTimeout(refresh, 250);
   window.addEventListener("focus", refresh);
 })();
