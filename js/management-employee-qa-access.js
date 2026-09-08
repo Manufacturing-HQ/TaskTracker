@@ -38,7 +38,13 @@
       "time.correct":"Correct Time",
       "reporting.view":"View Reporting",
       "change_log.view":"View Change Log",
-      "project_management.admin":"Access Work Hub Pilot"
+      "project_management.admin":"Administer Project Management",
+      "work_hub.use":"Use Work Hub",
+      "work_hub.manage":"Manage Work Hub",
+      "item_changes.view":"View Item Changes",
+      "item_changes.submit":"Submit Item Change Requests",
+      "item_changes.manage":"Manage Item Change Requests",
+      "item_changes.hold_authorize":"Authorize Operational Item Holds"
     };
     return labels[code] || code;
   }
