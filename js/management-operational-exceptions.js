@@ -6,11 +6,7 @@
   const attendanceBody = document.getElementById("attendance-body");
   const attendanceDate = document.getElementById("attendance-date");
   const attendanceMessage = document.getElementById("attendance-message");
-  const queueList = document.getElementById("queue-list");
-  const queueView = document.getElementById("view-queue");
-  const queueNav = document.querySelector('button[data-view="queue"]');
-  const includeCompleted = document.getElementById("include-completed");
-  if (!config || !supabaseLib || !attendanceBody || !attendanceDate || !queueList || !queueNav) return;
+  if (!config || !supabaseLib || !attendanceBody || !attendanceDate) return;
 
   const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
@@ -28,9 +24,6 @@
     eventTypes: new Map(),
     attendanceNotes: new Map(),
     reporting: new Map(),
-    tasks: [],
-    taskMap: new Map(),
-    taskRefreshTimer: null,
     attendanceRefreshTimer: null
   };
 
@@ -57,194 +50,12 @@
     return Number.isFinite(n) ? `${n.toFixed(1)}%` : "-";
   }
 
-  function formatDateTime(value) {
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? "" : d.toLocaleString(undefined, {
-      month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit"
-    });
-  }
-
   const style = document.createElement("style");
   style.textContent = `
-    .queue-alert-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;margin-left:7px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:900;vertical-align:middle}
     .attendance-context{margin-top:7px}.attendance-context button{padding:4px 8px;font-size:11px}.attendance-context textarea{display:block;width:100%;min-width:220px;margin-top:6px;border:1px solid #94a3b8;border-radius:7px;padding:7px 8px;resize:vertical;font:inherit;font-size:12px;background:#fff}.attendance-context .required-note{font-size:11px;font-weight:800;color:#991b1b;margin-top:4px}
     .reconcile-cell{white-space:nowrap}.eff-badge{display:inline-block;margin-left:5px;padding:2px 6px;border-radius:999px;font-size:11px;font-weight:900}.eff-high{background:#fee2e2;color:#991b1b}.eff-low{background:#fef3c7;color:#92400e}
-    .task-note-preview{margin-top:8px;padding:7px 9px;border-left:3px solid #94a3b8;background:#f1f5f9;border-radius:6px;font-size:12px;color:#475569}.task-note-panel{margin-top:10px;border-top:1px solid #cbd5e1;padding-top:10px}.task-note-history{display:grid;gap:7px;margin-bottom:8px}.task-note-entry{font-size:12px;background:#fff;border:1px solid #cbd5e1;border-radius:7px;padding:7px 9px}.task-note-entry small{display:block;margin-bottom:3px;color:#64748b}.task-note-add{display:flex;gap:7px;align-items:flex-end}.task-note-add textarea{flex:1;min-height:54px;border:1px solid #94a3b8;border-radius:7px;padding:7px 8px;resize:vertical;font:inherit;font-size:12px}.task-note-add button{white-space:nowrap}
   `;
   document.head.appendChild(style);
-
-  const badge = document.createElement("span");
-  badge.className = "queue-alert-badge";
-  badge.hidden = true;
-  queueNav.appendChild(badge);
-
-  function updateBadge(tasks) {
-    const count = Array.isArray(tasks) ? tasks.length : 0;
-    badge.textContent = String(count);
-    badge.hidden = count === 0;
-    queueNav.setAttribute("aria-label", count ? `Task Queue, ${count} pending` : "Task Queue");
-  }
-
-  function taskTitle(task) {
-    return String(task?.title || task?.task_type_name || "").trim();
-  }
-
-  function renderTaskNotes(card, task, forceOpen = false) {
-    let panel = card.querySelector(".task-note-panel");
-    if (!panel) {
-      panel = document.createElement("div");
-      panel.className = "task-note-panel";
-      panel.hidden = true;
-      card.appendChild(panel);
-    }
-    if (!forceOpen && panel.dataset.rendered === "1") return panel;
-
-    const comments = Array.isArray(task.comments) ? task.comments : [];
-    const history = comments.length
-      ? comments.map((comment) => `<div class="task-note-entry"><small>${esc(comment.created_by_name || "Supervisor")} &middot; ${esc(formatDateTime(comment.created_at))}</small>${esc(comment.comment_text || "")}</div>`).join("")
-      : '<div style="font-size:12px;color:#64748b">No notes yet.</div>';
-    const canAdd = ["Pending", "In Progress"].includes(task.status);
-    panel.innerHTML = `<div class="task-note-history">${history}</div>${canAdd ? `<div class="task-note-add"><textarea maxlength="1500" placeholder="Add a reminder or follow-up note"></textarea><button type="button" class="ghost" data-add-task-note="1">Add Note</button></div>` : ""}`;
-    panel.dataset.rendered = "1";
-    return panel;
-  }
-
-  let queueObserver;
-
-  function decorateQueue(tasks) {
-    const cards = [...queueList.querySelectorAll(".task-card")];
-    if (!cards.length) return;
-    queueObserver?.disconnect();
-    state.tasks = Array.isArray(tasks) ? tasks : [];
-    state.taskMap = new Map(state.tasks.map((task) => [task.supervisor_task_id, task]));
-
-    const unused = [...state.tasks];
-    cards.forEach((card, index) => {
-      const heading = card.querySelector("h3")?.textContent?.trim() || "";
-      let taskIndex = unused.findIndex((task) => taskTitle(task) === heading);
-      if (taskIndex < 0 && index < unused.length) taskIndex = index;
-      const task = taskIndex >= 0 ? unused.splice(taskIndex, 1)[0] : null;
-      if (!task) return;
-      card.dataset.taskId = task.supervisor_task_id;
-
-      const oldPreview = card.querySelector(".task-note-preview");
-      oldPreview?.remove();
-      const comments = Array.isArray(task.comments) ? task.comments : [];
-      if (comments.length) {
-        const latest = comments[comments.length - 1];
-        const preview = document.createElement("div");
-        preview.className = "task-note-preview";
-        preview.innerHTML = `<strong>Latest note:</strong> ${esc(latest.comment_text || "")}`;
-        const actions = card.querySelector(".actions");
-        card.insertBefore(preview, actions || null);
-      }
-
-      const actions = card.querySelector(".actions");
-      if (actions) {
-        let toggle = actions.querySelector("[data-task-notes-toggle]");
-        if (!toggle) {
-          toggle = document.createElement("button");
-          toggle.type = "button";
-          toggle.className = "ghost";
-          toggle.dataset.taskNotesToggle = "1";
-          actions.appendChild(toggle);
-        }
-        toggle.textContent = comments.length ? `Notes (${comments.length})` : "Notes";
-      }
-
-      const existingPanel = card.querySelector(".task-note-panel");
-      if (existingPanel && !existingPanel.hidden) {
-        existingPanel.dataset.rendered = "";
-        renderTaskNotes(card, task, true).hidden = false;
-      }
-    });
-    queueObserver?.observe(queueList, { childList: true, subtree: true });
-  }
-
-  async function refreshTaskData() {
-    if (!token()) return;
-    try {
-      const pending = await rpc("get_my_supervisor_tasks", {
-        p_session_token: token(),
-        p_include_completed: false
-      });
-      updateBadge(Array.isArray(pending) ? pending : []);
-
-      if (!queueView?.hidden) {
-        let visibleTasks = Array.isArray(pending) ? pending : [];
-        if (includeCompleted?.checked) {
-          const all = await rpc("get_my_supervisor_tasks", {
-            p_session_token: token(),
-            p_include_completed: true
-          });
-          visibleTasks = Array.isArray(all) ? all : [];
-        }
-        decorateQueue(visibleTasks);
-      }
-    } catch {
-      // Keep the base Management page usable if the helper cannot refresh.
-    }
-  }
-
-  function scheduleTaskRefresh(delay = 120) {
-    clearTimeout(state.taskRefreshTimer);
-    state.taskRefreshTimer = setTimeout(refreshTaskData, delay);
-  }
-
-  queueList.addEventListener("click", async (event) => {
-    const toggle = event.target.closest("[data-task-notes-toggle]");
-    if (toggle) {
-      const card = toggle.closest(".task-card");
-      const task = state.taskMap.get(card?.dataset.taskId);
-      if (!card || !task) return;
-      const panel = renderTaskNotes(card, task, true);
-      panel.hidden = !panel.hidden;
-      return;
-    }
-
-    const addButton = event.target.closest("[data-add-task-note]");
-    if (!addButton) return;
-    const card = addButton.closest(".task-card");
-    const task = state.taskMap.get(card?.dataset.taskId);
-    const textarea = card?.querySelector(".task-note-panel textarea");
-    const comment = textarea?.value.trim();
-    if (!task || !comment) return;
-    addButton.disabled = true;
-    try {
-      const created = await rpc("add_supervisor_task_comment", {
-        p_session_token: token(),
-        p_supervisor_task_id: task.supervisor_task_id,
-        p_comment: comment
-      });
-      task.comments = Array.isArray(task.comments) ? task.comments : [];
-      task.comments.push(created);
-      const panel = renderTaskNotes(card, task, true);
-      panel.hidden = false;
-      const preview = card.querySelector(".task-note-preview");
-      preview?.remove();
-      const newPreview = document.createElement("div");
-      newPreview.className = "task-note-preview";
-      newPreview.innerHTML = `<strong>Latest note:</strong> ${esc(created.comment_text || "")}`;
-      card.insertBefore(newPreview, card.querySelector(".actions") || null);
-      const toggleButton = card.querySelector("[data-task-notes-toggle]");
-      if (toggleButton) toggleButton.textContent = `Notes (${task.comments.length})`;
-    } catch (error) {
-      window.alert(error.message || "Unable to save task note.");
-    } finally {
-      addButton.disabled = false;
-    }
-  });
-
-  queueObserver = new MutationObserver(() => scheduleTaskRefresh());
-  queueObserver.observe(queueList, { childList: true, subtree: true });
-  queueNav.addEventListener("click", () => scheduleTaskRefresh(250));
-  includeCompleted?.addEventListener("change", () => scheduleTaskRefresh(250));
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) scheduleTaskRefresh(200);
-  });
-  window.addEventListener("focus", () => scheduleTaskRefresh(200));
-  setInterval(refreshTaskData, 10 * 60 * 1000);
-  setTimeout(refreshTaskData, 1000);
 
   let attendanceObserver;
 
@@ -368,7 +179,7 @@
       if (minutes) minutes.textContent = result.minutes_worked ?? "-";
       if (saved) saved.textContent = "Saved";
       setAttendanceMessage("", "info");
-      await Promise.all([refreshAttendanceContext(), refreshTaskData()]);
+      await refreshAttendanceContext();
     } catch (error) {
       if (saved) saved.textContent = "Error";
       setAttendanceMessage(error.message || "Unable to save attendance row.", "error");
