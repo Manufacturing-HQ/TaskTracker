@@ -18,6 +18,8 @@
   let sortBy = "item_name";
   let sortDir = "asc";
   let installed = false;
+  let ownershipObserver = null;
+  let ownershipRepairPending = false;
 
   async function rpc(name,args={}) {
     const {data,error} = await client.rpc(name,args);
@@ -70,7 +72,7 @@
       <td>${canEdit?`<button class="ghost" type="button" data-im-edit="${esc(r.id)}">Edit</button>`:"—"}</td>
     </tr>`).join("");
 
-    host.innerHTML=`<table class="ops-table" style="min-width:2100px"><thead><tr>
+    host.innerHTML=`<table class="ops-table" data-item-master-table="1" style="min-width:2100px"><thead><tr>
       ${sortable("Item","item_name")}
       <th>Internal ID</th>
       ${sortable("Item Type","item_type")}
@@ -147,6 +149,23 @@
     const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="item-master-filtered.csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},0);
   }
 
+  function installOwnershipGuard(host) {
+    if (ownershipObserver) return;
+    ownershipObserver = new MutationObserver(() => {
+      if (!installed || ownershipRepairPending) return;
+      if (host.querySelector('table[data-item-master-table="1"]')) return;
+      ownershipRepairPending = true;
+      setTimeout(async () => {
+        try {
+          if (installed && !host.querySelector('table[data-item-master-table="1"]')) await load();
+        } finally {
+          ownershipRepairPending = false;
+        }
+      }, 0);
+    });
+    ownershipObserver.observe(host,{childList:true});
+  }
+
   async function install() {
     if(installed)return true;
     const host=document.getElementById("ops-items-table");
@@ -161,6 +180,7 @@
     const exp=replaceWithClone("req-item-export","click",exportItems);
     if(exp)exp.textContent="Export CSV";
     installed=true;
+    installOwnershipGuard(host);
     await load();
     return true;
   }
@@ -170,5 +190,11 @@
     const observer=new MutationObserver(async()=>{try{if(await install())observer.disconnect();}catch{}});
     observer.observe(document.body,{childList:true,subtree:true});
   }
+
+  window.TaskTrackerItemMasterView = Object.assign(window.TaskTrackerItemMasterView || {}, {
+    load,
+    isInstalled:()=>installed
+  });
+
   waitForShell();
 })();
