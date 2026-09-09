@@ -32,6 +32,24 @@
     allow_productive_task:"Productive Task Allowed"
   };
 
+  const importTemplateHeaders = [
+    "Item",
+    "Internal ID",
+    "Item Type",
+    "Inventory Planning Role",
+    "Item Category",
+    "Make",
+    "SKU Group",
+    "WO Department",
+    "Build Type",
+    "Operation",
+    "Cycle Time",
+    "Item Status",
+    "Build Notes",
+    "Productive Task Allowed",
+    "Status"
+  ];
+
   const readyStatuses = new Set(["UPDATE","NEW ASSEMBLY","NEW INVENTORY"]);
   let importRows = [];
   let previewRows = [];
@@ -265,6 +283,21 @@
     } finally { preview.disabled=false; renderPreview(); }
   }
 
+  function downloadImportTemplate() {
+    const csv = `\uFEFF${importTemplateHeaders.join(",")}\r\n`;
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "item-master-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      link.remove();
+    }, 0);
+  }
+
   async function installItemMasterImport() {
     const section=document.getElementById("ops-import");
     if (!section || section.dataset.safeItemMasterImport === "1") return false;
@@ -274,8 +307,9 @@
     section.innerHTML=`
       <div class="ops-note"><strong>Item Master Import.</strong> Internal ID is the permanent matching key. Existing Items are updated. New Items require Item Name and Item Type. New Assembly Items default to Productive Task Allowed; new Inventory Items are always blocked from Productive Tasks. Blank cells leave existing values unchanged. Use <strong>CLEAR</strong> to erase a nullable field.</div>
       <div class="ops-note">Supported headers: Item, Internal ID, Item Type, Inventory Planning Role, Item Category, Make, SKU Group, WO Department, Build Type, Operation, Cycle Time, Item Status, Build Notes, Productive Task Allowed, Status.</div>
-      <div class="ops-toolbar"><input id="ops-import-file" type="file" accept=".csv,text/csv"><button id="ops-import-preview-btn" class="ghost" type="button">Preview Import</button><button id="ops-import-apply" class="primary" type="button" disabled>Apply Ready Rows</button></div>
-      <div id="ops-import-summary" class="ops-note">Choose a CSV file to begin.</div><div id="ops-import-table" class="ops-table-wrap"></div>`;
+      <div class="ops-toolbar"><button id="ops-import-template" class="ghost" type="button">Download Import Template</button><input id="ops-import-file" type="file" accept=".csv,text/csv"><button id="ops-import-preview-btn" class="ghost" type="button">Preview Import</button><button id="ops-import-apply" class="primary" type="button" disabled>Apply Ready Rows</button></div>
+      <div id="ops-import-summary" class="ops-note">Download the template or choose a CSV file to begin.</div><div id="ops-import-table" class="ops-table-wrap"></div>`;
+    document.getElementById("ops-import-template").addEventListener("click",downloadImportTemplate);
     document.getElementById("ops-import-file").addEventListener("change",readImportFile);
     document.getElementById("ops-import-preview-btn").addEventListener("click",previewImport);
     document.getElementById("ops-import-apply").addEventListener("click",applyImport);
