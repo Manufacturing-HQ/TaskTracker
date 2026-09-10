@@ -199,7 +199,7 @@
   waitForShell();
 })();
 
-/** BOM CSV import. Adds a preview-first BOM tab to the existing Operations master-data shell. */
+/** BOM browser + preview-first CSV import for the Operations master-data shell. */
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
@@ -212,9 +212,13 @@
   const esc = (v) => String(v ?? "").replace(/[&<>"']/g,(ch)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 
   let installed = false;
+  let installPromise = null;
   let importRows = [];
   let preview = null;
   let canEdit = false;
+  let bomPage = 0;
+  let bomPageSize = 50;
+  let bomSearchTimer = null;
 
   async function rpc(name,args={}) {
     const {data,error} = await client.rpc(name,args);
@@ -254,6 +258,12 @@
     });
   }
 
+  function formatDate(value) {
+    if(!value)return "—";
+    const d=new Date(value);
+    return Number.isNaN(d.getTime())?String(value):d.toLocaleString();
+  }
+
   function setMessage(text,type="") {
     const el=document.getElementById("bom-import-message");
     if(!el)return;
@@ -286,9 +296,53 @@
       const issues=(r.issues||[]).map(esc).join("<br>")||"—";
       return `<tr><td>${esc(r.row_number)}</td><td>${esc(r.internal_id)}</td><td>${esc(r.bill_name)}</td><td>${esc(r.revision||"—")}</td><td>${esc(r.component)}</td><td>${esc(r.component_quantity??"—")}</td><td style="background:${bg};font-weight:900">${esc(status)}</td><td>${issues}</td></tr>`;
     }).join("");
-    document.getElementById("bom-import-table").innerHTML=`<table class="ops-table" style="min-width:1250px"><thead><tr><th>Row</th><th>Internal ID</th><th>Bill Name</th><th>Revision</th><th>Component</th><th>Component Qty</th><th>Status</th><th>Issues / Matching Notes</th></tr></thead><tbody>${body||'<tr><td colspan="8" class="ops-empty">No rows to preview.</td></tr>'}</tbody></table>${rows.length>500?'<div class="ops-note">Preview shows the first 500 rows. All rows will be validated and imported.</div>':""}`;
+    const table=document.getElementById("bom-import-table");
+    if(table)table.innerHTML=`<table class="ops-table" style="min-width:1250px"><thead><tr><th>Row</th><th>Internal ID</th><th>Bill Name</th><th>Revision</th><th>Component</th><th>Component Qty</th><th>Status</th><th>Issues / Matching Notes</th></tr></thead><tbody>${body||'<tr><td colspan="8" class="ops-empty">No rows to preview.</td></tr>'}</tbody></table>${rows.length>500?'<div class="ops-note">Preview shows the first 500 rows. All rows will be validated and imported.</div>':""}`;
     const apply=document.getElementById("bom-import-apply");
-    apply.disabled=!(canEdit && s.can_apply && rows.length);
+    if(apply)apply.disabled=!(canEdit && s.can_apply && rows.length);
+  }
+
+  function componentsCell(row) {
+    const components=Array.isArray(row.components)?row.components:[];
+    if(!components.length)return "0 components";
+    const body=components.map((c)=>`<tr><td><strong>${esc(c.component_name)}</strong></td><td>${c.matched_item_name?esc(c.matched_item_name):'<span style="color:#92400e;font-weight:800">Not linked</span>'}</td><td>${esc(c.component_quantity)}</td></tr>`).join("");
+    return `<details><summary style="cursor:pointer;font-weight:800">${components.length} component${components.length===1?"":"s"}</summary><div style="margin-top:8px;min-width:480px;max-width:760px;max-height:340px;overflow:auto"><table class="ops-table" style="min-width:460px"><thead><tr><th>Component</th><th>Item Master Link</th><th>Quantity</th></tr></thead><tbody>${body}</tbody></table></div></details>`;
+  }
+
+  function renderBoms(rows,total) {
+    const host=document.getElementById("bom-browser-table");
+    if(!host)return;
+    const body=rows.map((r)=>`<tr>
+      <td><strong>${esc(r.bill_name)}</strong></td>
+      <td>${esc(r.internal_id)}</td>
+      <td>${esc(r.revision||"—")}</td>
+      <td>${r.parent_item_name?esc(r.parent_item_name):'<span style="color:#92400e;font-weight:800">Not linked</span>'}</td>
+      <td>${componentsCell(r)}</td>
+      <td>${esc(formatDate(r.updated_at))}</td>
+    </tr>`).join("");
+    host.innerHTML=`<table class="ops-table" style="min-width:1100px"><thead><tr><th>Bill Name</th><th>Internal ID</th><th>Revision</th><th>Parent Item</th><th>Components</th><th>Last Updated</th></tr></thead><tbody>${body||'<tr><td colspan="6" class="ops-empty">No BOM records found.</td></tr>'}</tbody></table>
+      <div class="req-pager"><div class="left"><span>Rows per page</span><select id="bom-pagesize"><option>25</option><option>50</option><option>100</option></select><span class="req-muted">Showing ${total?bomPage*bomPageSize+1:0}–${Math.min((bomPage+1)*bomPageSize,total)} of ${total}</span></div><div class="right"><button class="ghost" id="bom-prev" ${bomPage<=0?"disabled":""}>Previous</button><button class="ghost" id="bom-next" ${(bomPage+1)*bomPageSize>=total?"disabled":""}>Next</button></div></div>`;
+    const ps=host.querySelector("#bom-pagesize");
+    if(ps){ps.value=String(bomPageSize);ps.onchange=(e)=>{bomPageSize=Number(e.target.value);bomPage=0;loadBoms();};}
+    host.querySelector("#bom-prev")?.addEventListener("click",()=>{if(bomPage>0){bomPage--;loadBoms();}});
+    host.querySelector("#bom-next")?.addEventListener("click",()=>{if((bomPage+1)*bomPageSize<total){bomPage++;loadBoms();}});
+  }
+
+  async function loadBoms() {
+    const host=document.getElementById("bom-browser-table");
+    if(!host || !token())return;
+    host.innerHTML='<div class="ops-empty">Loading BOMs...</div>';
+    try{
+      const data=await rpc("search_operations_boms",{
+        p_session_token:token(),
+        p_search_text:document.getElementById("bom-browser-search")?.value||null,
+        p_result_limit:bomPageSize,
+        p_result_offset:bomPage*bomPageSize
+      });
+      renderBoms(data?.records||[],Number(data?.total_count||0));
+    }catch(err){
+      host.innerHTML=`<div class="msg" data-type="error">${esc(err.message)}</div>`;
+    }
   }
 
   async function handleFileChange() {
@@ -324,13 +378,14 @@
   async function previewImport() {
     if(!importRows.length){setMessage("Choose a BOM CSV file first.","error");return;}
     const btn=document.getElementById("bom-import-preview-btn");
-    btn.disabled=true;setMessage("Validating BOM import...");
+    if(btn)btn.disabled=true;
+    setMessage("Validating BOM import...");
     try{
       const data=await rpc("preview_bom_import",{p_session_token:token(),p_rows:importRows});
       renderPreview(data);
       setMessage(data?.summary?.error_count?"Preview found validation errors. Correct those rows before applying.":data?.summary?.warning_count?"Preview is valid. Warnings indicate item links that could not be made automatically; the imported names will still be retained.":"Preview is valid and ready to apply.",data?.summary?.error_count?"error":"");
     }catch(err){preview=null;resetPreview();setMessage(err.message,"error");}
-    finally{btn.disabled=false;}
+    finally{if(btn)btn.disabled=false;}
   }
 
   async function applyImport() {
@@ -338,68 +393,164 @@
     const bomCount=Number(preview?.summary?.bom_count||0);
     if(!confirm(`Apply ${bomCount} BOM(s) and replace the component lists for those imported BOM Internal IDs with this CSV?`))return;
     const btn=document.getElementById("bom-import-apply");
-    btn.disabled=true;setMessage("Applying BOM import...");
+    if(btn)btn.disabled=true;
+    setMessage("Applying BOM import...");
     try{
       const result=await rpc("apply_bom_import",{p_session_token:token(),p_rows:importRows});
       setMessage(`BOM import complete: ${Number(result?.bom_count||0)} BOM record(s) updated and ${Number(result?.component_count||0)} component row(s) stored.${Number(result?.warning_count||0)?` ${Number(result.warning_count)} warning row(s) were imported with preserved text values.`:""}`);
       renderPreview(result?.preview||preview);
+      bomPage=0;
     }catch(err){setMessage(err.message,"error");}
-    finally{
-      if(btn)btn.disabled=!(canEdit && preview?.summary?.can_apply);
+    finally{if(btn)btn.disabled=!(canEdit && preview?.summary?.can_apply);}
+  }
+
+  function hideBaseSections() {
+    ["ops-employees","ops-items","ops-import"].forEach((id)=>{const el=document.getElementById(id);if(el)el.hidden=true;});
+  }
+
+  function hideBomSections() {
+    const browser=document.getElementById("ops-boms");
+    const importer=document.getElementById("ops-bom-import");
+    if(browser)browser.hidden=true;
+    if(importer)importer.hidden=true;
+  }
+
+  function showBomTab(name) {
+    document.querySelectorAll("#ops-master .ops-tab").forEach((b)=>b.classList.toggle("active",b.dataset.opsTab===name));
+    hideBaseSections();
+    hideBomSections();
+    if(name==="boms"){
+      const browser=document.getElementById("ops-boms");
+      if(browser)browser.hidden=false;
+      loadBoms();
+    }else if(name==="bom-import"){
+      const importer=document.getElementById("ops-bom-import");
+      if(importer)importer.hidden=false;
     }
   }
 
-  function openBomTab() {
-    document.querySelectorAll(".ops-tab").forEach((b)=>b.classList.toggle("active",b.dataset.opsTab==="bom-import"));
-    ["ops-employees","ops-items","ops-import"].forEach((id)=>{const el=document.getElementById(id);if(el)el.hidden=true;});
-    const bom=document.getElementById("ops-bom-import");if(bom)bom.hidden=false;
+  function ensureSingleTab(tabs,name,label,anchorSelector) {
+    const matches=[...tabs.querySelectorAll(`[data-ops-tab="${name}"]`)];
+    let tab=matches.shift()||null;
+    matches.forEach((extra)=>extra.remove());
+    if(!tab){
+      tab=document.createElement("button");
+      tab.className="ops-tab";
+      tab.type="button";
+      tab.dataset.opsTab=name;
+    }
+    tab.textContent=label;
+    tab.dataset.bomOwned="1";
+    const anchor=tabs.querySelector(anchorSelector);
+    if(anchor && tab.previousElementSibling!==anchor)anchor.insertAdjacentElement("afterend",tab);
+    else if(!anchor && !tab.parentElement)tabs.appendChild(tab);
+    return tab;
   }
 
-  async function install() {
-    if(installed)return true;
-    const tabs=document.querySelector("#ops-master .ops-tabs");
+  function removeDuplicateSections(id) {
+    const matches=[...document.querySelectorAll(`[id="${id}"]`)];
+    const first=matches.shift()||null;
+    matches.forEach((extra)=>extra.remove());
+    return first;
+  }
+
+  async function doInstall() {
+    const master=document.getElementById("ops-master");
+    const tabs=master?.querySelector(".ops-tabs");
     const permissionNote=document.getElementById("ops-permission-note");
-    if(!tabs || !permissionNote || !token())return false;
+    if(!master || !tabs || !permissionNote || !token())return false;
 
     const setup=await rpc("get_operations_master_options",{p_session_token:token()});
+    if(!document.getElementById("ops-master") || !document.querySelector("#ops-master .ops-tabs"))return false;
     canEdit=!!setup?.viewer?.can_edit;
 
-    const tab=document.createElement("button");
-    tab.className="ops-tab";tab.type="button";tab.dataset.opsTab="bom-import";tab.textContent="BOM Import";
-    tabs.appendChild(tab);
+    const freshTabs=document.querySelector("#ops-master .ops-tabs");
+    const bomTab=ensureSingleTab(freshTabs,"boms","BOM",'[data-ops-tab="items"]');
+    const importTab=ensureSingleTab(freshTabs,"bom-import","BOM Import",'[data-ops-tab="import"]');
 
-    const section=document.createElement("section");
-    section.id="ops-bom-import";section.hidden=true;
-    section.innerHTML=`
-      <div class="ops-note">Import a CSV with these five headers: <strong>Internal ID</strong>, <strong>Bill Name</strong>, <strong>Revision</strong>, <strong>Component</strong>, and <strong>Component Quantity</strong>. Revision is stored for reference only. Preview is required before applying.</div>
-      <div class="ops-note"><strong>Import behavior:</strong> Internal ID identifies the BOM. Re-importing an Internal ID refreshes that BOM's current component list; BOMs not present in the file are untouched. Unmatched Bill Names or Components are clearly warned and retained as text instead of silently failing.</div>
-      <div class="ops-toolbar"><input id="bom-import-file" type="file" accept=".csv,text/csv"><button id="bom-import-preview-btn" class="ghost" type="button">Preview Import</button><button id="bom-import-apply" class="primary" type="button" disabled>Apply BOM Import</button></div>
-      <div id="bom-import-message" class="msg" hidden></div>
-      <div id="bom-import-summary" class="ops-note"></div>
-      <div id="bom-import-table" class="ops-table-wrap"></div>`;
-    document.getElementById("ops-master").appendChild(section);
+    let browser=removeDuplicateSections("ops-boms");
+    if(!browser){
+      browser=document.createElement("section");
+      browser.id="ops-boms";
+      browser.hidden=true;
+      browser.innerHTML=`
+        <div class="ops-note">Current Bill of Materials records. Use the component count to expand and review the exact component list and quantities stored for each BOM.</div>
+        <div class="ops-toolbar"><input id="bom-browser-search" class="grow" placeholder="Search Bill Name, Internal ID, Revision, Parent Item, or Component"><button id="bom-browser-refresh" class="ghost" type="button">Refresh</button></div>
+        <div id="bom-browser-table" class="ops-table-wrap"></div>`;
+      const itemsSection=document.getElementById("ops-items");
+      if(itemsSection)itemsSection.insertAdjacentElement("afterend",browser);else master.appendChild(browser);
+    }
 
-    tab.addEventListener("click",openBomTab);
-    document.querySelectorAll("#ops-master .ops-tab").forEach((button)=>{
-      if(button!==tab)button.addEventListener("click",()=>{section.hidden=true;});
-    });
-    document.getElementById("bom-import-file").addEventListener("change",handleFileChange);
-    document.getElementById("bom-import-preview-btn").addEventListener("click",previewImport);
-    document.getElementById("bom-import-apply").addEventListener("click",applyImport);
-    if(!canEdit)document.getElementById("bom-import-apply").hidden=true;
+    let importer=removeDuplicateSections("ops-bom-import");
+    if(!importer){
+      importer=document.createElement("section");
+      importer.id="ops-bom-import";
+      importer.hidden=true;
+      importer.innerHTML=`
+        <div class="ops-note">Import a CSV with these five headers: <strong>Internal ID</strong>, <strong>Bill Name</strong>, <strong>Revision</strong>, <strong>Component</strong>, and <strong>Component Quantity</strong>. Revision is stored for reference only. Preview is required before applying.</div>
+        <div class="ops-note"><strong>Import behavior:</strong> Internal ID identifies the BOM. Re-importing an Internal ID refreshes that BOM's current component list; BOMs not present in the file are untouched. Unmatched Bill Names or Components are clearly warned and retained as text instead of silently failing.</div>
+        <div class="ops-toolbar"><input id="bom-import-file" type="file" accept=".csv,text/csv"><button id="bom-import-preview-btn" class="ghost" type="button">Preview Import</button><button id="bom-import-apply" class="primary" type="button" disabled>Apply BOM Import</button></div>
+        <div id="bom-import-message" class="msg" hidden></div>
+        <div id="bom-import-summary" class="ops-note"></div>
+        <div id="bom-import-table" class="ops-table-wrap"></div>`;
+      const baseImport=document.getElementById("ops-import");
+      if(baseImport)baseImport.insertAdjacentElement("afterend",importer);else master.appendChild(importer);
+    }
+
+    if(!freshTabs.dataset.bomTabsBound){
+      freshTabs.dataset.bomTabsBound="1";
+      freshTabs.addEventListener("click",(event)=>{
+        const button=event.target.closest(".ops-tab");
+        if(!button)return;
+        const name=button.dataset.opsTab;
+        if(name==="boms" || name==="bom-import")showBomTab(name);
+        else hideBomSections();
+      });
+    }
+
+    if(!bomTab.dataset.bomClickBound)bomTab.dataset.bomClickBound="1";
+    if(!importTab.dataset.bomClickBound)importTab.dataset.bomClickBound="1";
+
+    const search=document.getElementById("bom-browser-search");
+    if(search && !search.dataset.bound){
+      search.dataset.bound="1";
+      search.addEventListener("input",()=>{clearTimeout(bomSearchTimer);bomSearchTimer=setTimeout(()=>{bomPage=0;loadBoms();},250);});
+    }
+    const refresh=document.getElementById("bom-browser-refresh");
+    if(refresh && !refresh.dataset.bound){refresh.dataset.bound="1";refresh.addEventListener("click",loadBoms);}
+    const file=document.getElementById("bom-import-file");
+    if(file && !file.dataset.bound){file.dataset.bound="1";file.addEventListener("change",handleFileChange);}
+    const previewBtn=document.getElementById("bom-import-preview-btn");
+    if(previewBtn && !previewBtn.dataset.bound){previewBtn.dataset.bound="1";previewBtn.addEventListener("click",previewImport);}
+    const applyBtn=document.getElementById("bom-import-apply");
+    if(applyBtn && !applyBtn.dataset.bound){applyBtn.dataset.bound="1";applyBtn.addEventListener("click",applyImport);}
+    if(applyBtn && !canEdit)applyBtn.hidden=true;
 
     installed=true;
     return true;
   }
 
+  async function install() {
+    if(installed)return true;
+    if(installPromise)return installPromise;
+    installPromise=doInstall();
+    try{return await installPromise;}
+    finally{if(!installed)installPromise=null;}
+  }
+
   async function waitForShell() {
     try{if(await install())return;}catch{}
-    const observer=new MutationObserver(async()=>{try{if(await install())observer.disconnect();}catch{}});
+    const observer=new MutationObserver(async()=>{
+      try{
+        if(await install())observer.disconnect();
+      }catch{}
+    });
     observer.observe(document.body,{childList:true,subtree:true});
   }
 
   window.TaskTrackerBomImport=Object.assign(window.TaskTrackerBomImport||{}, {
     isInstalled:()=>installed,
+    loadBoms,
     previewImport,
     applyImport
   });
