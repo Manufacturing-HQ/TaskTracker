@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Demand Planning</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--good:#166534;--warn:#92400e;--bad:#991b1b}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select{font:inherit}button{cursor:pointer}.shell{max-width:1700px;margin:0 auto;padding:24px 20px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.primary,.secondary,.danger{border-radius:9px;padding:10px 14px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:16px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.message[data-type=warn]{background:#fef3c7;color:#92400e}.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 7px 20px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:14px}.section-title h2{margin:0;font-size:20px}.muted{color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{border:1px solid #94a3b8;border-radius:13px;padding:14px;background:linear-gradient(180deg,#fff,#f8fafc)}.metric .label{font-size:11px;text-transform:uppercase;font-weight:900;color:var(--muted)}.metric .value{font-size:25px;font-weight:950;margin-top:5px}.metric .meta{font-size:11px;color:var(--muted);margin-top:4px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}.field label{display:block;font-size:12px;font-weight:900;margin-bottom:6px}.field input,.field select{width:100%;min-height:42px;border:1px solid #94a3b8;border-radius:9px;padding:8px 10px;background:#fff}.button-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.preview{border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;padding:13px;margin-top:14px}.validation{display:grid;gap:8px;margin-top:12px}.validation>div{padding:10px 12px;border-radius:9px;font-size:13px}.validation .ok{background:#dcfce7;color:#166534}.validation .warn{background:#fef3c7;color:#92400e}.validation .bad{background:#fee2e2;color:#991b1b}.progress-shell{height:14px;background:#e2e8f0;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:#2563eb;transition:width .15s ease}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab{border:1px solid #94a3b8;background:#fff;border-radius:9px;padding:9px 13px;font-weight:800}.tab.active{background:#1e293b;color:#fff;border-color:#1e293b}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.toolbar .field{min-width:160px;flex:0 1 210px}.toolbar .field.search{flex:1 1 260px}.check{display:flex;gap:7px;align-items:center;font-size:12px;font-weight:800;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;min-height:42px}.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:12px;max-height:68vh}table{width:100%;border-collapse:collapse;background:#fff;min-width:1300px}th,td{padding:8px 9px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:12px;vertical-align:top;white-space:nowrap}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:1}tr:nth-child(even) td{background:#f8fafc}.row-hold td{background:#fff1f2!important}.status{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900;background:#e2e8f0}.status.demand{background:#fee2e2;color:#991b1b}.status.good{background:#dcfce7;color:#166534}.status.hold{background:#fecaca;color:#991b1b}.pager{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px}.pager-actions{display:flex;gap:8px}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#e2e8f0;font-size:11px;font-weight:900}.pill.success{background:#dcfce7;color:#166534}.pill.failed{background:#fee2e2;color:#991b1b}.pill.staging{background:#dbeafe;color:#1d4ed8}.note{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px;margin-top:10px}.combined-col[hidden]{display:none!important}@media(max-width:1100px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.metrics,.grid{grid-template-columns:1fr}.full{grid-column:auto}.topbar{align-items:flex-start;flex-direction:column}.shell{padding:16px 10px 40px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><h1>Demand Planning</h1><p>Admin Pilot · Shared inventory, demand, Max Build, priority backorder, and W/O prioritization calculations</p></div>
+    <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="netsuite-data.html">NetSuite Data</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden><h2>Administrator Access Required</h2><p>This pilot is currently restricted to Administrator accounts.</p></section>
+
+  <main id="app" hidden>
+    <section class="card">
+      <div class="section-title"><div><strong id="viewer-name"></strong><div class="muted">Calculations change only when you click <strong>Run Planning Review</strong>. NetSuite snapshot refreshes do not automatically recalculate this page.</div></div><span class="pill">ADMIN PILOT</span></div>
+      <div id="review-state" class="note"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><div><h2>Planning Foundation</h2><div class="muted">Current shared inputs and last calculated result set.</div></div><button id="refresh-all" class="secondary" type="button">Refresh</button></div>
+      <div class="metrics">
+        <div class="metric"><div class="label">Planning Items</div><div id="metric-items" class="value">—</div><div id="metric-items-meta" class="meta"></div></div>
+        <div class="metric"><div class="label">Fleet Wide Par</div><div id="metric-fleet" class="value">—</div><div id="metric-fleet-meta" class="meta"></div></div>
+        <div class="metric"><div class="label">Current Results</div><div id="metric-results" class="value">—</div><div id="metric-results-meta" class="meta"></div></div>
+        <div class="metric"><div class="label">Last Planning Review</div><div id="metric-review" class="value" style="font-size:17px">Never</div><div id="metric-review-meta" class="meta"></div></div>
+      </div>
+      <div class="button-row"><button id="run-review" class="primary" type="button" disabled>Run Planning Review</button></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><div><h2>Planning Inputs</h2><div class="muted">One-time/current planning fields live on the Item Master. Fleet Wide Par remains a replaceable current-state input.</div></div></div>
+      <div class="grid">
+        <div class="field"><label for="input-source">Input Source</label><select id="input-source"><option value="">Select source</option><option value="ITEM_PLANNING_FIELDS">Item Planning Fields</option><option value="FLEET_WIDE_PAR">Fleet Wide Par</option></select></div>
+        <div class="field"><label for="input-file">CSV File</label><input id="input-file" type="file" accept=".csv,text/csv"></div>
+      </div>
+      <div id="input-help" class="note" hidden></div>
+      <div id="input-preview" class="preview" hidden></div>
+      <div id="input-progress" style="margin-top:14px" hidden><div id="input-progress-label" class="muted" style="margin-bottom:6px"></div><div class="progress-shell"><div id="input-progress-bar" class="progress-bar"></div></div></div>
+      <div id="input-validation" class="validation" hidden></div>
+      <div class="button-row">
+        <button id="stage-input" class="primary" type="button" disabled>Stage & Validate</button>
+        <button id="commit-input" class="primary" type="button" disabled>Import Valid Rows</button>
+        <button id="abort-input" class="danger" type="button" disabled>Abort</button>
+        <button id="reset-input" class="secondary" type="button">Reset</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="tabs"><button class="tab active" type="button" data-tab="demand">Demand</button><button class="tab" type="button" data-tab="wo">W/O Prioritization</button><button class="tab" type="button" data-tab="history">Review / Input History</button></div>
+
+      <div id="tab-demand">
+        <div class="toolbar">
+          <div class="field search"><label>Quick Search</label><input id="demand-search" type="search" placeholder="Item, SKU Group, department, constraint..."></div>
+          <div class="field"><label>Demand Status</label><select id="filter-status"><option value="">All</option></select></div>
+          <div class="field"><label>Department</label><select id="filter-dept"><option value="">All</option></select></div>
+          <div class="field"><label>Usage</label><select id="filter-usage"><option value="">All</option></select></div>
+          <div class="field"><label>SKU Group</label><select id="filter-sku"><option value="">All</option></select></div>
+          <div class="field"><label>Minimum Max Build</label><select id="filter-max-build"><option value="">Any</option><option>10</option><option>20</option><option>30</option><option>40</option><option>50</option></select></div>
+          <div class="field"><label>Sort</label><select id="demand-sort"><option value="target-desc">Target Demand ↓</option><option value="priority-desc">Priority Backorder ↓</option><option value="max-desc">Max Build ↓</option><option value="weeks-asc">Weeks Supply ↑</option><option value="item-asc">Item A-Z</option></select></div>
+          <label class="check"><input id="hide-holds" type="checkbox"> Hide On Hold</label>
+          <label class="check"><input id="show-combined" type="checkbox"> Show Combined Demand</label>
+        </div>
+        <div class="table-wrap"><table><thead id="demand-head"></thead><tbody id="demand-body"></tbody></table></div>
+        <div class="pager"><div id="demand-summary" class="muted"></div><div class="pager-actions"><button id="demand-prev" class="secondary" type="button">Previous</button><button id="demand-next" class="secondary" type="button">Next</button></div></div>
+      </div>
+
+      <div id="tab-wo" hidden>
+        <div class="toolbar">
+          <div class="field search"><label>Quick Search</label><input id="wo-search" type="search" placeholder="Work order, item, employee, comment..."></div>
+          <div class="field"><label>Operation</label><select id="wo-operation"><option value="">All</option></select></div>
+          <div class="field"><label>Demand Status</label><select id="wo-demand"><option value="">All</option></select></div>
+          <div class="field"><label>Stalled</label><select id="wo-stalled"><option value="">All</option><option value="yes">Stalled</option><option value="no">Not Stalled</option></select></div>
+          <label class="check"><input id="wo-hide-holds" type="checkbox"> Hide On Hold</label>
+        </div>
+        <div class="note">This view uses the live Open Work Order Operation Steps snapshot and enriches it with the latest manually calculated demand data. No automatic priority score has been invented; the old Priority Status was manual.</div>
+        <div class="table-wrap" style="margin-top:12px"><table><thead id="wo-head"></thead><tbody id="wo-body"></tbody></table></div>
+        <div class="pager"><div id="wo-summary" class="muted"></div><div class="pager-actions"><button id="wo-prev" class="secondary" type="button">Previous</button><button id="wo-next" class="secondary" type="button">Next</button></div></div>
+      </div>
+
+      <div id="tab-history" hidden>
+        <h3>Calculation History</h3><div id="calc-history" class="table-wrap"></div>
+        <h3 style="margin-top:18px">Planning Input History</h3><div id="input-history" class="table-wrap"></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/demand-planning.js?v=demand-pilot-20260917-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
