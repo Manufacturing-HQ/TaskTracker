@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - PPS Operations</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--good:#166534;--warn:#92400e;--bad:#991b1b}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{max-width:1500px;margin:0 auto;padding:24px 20px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.primary,.secondary,.danger{border-radius:9px;padding:10px 14px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled{opacity:.55;cursor:not-allowed}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:16px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.tab{border:1px solid #94a3b8;background:#fff;border-radius:10px;padding:11px 16px;font-weight:900}.tab.active{background:#1e293b;color:#fff;border-color:#1e293b}.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 7px 20px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:14px}.section-title h2{margin:0;font-size:20px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}.field label{display:block;font-size:12px;font-weight:900;margin-bottom:6px}.field input,.field select,.field textarea{width:100%;min-height:43px;border:1px solid #94a3b8;border-radius:9px;padding:8px 10px;background:#fff}.field textarea{min-height:86px;resize:vertical}.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.toolbar .field{min-width:160px}.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:12px}table{width:100%;border-collapse:collapse;background:#fff;min-width:900px}th,td{padding:10px 11px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:13px;vertical-align:top}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:1}tr:nth-child(even) td{background:#f8fafc}.scan-table{min-width:760px}.scan-table input,.scan-table select{width:100%;min-height:40px;border:1px solid #94a3b8;border-radius:8px;padding:7px 9px;background:#fff}.scan-num{width:58px;color:#64748b;font-weight:900}.status{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:900;background:#e2e8f0;color:#475569}.status.submitted{background:#dbeafe;color:#1d4ed8}.status.review{background:#fef3c7;color:#92400e}.status.complete{background:#dcfce7;color:#166534}.status.pending{background:#fff7ed;color:#9a3412}.qa-card{border:1px solid #94a3b8;border-left:5px solid #2563eb;border-radius:12px;padding:14px;margin-bottom:10px;background:#f8fafc}.qa-card h3{margin:0 0 6px}.qa-order{border:1px solid #cbd5e1;border-radius:12px;padding:14px;margin:12px 0;background:#fff}.qa-order.discrepancy{border-left:5px solid #d97706;background:#fffbeb}.qa-order-header{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.qa-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.checkline{display:flex;gap:8px;align-items:center;font-weight:800}.checkline input{width:auto}.cosmetic-items{margin-top:10px;display:grid;gap:8px}.cosmetic-item-row{display:flex;gap:8px}.cosmetic-item-row input{flex:1}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{border:1px solid #94a3b8;border-radius:13px;padding:16px;background:linear-gradient(180deg,#fff,#f8fafc)}.metric .label{font-size:11px;font-weight:900;text-transform:uppercase;color:var(--muted)}.metric .value{font-size:27px;font-weight:950;margin-top:6px}.edit-banner{padding:10px 12px;border-radius:10px;background:#eff6ff;color:#1e3a8a;margin-bottom:14px;font-weight:800}.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.68);display:grid;place-items:center;padding:20px;z-index:100}.modal{width:min(650px,96vw);max-height:88vh;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:16px;padding:20px}.modal h2{margin-top:0}.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#e2e8f0;font-size:11px;font-weight:900}.warning-box{padding:11px 12px;border-radius:10px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;margin:10px 0}@media(max-width:900px){.grid,.qa-controls,.metric-grid{grid-template-columns:1fr 1fr}.topbar{align-items:flex-start;flex-direction:column}}@media(max-width:620px){.grid,.qa-controls,.metric-grid{grid-template-columns:1fr}.full{grid-column:auto}.shell{padding:16px 10px 40px}.top-actions{width:100%}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><h1>PPS Operations</h1><p>Admin Pilot · Pick Batches → QA → Cosmetic Rejections</p></div>
+    <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden><h2>Administrator Access Required</h2><p>This pilot is currently restricted to Administrator accounts.</p></section>
+
+  <main id="app" hidden>
+    <section class="card"><div class="section-title"><div><strong id="viewer-name"></strong><div id="viewer-meta" class="muted"></div></div><span class="pill">ADMIN PILOT</span></div></section>
+
+    <div class="tabs">
+      <button class="tab active" type="button" data-tab="pick">Pick Batches</button>
+      <button class="tab" type="button" data-tab="qa">QA Queue</button>
+      <button class="tab" type="button" data-tab="cosmetic">Cosmetic Rejections</button>
+      <button class="tab" type="button" data-tab="reporting">Reporting</button>
+    </div>
+
+    <section id="tab-pick">
+      <div class="card">
+        <div class="section-title"><div><h2 id="pick-form-title">Create Pick Batch</h2><div class="muted">The logged-in user is automatically recorded as the picker during this admin pilot.</div></div><button id="cancel-edit" class="secondary" type="button" hidden>Cancel Edit</button></div>
+        <div id="edit-banner" class="edit-banner" hidden></div>
+        <div class="grid">
+          <div class="field"><label for="pick-bin">Pick Bin</label><select id="pick-bin"><option value="">Select bin</option></select></div>
+          <div class="field"><label>Picker</label><input id="picker-name" disabled></div>
+          <div class="field full"><label for="pick-comments">Comments</label><textarea id="pick-comments" placeholder="Optional batch comments"></textarea></div>
+        </div>
+        <div style="margin-top:16px" class="table-wrap"><table class="scan-table"><thead><tr><th>#</th><th>Sales Order Number</th><th>Pick Result</th><th></th></tr></thead><tbody id="pick-rows"></tbody></table></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="add-pick-row" class="secondary" type="button">Add Row</button><button id="submit-pick-batch" class="primary" type="button">Submit Pick Batch</button></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title"><h2>Pick Batch History</h2><div class="toolbar"><div class="field"><label>Start</label><input id="batch-start" type="date"></div><div class="field"><label>End</label><input id="batch-end" type="date"></div><button id="refresh-batches" class="secondary" type="button">Refresh</button></div></div>
+        <div id="batch-history" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="tab-qa" hidden>
+      <div class="card">
+        <div class="section-title"><div><h2>Pending Pick QA</h2><div class="muted">Opening a batch locks picker edits. The lock expires after 15 minutes without activity.</div></div><button id="refresh-qa" class="secondary" type="button">Refresh Queue</button></div>
+        <div id="qa-queue"></div>
+      </div>
+      <div id="qa-review-card" class="card" hidden>
+        <div class="section-title"><div><h2>QA Review</h2><div id="qa-review-summary" class="muted"></div></div><button id="exit-qa-review" class="secondary" type="button">Exit &amp; Unlock</button></div>
+        <div id="qa-review-orders"></div>
+        <div style="margin-top:16px"><button id="submit-qa-review" class="primary" type="button">Submit QA Review</button></div>
+      </div>
+    </section>
+
+    <section id="tab-cosmetic" hidden>
+      <div class="card">
+        <div class="section-title"><div><h2>Cosmetic Rejection Queue</h2><div class="muted">NetSuite completion is deliberately confirmed by a person.</div></div><div class="toolbar"><div class="field"><label>Status</label><select id="cosmetic-status"><option value="PENDING">Pending</option><option value="UPDATED">Updated</option><option value="ALL">All</option></select></div><button id="export-cosmetic" class="secondary" type="button">Export Pending CSV</button><button id="refresh-cosmetic" class="secondary" type="button">Refresh</button></div></div>
+        <div id="cosmetic-table" class="table-wrap"></div>
+      </div>
+    </section>
+
+    <section id="tab-reporting" hidden>
+      <div class="card">
+        <div class="section-title"><div><h2>PPS Reporting</h2><div class="muted">Pilot reporting from the new Pick / QA workflow.</div></div><div class="toolbar"><div class="field"><label>Start</label><input id="report-start" type="date"></div><div class="field"><label>End</label><input id="report-end" type="date"></div><button id="load-report" class="secondary" type="button">Load</button></div></div>
+        <div class="metric-grid">
+          <div class="metric"><div class="label">Pick Batches</div><div id="metric-batches" class="value">0</div></div>
+          <div class="metric"><div class="label">Order Entries</div><div id="metric-orders" class="value">0</div></div>
+          <div class="metric"><div class="label">Inventory Discrepancies</div><div id="metric-discrepancies" class="value">0</div></div>
+          <div class="metric"><div class="label">QA Completed Batches</div><div id="metric-qa-batches" class="value">0</div></div>
+          <div class="metric"><div class="label">Picked Orders Reviewed</div><div id="metric-reviewed" class="value">0</div></div>
+          <div class="metric"><div class="label">Pick Errors</div><div id="metric-errors" class="value">0</div></div>
+          <div class="metric"><div class="label">Pick Error %</div><div id="metric-error-pct" class="value">0%</div></div>
+          <div class="metric"><div class="label">Cosmetic Rejections</div><div id="metric-cosmetics" class="value">0</div></div>
+        </div>
+      </div>
+      <div class="card"><div class="section-title"><h2>Batch Reporting Detail</h2></div><div id="report-history" class="table-wrap"></div></div>
+    </section>
+  </main>
+</div>
+
+<div id="confirm-modal" class="modal-backdrop" hidden><div class="modal"><h2>Confirm Inventory Discrepancies</h2><p>Ensure the fulfillment has been deleted for the following orders before submitting this batch:</p><div id="confirm-discrepancy-list"></div><div class="modal-actions"><button id="confirm-cancel" class="secondary" type="button">Go Back</button><button id="confirm-submit" class="primary" type="button">Confirm &amp; Submit</button></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/pps-operations.js?v=admin-pilot-20260917-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
