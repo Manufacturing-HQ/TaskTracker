@@ -33,7 +33,8 @@
 
       const qaReporting = [...nav.querySelectorAll("a")].find((a) => a.getAttribute("href")?.startsWith("qa-reporting.html"));
       const pps = addLink(nav,"pps-operations-link","pps-operations.html","PPS Operations (Pilot)",qaReporting || null);
-      addLink(nav,"netsuite-data-link","netsuite-data.html","NetSuite Data (Pilot)",pps);
+      const netsuite = addLink(nav,"netsuite-data-link","netsuite-data.html","NetSuite Data (Pilot)",pps);
+      addLink(nav,"demand-planning-link","demand-planning.html","Demand Planning (Pilot)",netsuite);
     } catch {
       // Admin pilot navigation is intentionally absent unless Administrator access is confirmed.
     }
