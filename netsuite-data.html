@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - NetSuite Data</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--good:#166534;--warn:#92400e;--bad:#991b1b}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{max-width:1500px;margin:0 auto;padding:24px 20px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.primary,.secondary,.danger{border-radius:9px;padding:10px 14px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:16px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 7px 20px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:14px}.section-title h2{margin:0;font-size:20px}.muted{color:var(--muted)}.source-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}.source-card{border:1px solid #94a3b8;border-radius:13px;padding:14px;background:linear-gradient(180deg,#fff,#f8fafc)}.source-card h3{margin:0 0 7px;font-size:14px}.source-count{font-size:26px;font-weight:950}.source-meta{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4}.source-state{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900;background:#e2e8f0;color:#475569;margin-top:8px}.source-state.current{background:#dcfce7;color:#166534}.source-state.stale{background:#fef3c7;color:#92400e}.source-state.empty{background:#fee2e2;color:#991b1b}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}.field label{display:block;font-size:12px;font-weight:900;margin-bottom:6px}.field input,.field select{width:100%;min-height:43px;border:1px solid #94a3b8;border-radius:9px;padding:8px 10px;background:#fff}.button-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.progress-shell{height:14px;background:#e2e8f0;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:#2563eb;transition:width .15s ease}.preview-box{border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;padding:13px;margin-top:14px}.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.chip{font-size:11px;font-weight:800;border-radius:999px;background:#e2e8f0;padding:4px 8px}.chip.required{background:#dbeafe;color:#1d4ed8}.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:12px}table{width:100%;border-collapse:collapse;background:#fff;min-width:900px}th,td{padding:9px 10px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:12px;vertical-align:top}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:1}tr:nth-child(even) td{background:#f8fafc}.validation{display:grid;gap:8px;margin-top:12px}.validation .ok,.validation .warn,.validation .bad{padding:10px 12px;border-radius:9px;font-size:13px}.validation .ok{background:#dcfce7;color:#166534}.validation .warn{background:#fef3c7;color:#92400e}.validation .bad{background:#fee2e2;color:#991b1b}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#e2e8f0;font-size:11px;font-weight:900}.pill.success{background:#dcfce7;color:#166534}.pill.failed{background:#fee2e2;color:#991b1b}.pill.staging{background:#dbeafe;color:#1d4ed8}.pill.aborted{background:#e2e8f0;color:#475569}.note{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px;margin-top:10px}@media(max-width:1100px){.source-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:760px){.source-grid,.grid{grid-template-columns:1fr}.full{grid-column:auto}.topbar{align-items:flex-start;flex-direction:column}.shell{padding:16px 10px 40px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><h1>NetSuite Data</h1><p>Admin Pilot · Current snapshot imports for shared operational data</p></div>
+    <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden><h2>Administrator Access Required</h2><p>This pilot is currently restricted to Administrator accounts.</p></section>
+
+  <main id="app" hidden>
+    <section class="card">
+      <div class="section-title"><div><strong id="viewer-name"></strong><div id="viewer-meta" class="muted"></div></div><span class="pill">ADMIN PILOT</span></div>
+      <div class="note">These are current-state snapshots, not permanent transaction history. A successful import replaces the previous snapshot for that source. Import history remains permanently logged.</div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><div><h2>Current Snapshot Status</h2><div class="muted">Freshness and row counts for each shared NetSuite source.</div></div><button id="refresh-status" class="secondary" type="button">Refresh</button></div>
+      <div id="source-grid" class="source-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><div><h2>Import Current Snapshot</h2><div class="muted">CSV data is staged and validated before the current snapshot is replaced.</div></div></div>
+      <div class="grid">
+        <div class="field"><label for="source-select">Data Source</label><select id="source-select"><option value="">Select source</option></select></div>
+        <div class="field"><label for="source-generated">Source Generated At (optional)</label><input id="source-generated" type="datetime-local"></div>
+        <div class="field full"><label for="csv-file">NetSuite CSV</label><input id="csv-file" type="file" accept=".csv,text/csv"></div>
+      </div>
+      <div id="source-spec" class="preview-box" hidden></div>
+      <div id="local-preview" class="preview-box" hidden></div>
+      <div id="progress-wrap" style="margin-top:14px" hidden><div class="muted" id="progress-label" style="margin-bottom:6px">Preparing import...</div><div class="progress-shell"><div id="progress-bar" class="progress-bar"></div></div></div>
+      <div id="validation" class="validation" hidden></div>
+      <div class="button-row">
+        <button id="stage-import" class="primary" type="button" disabled>Stage & Validate</button>
+        <button id="commit-import" class="primary" type="button" disabled>Replace Current Snapshot</button>
+        <button id="abort-import" class="danger" type="button" disabled>Abort Staged Import</button>
+        <button id="reset-import" class="secondary" type="button">Reset</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><div><h2>Import History</h2><div class="muted">Permanent audit trail of snapshot refresh attempts. Staged row contents are discarded after completion.</div></div><button id="refresh-history" class="secondary" type="button">Refresh</button></div>
+      <div id="history-table" class="table-wrap"></div>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/netsuite-data.js?v=snapshot-pilot-20260917-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
