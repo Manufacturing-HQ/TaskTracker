@@ -9,9 +9,20 @@
     auth: { autoRefreshToken:false, persistSession:false, detectSessionInUrl:false }
   });
 
+  function addLink(nav, id, href, label, afterElement = null) {
+    if (document.getElementById(id)) return document.getElementById(id);
+    const link = document.createElement("a");
+    link.id = id;
+    link.href = href;
+    link.textContent = label;
+    if (afterElement?.nextSibling) nav.insertBefore(link, afterElement.nextSibling);
+    else nav.appendChild(link);
+    return link;
+  }
+
   async function init() {
     const token = sessionStorage.getItem(config.sessionStorageKey);
-    if (!token || document.getElementById("pps-operations-link")) return;
+    if (!token) return;
     try {
       const { data, error } = await client.rpc("get_employee_session_context", { p_session_token:token });
       if (error) return;
@@ -19,15 +30,12 @@
       if ((row?.employee_role || row?.role) !== "Administrator") return;
       const nav = document.querySelector(".nav");
       if (!nav) return;
-      const link = document.createElement("a");
-      link.id = "pps-operations-link";
-      link.href = "pps-operations.html";
-      link.textContent = "PPS Operations (Pilot)";
+
       const qaReporting = [...nav.querySelectorAll("a")].find((a) => a.getAttribute("href")?.startsWith("qa-reporting.html"));
-      if (qaReporting?.nextSibling) nav.insertBefore(link, qaReporting.nextSibling);
-      else nav.appendChild(link);
+      const pps = addLink(nav,"pps-operations-link","pps-operations.html","PPS Operations (Pilot)",qaReporting || null);
+      addLink(nav,"netsuite-data-link","netsuite-data.html","NetSuite Data (Pilot)",pps);
     } catch {
-      // Pilot navigation is intentionally absent unless Administrator access is confirmed.
+      // Admin pilot navigation is intentionally absent unless Administrator access is confirmed.
     }
   }
 
