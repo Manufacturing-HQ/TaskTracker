@@ -27,6 +27,8 @@
     item_type:"Item Type",
     inventory_planning_role:"Inventory Planning Role",
     item_category:"Item Category",
+    preferred_stock_level:"Preferred Stock Level",
+    usage_classification:"Usage Classification",
     item_status:"Item Status",
     build_notes:"Build Notes",
     allow_productive_task:"Productive Task Allowed"
@@ -38,6 +40,8 @@
     "Item Type",
     "Inventory Planning Role",
     "Item Category",
+    "Preferred Stock Level",
+    "Usage Classification",
     "Make",
     "SKU Group",
     "WO Department",
@@ -80,6 +84,8 @@
       <label>Item Type<select id="oi-type"><option value="">Not Set</option><option value="Assembly" ${existingType==="Assembly"?"selected":""}>Assembly</option><option value="Inventory" ${existingType==="Inventory"?"selected":""}>Inventory</option></select></label>
       <label>Inventory Planning Role<input id="oi-planning-role" value="${esc(row?.inventory_planning_role || "")}"></label>
       <label>Item Category<input id="oi-category" value="${esc(row?.item_category || "")}"></label>
+      <label>Preferred Stock Level<input id="oi-preferred-stock" type="number" min="0" step="0.01" value="${esc(row?.preferred_stock_level ?? "")}"></label>
+      <label>Usage Classification<input id="oi-usage-classification" value="${esc(row?.usage_classification || "")}" placeholder="A, B, C..."></label>
       <label>Make<input id="oi-make" value="${esc(row?.make || "")}"></label>
       <label>SKU Group<input id="oi-sku" value="${esc(row?.sku_group || "")}"></label>
       <label>WO Department<input id="oi-dept" value="${esc(row?.work_order_department || "")}"></label>
@@ -116,7 +122,7 @@
       const save = modal.querySelector('button[type="submit"]');
       save.disabled = true;
       try {
-        await rpc("save_operations_item_v3", {
+        await rpc("save_operations_item_v4", {
           p_session_token:token(),
           p_item_id:row?.id || null,
           p_item_name:modal.querySelector("#oi-name").value,
@@ -133,7 +139,9 @@
           p_item_category:modal.querySelector("#oi-category").value || null,
           p_item_status:modal.querySelector("#oi-item-status").value || null,
           p_build_notes:modal.querySelector("#oi-notes").value || null,
-          p_allow_productive_task:productive.checked
+          p_allow_productive_task:productive.checked,
+          p_preferred_stock_level:modal.querySelector("#oi-preferred-stock").value === "" ? null : Number(modal.querySelector("#oi-preferred-stock").value),
+          p_usage_classification:modal.querySelector("#oi-usage-classification").value || null
         });
         modal.remove();
         document.getElementById("ops-item-refresh")?.click();
@@ -158,7 +166,9 @@
       "item cycle time":"item_cycle_time_minutes", "item cycle time minutes":"item_cycle_time_minutes",
       "status":"is_active", "active":"is_active", "active status":"is_active", "task tracker status":"is_active",
       "item type":"item_type", "inventory planning role":"inventory_planning_role",
-      "item category":"item_category", "item status":"item_status", "build notes":"build_notes",
+      "item category":"item_category", "preferred stock level":"preferred_stock_level", "preferred stock":"preferred_stock_level",
+      "usage classification":"usage_classification", "usage class":"usage_classification",
+      "item status":"item_status", "build notes":"build_notes",
       "productive task allowed":"allow_productive_task", "allow productive task":"allow_productive_task",
       "productive task":"allow_productive_task"
     };
@@ -258,7 +268,7 @@
     const button=document.getElementById("ops-import-preview-btn"), apply=document.getElementById("ops-import-apply");
     button.disabled=true; apply.disabled=true;
     try {
-      previewRows = await rpc("preview_item_master_import", {p_session_token:token(),p_rows:importRows}) || [];
+      previewRows = await rpc("preview_item_master_import_v2", {p_session_token:token(),p_rows:importRows}) || [];
       renderPreview();
     } catch (error) {
       previewRows=[]; renderPreview(); alert(error.message || "Unable to preview Item Master import.");
@@ -272,9 +282,9 @@
     const apply=document.getElementById("ops-import-apply"), preview=document.getElementById("ops-import-preview-btn");
     apply.disabled=true; preview.disabled=true;
     try {
-      const result = await rpc("apply_item_master_import", {p_session_token:token(),p_rows:importRows});
+      const result = await rpc("apply_item_master_import_v2", {p_session_token:token(),p_rows:importRows});
       const created=Number(result?.created_count||0), updated=Number(result?.updated_count||0);
-      previewRows = await rpc("preview_item_master_import", {p_session_token:token(),p_rows:importRows}) || [];
+      previewRows = await rpc("preview_item_master_import_v2", {p_session_token:token(),p_rows:importRows}) || [];
       renderPreview();
       alert(`${created} Item${created===1?"":"s"} created and ${updated} Item${updated===1?"":"s"} updated successfully.`);
       document.getElementById("ops-item-refresh")?.click();
@@ -306,7 +316,7 @@
     if (tab) tab.textContent="Item Master Import";
     section.innerHTML=`
       <div class="ops-note"><strong>Item Master Import.</strong> Internal ID is the permanent matching key. Existing Items are updated. New Items require Item Name and Item Type. New Assembly Items default to Productive Task Allowed; new Inventory Items are always blocked from Productive Tasks. Blank cells leave existing values unchanged. Use <strong>CLEAR</strong> to erase a nullable field.</div>
-      <div class="ops-note">Supported headers: Item, Internal ID, Item Type, Inventory Planning Role, Item Category, Make, SKU Group, WO Department, Build Type, Operation, Cycle Time, Item Status, Build Notes, Productive Task Allowed, Status.</div>
+      <div class="ops-note">Supported headers: Item, Internal ID, Item Type, Inventory Planning Role, Item Category, Preferred Stock Level, Usage Classification, Make, SKU Group, WO Department, Build Type, Operation, Cycle Time, Item Status, Build Notes, Productive Task Allowed, Status.</div>
       <div class="ops-toolbar"><button id="ops-import-template" class="ghost" type="button">Download Import Template</button><input id="ops-import-file" type="file" accept=".csv,text/csv"><button id="ops-import-preview-btn" class="ghost" type="button">Preview Import</button><button id="ops-import-apply" class="primary" type="button" disabled>Apply Ready Rows</button></div>
       <div id="ops-import-summary" class="ops-note">Download the template or choose a CSV file to begin.</div><div id="ops-import-table" class="ops-table-wrap"></div>`;
     document.getElementById("ops-import-template").addEventListener("click",downloadImportTemplate);

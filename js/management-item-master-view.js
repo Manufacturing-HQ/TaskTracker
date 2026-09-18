@@ -59,6 +59,8 @@
       <td>${esc(r.item_type||"—")}</td>
       <td>${esc(r.inventory_planning_role||"—")}</td>
       <td>${esc(r.item_category||"—")}</td>
+      <td>${esc(r.preferred_stock_level??"—")}</td>
+      <td>${esc(r.usage_classification||"—")}</td>
       <td>${esc(r.make||"—")}</td>
       <td>${esc(r.sku_group||"—")}</td>
       <td>${esc(r.work_order_department||"—")}</td>
@@ -72,12 +74,14 @@
       <td>${canEdit?`<button class="ghost" type="button" data-im-edit="${esc(r.id)}">Edit</button>`:"—"}</td>
     </tr>`).join("");
 
-    host.innerHTML=`<table class="ops-table" data-item-master-table="1" style="min-width:2100px"><thead><tr>
+    host.innerHTML=`<table class="ops-table" data-item-master-table="1" style="min-width:2300px"><thead><tr>
       ${sortable("Item","item_name")}
       <th>Internal ID</th>
       ${sortable("Item Type","item_type")}
       ${sortable("Inventory Planning Role","inventory_planning_role")}
       <th>Item Category</th>
+      ${sortable("Preferred Stock","preferred_stock_level")}
+      ${sortable("Usage Classification","usage_classification")}
       ${sortable("Make","make")}
       ${sortable("SKU Group","sku_group")}
       ${sortable("WO Department","work_order_department")}
@@ -88,7 +92,7 @@
       ${sortable("Productive Task","allow_productive_task")}
       ${sortable("Active","is_active")}
       <th>Action</th>
-    </tr></thead><tbody>${body||'<tr><td colspan="16" class="ops-empty">No Items found.</td></tr>'}</tbody></table>
+    </tr></thead><tbody>${body||'<tr><td colspan="18" class="ops-empty">No Items found.</td></tr>'}</tbody></table>
     <div class="req-pager"><div class="left"><span>Rows per page</span><select id="im-pagesize"><option>25</option><option>50</option><option>100</option></select><span class="req-muted">Showing ${total?page*pageSize+1:0}–${Math.min((page+1)*pageSize,total)} of ${total}</span></div><div class="right"><button class="ghost" id="im-prev" ${page<=0?"disabled":""}>Previous</button><button class="ghost" id="im-next" ${(page+1)*pageSize>=total?"disabled":""}>Next</button></div></div>`;
 
     host.querySelectorAll("[data-im-sort]").forEach((th)=>{
@@ -138,7 +142,8 @@
     });
     const rows=(d?.records||[]).map((r)=>({
       Item:r.item_name,"Internal ID":r.internal_id,"Item Type":r.item_type,"Inventory Planning Role":r.inventory_planning_role,
-      "Item Category":r.item_category,Make:r.make,"SKU Group":r.sku_group,"WO Department":r.work_order_department,
+      "Item Category":r.item_category,"Preferred Stock Level":r.preferred_stock_level,"Usage Classification":r.usage_classification,
+      Make:r.make,"SKU Group":r.sku_group,"WO Department":r.work_order_department,
       "Build Type":r.build_type,Operation:r.operation_code,"Cycle Time":r.item_cycle_time_minutes,"Item Status":r.item_status,
       "Build Notes":r.build_notes,"Productive Task Allowed":r.allow_productive_task?"Yes":"No",Active:r.is_active?"Active":"Inactive"
     }));

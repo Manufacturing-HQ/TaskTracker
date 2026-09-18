@@ -5,13 +5,29 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Task Tracker - Demand Planning</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--good:#166534;--warn:#92400e;--bad:#991b1b}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select{font:inherit}button{cursor:pointer}.shell{max-width:1700px;margin:0 auto;padding:24px 20px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.primary,.secondary,.danger{border-radius:9px;padding:10px 14px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:16px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.message[data-type=warn]{background:#fef3c7;color:#92400e}.card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 7px 20px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-bottom:14px}.section-title h2{margin:0;font-size:20px}.muted{color:var(--muted)}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric{border:1px solid #94a3b8;border-radius:13px;padding:14px;background:linear-gradient(180deg,#fff,#f8fafc)}.metric .label{font-size:11px;text-transform:uppercase;font-weight:900;color:var(--muted)}.metric .value{font-size:25px;font-weight:950;margin-top:5px}.metric .meta{font-size:11px;color:var(--muted);margin-top:4px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.full{grid-column:1/-1}.field label{display:block;font-size:12px;font-weight:900;margin-bottom:6px}.field input,.field select{width:100%;min-height:42px;border:1px solid #94a3b8;border-radius:9px;padding:8px 10px;background:#fff}.button-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}.preview{border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;padding:13px;margin-top:14px}.validation{display:grid;gap:8px;margin-top:12px}.validation>div{padding:10px 12px;border-radius:9px;font-size:13px}.validation .ok{background:#dcfce7;color:#166534}.validation .warn{background:#fef3c7;color:#92400e}.validation .bad{background:#fee2e2;color:#991b1b}.progress-shell{height:14px;background:#e2e8f0;border-radius:999px;overflow:hidden}.progress-bar{height:100%;width:0;background:#2563eb;transition:width .15s ease}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab{border:1px solid #94a3b8;background:#fff;border-radius:9px;padding:9px 13px;font-weight:800}.tab.active{background:#1e293b;color:#fff;border-color:#1e293b}.toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.toolbar .field{min-width:160px;flex:0 1 210px}.toolbar .field.search{flex:1 1 260px}.check{display:flex;gap:7px;align-items:center;font-size:12px;font-weight:800;padding:9px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;min-height:42px}.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:12px;max-height:68vh}table{width:100%;border-collapse:collapse;background:#fff;min-width:1300px}th,td{padding:8px 9px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:12px;vertical-align:top;white-space:nowrap}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:1}tr:nth-child(even) td{background:#f8fafc}.row-hold td{background:#fff1f2!important}.status{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900;background:#e2e8f0}.status.demand{background:#fee2e2;color:#991b1b}.status.good{background:#dcfce7;color:#166534}.status.hold{background:#fecaca;color:#991b1b}.pager{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px}.pager-actions{display:flex;gap:8px}.pill{display:inline-block;padding:3px 7px;border-radius:999px;background:#e2e8f0;font-size:11px;font-weight:900}.pill.success{background:#dcfce7;color:#166534}.pill.failed{background:#fee2e2;color:#991b1b}.pill.staging{background:#dbeafe;color:#1d4ed8}.note{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:10px;margin-top:10px}.combined-col[hidden]{display:none!important}@media(max-width:1100px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.metrics,.grid{grid-template-columns:1fr}.full{grid-column:auto}.topbar{align-items:flex-start;flex-direction:column}.shell{padding:16px 10px 40px}}
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--navy2:#1e293b;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--good:#166534;--warn:#92400e;--bad:#991b1b}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1780px;margin:0 auto;padding:22px 18px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}.brand h1{margin:0;font-size:30px}.brand p{margin:4px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.danger{border-radius:9px;padding:9px 13px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.message[data-type=warn]{background:#fef3c7;color:#92400e}
+.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.metric{border:1px solid #94a3b8;border-radius:12px;padding:12px;background:#f8fafc}.metric .label{font-size:10px;text-transform:uppercase;font-weight:900;color:var(--muted)}.metric .value{font-size:23px;font-weight:950;margin-top:4px}.metric .meta{font-size:11px;color:var(--muted);margin-top:3px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:11px}.field{min-width:145px}.field.search{flex:1 1 250px}.field label{display:block;font-size:11px;font-weight:900;margin-bottom:5px}.field input,.field select,.stage-input{width:100%;min-height:39px;border:1px solid #94a3b8;border-radius:8px;padding:7px 9px;background:#fff}.check{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:800;padding:8px 9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-height:39px}
+.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:11px;max-height:68vh}table{width:100%;border-collapse:collapse;background:#fff;min-width:1250px}th,td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:var(--navy2);color:#fff;position:sticky;top:0;z-index:2}.sort{cursor:pointer}.sort:hover{background:#334155}tr:nth-child(even) td{background:#f8fafc}.demand-row{cursor:pointer}.demand-row:hover td{background:#eaf2ff!important}.row-hold td{background:#fff1f2!important}.item-button{border:0;background:transparent;color:#1d4ed8;font-weight:900;padding:0;cursor:pointer}.copy-btn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:800}
+.status,.pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900;background:#e2e8f0}.status.demand{background:#fee2e2;color:#991b1b}.status.good{background:#dcfce7;color:#166534}.status.hold{background:#fecaca;color:#991b1b}.pill.warn{background:#fef3c7;color:#92400e}.pill.good{background:#dcfce7;color:#166534}
+.pager{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:9px}.pager-actions{display:flex;gap:7px}.note{font-size:11px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:9px;padding:9px;margin-top:8px}
+.queue-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.queue-table input[type=number],.queue-table input[type=text]{min-width:80px;border:1px solid #cbd5e1;border-radius:6px;padding:5px}.queue-table .memo-input{min-width:220px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;justify-content:center;align-items:flex-start;padding:24px;overflow:auto}.modal{width:min(1500px,98vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:18px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;position:sticky;top:-24px;background:#fff;z-index:5;padding:4px 0 12px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:24px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}.modal-section{margin-top:18px}.modal-section h3{margin:0 0 9px;font-size:16px}.hold-banner{padding:11px;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:850;margin-top:12px}.modal-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}.modal-metric{border:1px solid #cbd5e1;border-radius:10px;padding:10px;background:#f8fafc}.modal-metric .label{font-size:9px;font-weight:900;text-transform:uppercase;color:#64748b}.modal-metric .value{font-size:19px;font-weight:950;margin-top:3px}
+.component-details{white-space:normal;min-width:220px}.component-details summary{cursor:pointer;font-weight:800}.subtable{margin-top:7px;max-height:200px;overflow:auto}.subtable table{min-width:450px}.stage-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px}.stage-controls .field{min-width:130px}.stage-grid{overflow:auto;border:1px solid #cbd5e1;border-radius:10px}.stage-grid table{min-width:1050px}.stage-total{font-weight:900;margin-top:9px}.stage-warning{margin-top:9px;padding:9px;border-radius:9px;background:#fef3c7;color:#92400e}.click-hint{font-size:10px;color:#64748b;margin-top:3px}
+.optional-columns{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px}.optional-columns label{font-size:10px;font-weight:800}
+@media(max-width:1000px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.modal-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:700px){.metrics,.modal-grid{grid-template-columns:1fr 1fr}.topbar,.section-title{align-items:flex-start;flex-direction:column}.shell{padding:14px 8px 35px}.modal-backdrop{padding:8px}.modal{padding:12px}}
 </style>
 </head>
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><h1>Demand Planning</h1><p>Admin Pilot · Shared inventory, demand, Max Build, priority backorder, and W/O prioritization calculations</p></div>
+    <div class="brand"><h1>Demand Planning</h1><p>Filter, sort, review what can be built, and stage Work Orders.</p></div>
     <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="netsuite-data.html">NetSuite Data</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
   </div>
 
@@ -20,81 +36,109 @@
 
   <main id="app" hidden>
     <section class="card">
-      <div class="section-title"><div><strong id="viewer-name"></strong><div class="muted">Calculations change only when you click <strong>Run Planning Review</strong>. NetSuite snapshot refreshes do not automatically recalculate this page.</div></div><span class="pill">ADMIN PILOT</span></div>
-      <div id="review-state" class="note"></div>
-    </section>
-
-    <section class="card">
-      <div class="section-title"><div><h2>Planning Foundation</h2><div class="muted">Current shared inputs and last calculated result set.</div></div><button id="refresh-all" class="secondary" type="button">Refresh</button></div>
+      <div class="section-title">
+        <div><strong id="viewer-name"></strong><div class="muted">The same active Items allowed for Productive Tasks are shown here.</div></div>
+        <div class="actions"><button id="refresh-all" class="secondary" type="button">Refresh</button></div>
+      </div>
       <div class="metrics">
-        <div class="metric"><div class="label">Planning Items</div><div id="metric-items" class="value">—</div><div id="metric-items-meta" class="meta"></div></div>
-        <div class="metric"><div class="label">Fleet Wide Par</div><div id="metric-fleet" class="value">—</div><div id="metric-fleet-meta" class="meta"></div></div>
-        <div class="metric"><div class="label">Current Results</div><div id="metric-results" class="value">—</div><div id="metric-results-meta" class="meta"></div></div>
-        <div class="metric"><div class="label">Last Planning Review</div><div id="metric-review" class="value" style="font-size:17px">Never</div><div id="metric-review-meta" class="meta"></div></div>
+        <div class="metric"><div class="label">Demand Planning Items</div><div id="metric-items" class="value">—</div><div class="meta">Productive Task eligible</div></div>
+        <div class="metric"><div class="label">Fleet Wide Par Rows</div><div id="metric-fleet" class="value">—</div><div id="metric-fleet-meta" class="meta"></div></div>
+        <div class="metric"><div class="label">Pending Staged WOs</div><div id="metric-staged" class="value">—</div><div id="metric-staged-meta" class="meta"></div></div>
+        <div class="metric"><div class="label">Data Refreshed</div><div id="metric-refresh" class="value" style="font-size:16px">—</div><div class="meta">Latest required source refresh</div></div>
       </div>
-      <div class="button-row"><button id="run-review" class="primary" type="button" disabled>Run Planning Review</button></div>
+      <div id="foundation-note" class="note"></div>
     </section>
 
     <section class="card">
-      <div class="section-title"><div><h2>Planning Inputs</h2><div class="muted">One-time/current planning fields live on the Item Master. Fleet Wide Par remains a replaceable current-state input.</div></div></div>
-      <div class="grid">
-        <div class="field"><label for="input-source">Input Source</label><select id="input-source"><option value="">Select source</option><option value="ITEM_PLANNING_FIELDS">Item Planning Fields</option><option value="FLEET_WIDE_PAR">Fleet Wide Par</option></select></div>
-        <div class="field"><label for="input-file">CSV File</label><input id="input-file" type="file" accept=".csv,text/csv"></div>
+      <div class="section-title"><div><h2>Demand Dashboard</h2><div class="muted">Click an Item row for BOM, inventory, Work Orders, component on-order detail, and Work Order staging.</div></div></div>
+      <div class="toolbar">
+        <div class="field search"><label>Quick Search</label><input id="demand-search" type="search" placeholder="Item, SKU Group, usage, department, constraint..."></div>
+        <div class="field"><label>Demand Status</label><select id="filter-status"><option value="">All</option></select></div>
+        <div class="field"><label>Department</label><select id="filter-dept"><option value="">All</option></select></div>
+        <div class="field"><label>Usage Classification</label><select id="filter-usage"><option value="">All</option></select></div>
+        <div class="field"><label>SKU Group</label><select id="filter-sku"><option value="">All</option></select></div>
+        <div class="field"><label>Minimum Max Build</label><select id="filter-max-build"><option value="">Any</option><option>10</option><option>20</option><option>30</option><option>40</option><option>50</option></select></div>
+        <label class="check"><input id="hide-holds" type="checkbox"> Hide On Hold</label>
       </div>
-      <div id="input-help" class="note" hidden></div>
-      <div id="input-preview" class="preview" hidden></div>
-      <div id="input-progress" style="margin-top:14px" hidden><div id="input-progress-label" class="muted" style="margin-bottom:6px"></div><div class="progress-shell"><div id="input-progress-bar" class="progress-bar"></div></div></div>
-      <div id="input-validation" class="validation" hidden></div>
-      <div class="button-row">
-        <button id="stage-input" class="primary" type="button" disabled>Stage & Validate</button>
-        <button id="commit-input" class="primary" type="button" disabled>Import Valid Rows</button>
-        <button id="abort-input" class="danger" type="button" disabled>Abort</button>
-        <button id="reset-input" class="secondary" type="button">Reset</button>
+      <div class="optional-columns">
+        <strong>Additional columns:</strong>
+        <label><input type="checkbox" data-col-toggle="preferred"> Preferred Stock</label>
+        <label><input type="checkbox" data-col-toggle="fleet"> Fleet Need</label>
+        <label><input type="checkbox" data-col-toggle="total-demand"> Total Demand</label>
+        <label><input type="checkbox" data-col-toggle="on-hand"> On Hand</label>
+        <label><input type="checkbox" data-col-toggle="wip"> WIP</label>
+        <label><input type="checkbox" data-col-toggle="in-house"> Total In House</label>
+        <label><input type="checkbox" data-col-toggle="priority"> Priority Backorder</label>
       </div>
+      <div class="table-wrap"><table><thead id="demand-head"></thead><tbody id="demand-body"></tbody></table></div>
+      <div class="pager"><div id="demand-summary" class="muted"></div><div class="pager-actions"><button id="demand-prev" class="secondary" type="button">Previous</button><button id="demand-next" class="secondary" type="button">Next</button></div></div>
     </section>
 
     <section class="card">
-      <div class="tabs"><button class="tab active" type="button" data-tab="demand">Demand</button><button class="tab" type="button" data-tab="wo">W/O Prioritization</button><button class="tab" type="button" data-tab="history">Review / Input History</button></div>
-
-      <div id="tab-demand">
-        <div class="toolbar">
-          <div class="field search"><label>Quick Search</label><input id="demand-search" type="search" placeholder="Item, SKU Group, department, constraint..."></div>
-          <div class="field"><label>Demand Status</label><select id="filter-status"><option value="">All</option></select></div>
-          <div class="field"><label>Department</label><select id="filter-dept"><option value="">All</option></select></div>
-          <div class="field"><label>Usage</label><select id="filter-usage"><option value="">All</option></select></div>
-          <div class="field"><label>SKU Group</label><select id="filter-sku"><option value="">All</option></select></div>
-          <div class="field"><label>Minimum Max Build</label><select id="filter-max-build"><option value="">Any</option><option>10</option><option>20</option><option>30</option><option>40</option><option>50</option></select></div>
-          <div class="field"><label>Sort</label><select id="demand-sort"><option value="target-desc">Target Demand ↓</option><option value="priority-desc">Priority Backorder ↓</option><option value="max-desc">Max Build ↓</option><option value="weeks-asc">Weeks Supply ↑</option><option value="item-asc">Item A-Z</option></select></div>
-          <label class="check"><input id="hide-holds" type="checkbox"> Hide On Hold</label>
-          <label class="check"><input id="show-combined" type="checkbox"> Show Combined Demand</label>
-        </div>
-        <div class="table-wrap"><table><thead id="demand-head"></thead><tbody id="demand-body"></tbody></table></div>
-        <div class="pager"><div id="demand-summary" class="muted"></div><div class="pager-actions"><button id="demand-prev" class="secondary" type="button">Previous</button><button id="demand-next" class="secondary" type="button">Next</button></div></div>
+      <div class="section-title"><div><h2>Work Order Staging Queue</h2><div class="muted">Pending rows remain editable until they are marked Imported.</div></div></div>
+      <div class="queue-actions">
+        <button id="queue-export" class="secondary" type="button">Export Pending CSV</button>
+        <button id="queue-mark-imported" class="primary" type="button">Mark Selected Imported</button>
+        <button id="queue-refresh" class="secondary" type="button">Refresh Queue</button>
       </div>
-
-      <div id="tab-wo" hidden>
-        <div class="toolbar">
-          <div class="field search"><label>Quick Search</label><input id="wo-search" type="search" placeholder="Work order, item, employee, comment..."></div>
-          <div class="field"><label>Operation</label><select id="wo-operation"><option value="">All</option></select></div>
-          <div class="field"><label>Demand Status</label><select id="wo-demand"><option value="">All</option></select></div>
-          <div class="field"><label>Stalled</label><select id="wo-stalled"><option value="">All</option><option value="yes">Stalled</option><option value="no">Not Stalled</option></select></div>
-          <label class="check"><input id="wo-hide-holds" type="checkbox"> Hide On Hold</label>
-        </div>
-        <div class="note">This view uses the live Open Work Order Operation Steps snapshot and enriches it with the latest manually calculated demand data. No automatic priority score has been invented; the old Priority Status was manual.</div>
-        <div class="table-wrap" style="margin-top:12px"><table><thead id="wo-head"></thead><tbody id="wo-body"></tbody></table></div>
-        <div class="pager"><div id="wo-summary" class="muted"></div><div class="pager-actions"><button id="wo-prev" class="secondary" type="button">Previous</button><button id="wo-next" class="secondary" type="button">Next</button></div></div>
-      </div>
-
-      <div id="tab-history" hidden>
-        <h3>Calculation History</h3><div id="calc-history" class="table-wrap"></div>
-        <h3 style="margin-top:18px">Planning Input History</h3><div id="input-history" class="table-wrap"></div>
-      </div>
+      <div id="queue-table" class="table-wrap queue-table"></div>
     </section>
   </main>
 </div>
+
+<div id="item-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="modal-item-name">Item Detail</h2><div id="modal-item-meta" class="muted"></div></div>
+      <div class="actions"><button id="modal-copy" class="secondary" type="button">Copy Item</button><button id="modal-close" class="close-btn" type="button">Close</button></div>
+    </div>
+    <div id="modal-loading" class="note">Loading Item detail...</div>
+    <div id="modal-content" hidden>
+      <div id="modal-hold" class="hold-banner" hidden></div>
+      <section class="modal-section"><div id="modal-metrics" class="modal-grid"></div></section>
+
+      <section class="modal-section">
+        <h3>Assembly Inventory Detail</h3>
+        <div id="modal-inventory" class="table-wrap"></div>
+      </section>
+
+      <section class="modal-section">
+        <h3>BOM / Components</h3>
+        <div class="muted">On-order quantities are informational only and are not counted in Max Build.</div>
+        <div id="modal-components" class="table-wrap"></div>
+      </section>
+
+      <section class="modal-section">
+        <h3>Open Work Orders In Progress</h3>
+        <div id="modal-work-orders" class="table-wrap"></div>
+      </section>
+
+      <section class="modal-section">
+        <h3>Stage Work Orders</h3>
+        <div class="stage-controls">
+          <div class="field"><label>Total to Stage</label><input id="stage-total-target" class="stage-input" type="number" min="1" step="1"></div>
+          <div class="field"><label>Suggested Increment</label><input id="stage-increment" class="stage-input" type="number" min="1" step="1"></div>
+          <button id="stage-generate" class="secondary" type="button">Generate Work Orders</button>
+          <button id="stage-add-row" class="secondary" type="button">Add Row</button>
+        </div>
+        <div id="stage-grid" class="stage-grid"></div>
+        <div id="stage-total" class="stage-total"></div>
+        <div id="stage-warning" class="stage-warning" hidden></div>
+        <div class="actions" style="margin-top:10px"><button id="stage-submit" class="primary" type="button">Stage Work Orders</button></div>
+      </section>
+
+      <section class="modal-section">
+        <h3>Already Pending for This Item</h3>
+        <div id="modal-staged" class="table-wrap"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
-<script src="js/demand-planning.js?v=demand-pilot-20260917-1"></script>
+<script src="js/csv-export.js?v=demand-staging-20260918-1"></script>
+<script src="js/demand-planning.js?v=demand-workflow-20260918-1"></script>
 <script src="js/employee-signout.js?v=phase1-20260902-1"></script>
 <script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
 </body>
