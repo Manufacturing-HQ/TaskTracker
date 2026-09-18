@@ -25,25 +25,24 @@
   const optionalColumns = new Set();
 
   const columns = [
-    {key:"copy",label:"Copy",sort:false},
-    {key:"item_name",label:"Item"},
-    {key:"sku_group",label:"SKU Group"},
-    {key:"usage_classification",label:"Usage"},
-    {key:"work_order_department",label:"WO Department"},
-    {key:"target_demand",label:"Target Demand",numeric:true},
-    {key:"max_build_quantity",label:"Max Build",numeric:true},
-    {key:"pending_staged_quantity",label:"Pending Staged",numeric:true},
-    {key:"available_to_stage",label:"Available to Stage",numeric:true},
-    {key:"weeks_supply",label:"Weeks Supply",numeric:true},
-    {key:"constraint_text",label:"Constraint"},
-    {key:"demand_status",label:"Status"},
-    {key:"preferred_stock_level",label:"Preferred Stock",numeric:true,optional:"preferred"},
-    {key:"fleet_need",label:"Fleet Need",numeric:true,optional:"fleet"},
-    {key:"total_demand",label:"Total Demand",numeric:true,optional:"total-demand"},
-    {key:"production_available",label:"On Hand",numeric:true,optional:"on-hand"},
-    {key:"wip_quantity",label:"WIP",numeric:true,optional:"wip"},
-    {key:"total_in_house",label:"Total In House",numeric:true,optional:"in-house"},
-    {key:"priority_backorder_total",label:"Priority Backorder",numeric:true,optional:"priority"}
+    {key:"copy",label:"Copy",sort:false,width:58},
+    {key:"item_name",label:"Item",width:190},
+    {key:"sku_group",label:"SKU Group",width:155},
+    {key:"usage_classification",label:"Usage",width:72},
+    {key:"work_order_department",label:"WO Department",width:155},
+    {key:"target_demand",label:"Target Demand",numeric:true,width:110},
+    {key:"max_build_quantity",label:"Max Build",numeric:true,width:92},
+    {key:"pending_staged_quantity",label:"Pending Staged",numeric:true,width:108},
+    {key:"weeks_supply",label:"Weeks Supply",numeric:true,width:95},
+    {key:"constraint_text",label:"Constraint",width:250},
+    {key:"demand_status",label:"Status",width:100},
+    {key:"preferred_stock_level",label:"Preferred Stock",numeric:true,optional:"preferred",width:110},
+    {key:"fleet_need",label:"Fleet Need",numeric:true,optional:"fleet",width:92},
+    {key:"total_demand",label:"Total Demand",numeric:true,optional:"total-demand",width:105},
+    {key:"production_available",label:"On Hand",numeric:true,optional:"on-hand",width:92},
+    {key:"wip_quantity",label:"WIP",numeric:true,optional:"wip",width:82},
+    {key:"total_in_house",label:"Total In House",numeric:true,optional:"in-house",width:105},
+    {key:"priority_backorder_total",label:"Priority Backorder",numeric:true,optional:"priority",width:120}
   ];
 
   function esc(value) {
@@ -224,10 +223,20 @@
 
   function renderDemand() {
     const cols=visibleColumns();
+    const table=$("demand-table");
+    const colgroup=$("demand-colgroup");
+    const tableWidth=Math.max(1250,cols.reduce((sum,c)=>sum+(c.width||100),0));
+    if (table) {
+      table.style.width=tableWidth+"px";
+      table.style.minWidth=tableWidth+"px";
+    }
+    if (colgroup) {
+      colgroup.innerHTML=cols.map((c)=>'<col style="width:'+(c.width||100)+'px">').join("");
+    }
     $("demand-head").innerHTML='<tr>'+cols.map((c)=>{
-      if (c.sort===false) return '<th>'+esc(c.label)+'</th>';
-      const arrow=sortKey===c.key ? (sortDir==="asc" ? " ▲" : " ▼") : "";
-      return '<th class="sort" data-sort="'+esc(c.key)+'">'+esc(c.label)+arrow+'</th>';
+      if (c.sort===false) return '<th><span class="sort-label">'+esc(c.label)+'</span><span class="sort-indicator"></span></th>';
+      const arrow=sortKey===c.key ? (sortDir==="asc" ? "▲" : "▼") : "";
+      return '<th class="sort" data-sort="'+esc(c.key)+'"><span class="sort-label">'+esc(c.label)+'</span><span class="sort-indicator">'+arrow+'</span></th>';
     }).join("")+'</tr>';
 
     const filtered=filteredRows();
@@ -302,7 +311,6 @@
       ["Target Demand",num(s.target_demand,2)],
       ["Max Build",s.max_build_quantity===null ? "N/A" : num(s.max_build_quantity,2)],
       ["Pending Staged",num(s.pending_staged_quantity,2)],
-      ["Available to Stage",s.available_to_stage===null ? "N/A" : num(s.available_to_stage,2)],
       ["On Hand",num(s.production_available,2)],
       ["WIP",num(s.wip_quantity,2)],
       ["Total In House",num(s.total_in_house,2)],
@@ -409,9 +417,9 @@
       return;
     }
     submit.disabled=!stageRows.length || total<=0;
-    if (s.available_to_stage!==null && s.available_to_stage!==undefined && total>Number(s.available_to_stage)) {
+    if (s.max_build_quantity!==null && s.max_build_quantity!==undefined && total>Number(s.max_build_quantity)) {
       warning.hidden=false;
-      warning.textContent="Warning: these rows total "+num(total,2)+" units, but only "+num(s.available_to_stage,2)+" remain within the current Max Build after pending staged Work Orders. You can still proceed after confirmation.";
+      warning.textContent="Warning: these rows total "+num(total,2)+" units, which is above the current Max Build of "+num(s.max_build_quantity,2)+". You can still proceed after confirmation.";
     } else {
       warning.hidden=true;
       warning.textContent="";
@@ -491,7 +499,7 @@
       });
       if (result?.requires_over_max_confirmation) {
         const ok=window.confirm(
-          "These Work Orders would bring pending staged quantity to "+num(result.total_pending_after_stage,2)+
+          "These Work Orders total "+num(result.new_staged_quantity,2)+
           ", above the current Max Build of "+num(result.max_build_quantity,2)+".\n\nStage them anyway?"
         );
         if (!ok) return;
@@ -544,7 +552,7 @@
       p_confirm_over_max:false
     });
     if (result?.requires_over_max_confirmation) {
-      const ok=window.confirm("This edit would put pending quantity above the current Max Build of "+num(result.max_build_quantity,2)+". Save it anyway?");
+      const ok=window.confirm("This Work Order quantity is above the current Max Build of "+num(result.max_build_quantity,2)+". Save it anyway?");
       if (!ok) return;
       result=await rpc("update_demand_staged_work_order",{
         p_session_token:token,p_staging_id:id,p_quantity:values.quantity,
