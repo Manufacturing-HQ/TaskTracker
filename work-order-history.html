@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Work Order History</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--green:#166534;--amber:#92400e;--red:#991b1b}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1800px;margin:0 auto;padding:22px 18px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.danger{border-radius:9px;padding:9px 13px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
+.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:11px}.field{min-width:145px}.field.search{flex:1 1 230px}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #94a3b8;border-radius:7px;padding:7px 8px;background:#fff}.field textarea{min-height:110px;resize:vertical}
+.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px;max-height:72vh}table{width:100%;border-collapse:collapse;background:#fff;min-width:1500px}th,td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.pill.pending{background:#fef3c7;color:#92400e}.pill.imported{background:#dcfce7;color:#166534}.source{font-weight:800}.pager{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:8px}.pager-actions{display:flex;gap:6px}.muted{color:var(--muted)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;justify-content:center;align-items:flex-start;padding:24px;overflow:auto}.modal{width:min(820px,96vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:18px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:22px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.field.full{grid-column:1/-1}
+@media(max-width:800px){.topbar{flex-direction:column;align-items:flex-start}.shell{padding:14px 8px 35px}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><h1>Work Order History</h1><p id="viewer-meta">Shared Work Order staging history</p></div>
+    <div class="top-actions">
+      <a class="secondary" href="inventory-team.html">Inventory Dashboard</a>
+      <a class="secondary" href="stage-work-orders.html">Stage Work Orders</a>
+      <a class="secondary" href="index.html">Home</a>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden><h2>Inventory Dashboard Access Required</h2><p>You do not have access to Work Order history.</p></section>
+
+  <main id="app" hidden>
+    <section class="card">
+      <div class="toolbar">
+        <div class="field search"><label>Search</label><input id="filter-search" type="search" placeholder="Item, External ID, Created By..."></div>
+        <div class="field"><label>Status</label><select id="filter-status"><option value="">All</option><option value="PENDING_IMPORT">Pending Import</option><option value="DRAFT">Draft</option><option value="IMPORTED">Imported</option></select></div>
+        <div class="field"><label>Source</label><select id="filter-source"><option value="">All</option></select></div>
+        <div class="field"><label>Created By</label><select id="filter-created"><option value="">All</option></select></div>
+        <div class="field"><label>Start Date</label><input id="filter-start" type="date"></div>
+        <div class="field"><label>End Date</label><input id="filter-end" type="date"></div>
+        <button id="clear-filters" class="secondary" type="button">Clear</button>
+        <button id="refresh" class="secondary" type="button">Refresh</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>External ID</th><th>Source</th><th>WO Type</th><th>Item</th><th>Qty</th><th>Job Type</th><th>Priority Dept.</th><th>Created By</th><th>Status</th><th>Import Date</th><th>Imported By</th><th>Actions</th></tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <div id="summary" class="muted"></div>
+        <div class="pager-actions"><button id="prev" class="secondary" type="button">Previous</button><button id="next" class="secondary" type="button">Next</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<datalist id="item-list"></datalist>
+
+<div id="edit-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2>Edit Staged Work Order</h2><div id="edit-meta" class="muted"></div></div>
+      <button id="edit-close" class="close-btn" type="button">Close</button>
+    </div>
+    <div class="form-grid">
+      <div class="field full"><label>Item</label><input id="edit-item" list="item-list"></div>
+      <div class="field"><label>Quantity</label><input id="edit-qty" type="number" min="1" step="1"></div>
+      <div class="field"><label>WO Type</label><select id="edit-type"><option value="Production">Production</option><option value="Priority">Priority</option></select></div>
+      <div class="field"><label>Job Type</label><select id="edit-job-type"></select></div>
+      <div class="field"><label>Priority Department</label><select id="edit-priority-dept"></select></div>
+      <div class="field full"><label>Work Order Memo</label><textarea id="edit-memo"></textarea></div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button id="edit-save" class="primary" type="button">Save Changes</button>
+      <button id="edit-delete" class="danger" type="button">Delete Pending Row</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/work-order-history.js?v=inventory-history-20260918-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
