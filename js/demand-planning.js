@@ -522,7 +522,7 @@
 
     const workOrders=Array.isArray(d.work_orders)?d.work_orders:[];
     $("modal-work-orders").innerHTML=tableOrEmpty(
-      ["WO #","Date","Qty","Built","Status","WO Type","Current Step","Build Employee","QC Employee","Stalled"],
+      ["WO #","Date","Qty","Built","Status","WO Type","Current Step","Build Employee","QA Employee","Stalled"],
       workOrders.map((w)=>'<tr><td><strong>'+esc(w.work_order_number)+'</strong></td><td>'+dateText(w.work_order_date)+'</td><td>'+num(w.quantity,2)+'</td><td>'+num(w.built,2)+'</td><td>'+esc(w.work_order_status||"—")+'</td><td>'+esc(w.work_order_type||"—")+'</td><td>'+esc(w.operation_in_progress||"—")+'</td><td>'+esc(w.build_employee||"—")+'</td><td>'+esc(w.qc_employee||"—")+'</td><td>'+(w.stalled_work_order?('<span class="pill warn">Yes</span> '+esc(w.stalled_work_order_comments||"")):"No")+'</td></tr>'),
       "No open Work Orders found for this Item."
     );
