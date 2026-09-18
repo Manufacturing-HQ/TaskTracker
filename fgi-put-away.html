@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - FGI Put Away</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--bg:#eef3f8;--text:#172033;--muted:#64748b;--border:#cbd5e1;--blue:#2563eb}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button{font:inherit;cursor:pointer}.shell{max-width:1300px;margin:0 auto;padding:22px 18px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text);border-radius:9px;padding:9px 13px;font-weight:800;text-decoration:none}.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:18px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.link-card{display:block;text-decoration:none;color:inherit;border:1px solid #cbd5e1;border-top:5px solid var(--blue);border-radius:13px;padding:18px;background:#f8fafc;transition:.15s}.link-card:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(15,23,42,.1)}.link-card .icon{font-size:28px}.link-card h3{margin:8px 0 4px;font-size:17px}.link-card p{margin:0;color:var(--muted);font-size:11px}.message{padding:11px 13px;border-radius:10px;background:#fee2e2;color:#991b1b;margin-bottom:14px}@media(max-width:900px){.links{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.links{grid-template-columns:1fr}.topbar{flex-direction:column;align-items:flex-start}.shell{padding:14px 8px 35px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><h1>FGI Put Away</h1><p>Quick links used at the FGI Put Away station.</p></div>
+    <div class="top-actions">
+      <a class="secondary" href="inventory-team.html">Inventory Dashboard</a>
+      <a class="secondary" href="index.html">Home</a>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+
+  <main id="app" class="card" hidden>
+    <div class="links">
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/site/hosting/scriptlet.nl?script=421&deploy=1&compid=4525056&empNum=3842&workOrderNum=353613&buttonClicked=search&pageType=putAwayBuild"><div class="icon">🛠️</div><h3>Put Away Build</h3><p>Open the NetSuite Put Away Build station page.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/common/search/searchresults.nl?searchid=2564&saverun=T&whence="><div class="icon">📊</div><h3>W/O Pending FGI Put Away</h3><p>Open the saved search for Work Orders awaiting FGI Put Away.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/common/search/searchresults.nl?searchid=2918&whence=&siaT=1789735288937&siaWhc=%2Fapp%2Fcommon%2Fsearch%2Fsearchresults.nl&siaNv=sc"><div class="icon">🔢</div><h3>On Hand Counts</h3><p>Open the NetSuite On Hand Counts saved search.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/accounting/transactions/bintrnfr.nl?whence="><div class="icon">↔️</div><h3>Bin Transfer</h3><p>Create a NetSuite Bin Transfer.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/accounting/transactions/invtrnfr.nl?whence="><div class="icon">🚚</div><h3>Inventory Transfer</h3><p>Create a NetSuite Inventory Transfer.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/accounting/transactions/invadjst.nl?whence="><div class="icon">⚖️</div><h3>Inventory Adjustment</h3><p>Create a NetSuite Inventory Adjustment.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/common/search/searchresults.nl?searchid=2603&saverun=T&whence="><div class="icon">❌</div><h3>Open Sales Order Discrepancy</h3><p>Open the discrepancy saved search.</p></a>
+      <a class="link-card" target="_blank" rel="noopener" href="https://4525056.app.netsuite.com/app/accounting/transactions/reallocitems.nl"><div class="icon">🔄</div><h3>Reallocate Items</h3><p>Open the NetSuite Reallocate Items page.</p></a>
+    </div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/fgi-put-away.js?v=inventory-fgi-20260918-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
