@@ -13,7 +13,7 @@
 .card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.metric{border:1px solid #94a3b8;border-radius:12px;padding:12px;background:#f8fafc}.metric .label{font-size:10px;text-transform:uppercase;font-weight:900;color:var(--muted)}.metric .value{font-size:23px;font-weight:950;margin-top:4px}.metric .meta{font-size:11px;color:var(--muted);margin-top:3px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:11px}.field{min-width:145px}.field.search{flex:1 1 250px}.field label{display:block;font-size:11px;font-weight:900;margin-bottom:5px}.field input,.field select,.stage-input{width:100%;min-height:39px;border:1px solid #94a3b8;border-radius:8px;padding:7px 9px;background:#fff}.check{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:800;padding:8px 9px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;min-height:39px}
-.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:11px;max-height:68vh}table{width:100%;border-collapse:collapse;background:#fff;min-width:1250px}th,td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:var(--navy2);color:#fff;position:sticky;top:0;z-index:2}.sort{cursor:pointer}.sort:hover{background:#334155}tr:nth-child(even) td{background:#f8fafc}.demand-row{cursor:pointer}.demand-row:hover td{background:#eaf2ff!important}.row-hold td{background:#fff1f2!important}.item-button{border:0;background:transparent;color:#1d4ed8;font-weight:900;padding:0;cursor:pointer}.copy-btn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:800}
+.table-wrap{overflow:auto;border:1px solid #94a3b8;border-radius:11px;max-height:68vh}table{width:100%;border-collapse:collapse;background:#fff;min-width:1250px}th,td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:var(--navy2);color:#fff;position:sticky;top:0;z-index:2}.demand-table{table-layout:fixed}.demand-table th,.demand-table td{overflow:hidden;text-overflow:ellipsis}.sort{cursor:pointer}.sort:hover{background:#334155}.sort-label{vertical-align:middle}.sort-indicator{display:inline-block;width:12px;margin-left:4px;text-align:center;vertical-align:middle}tr:nth-child(even) td{background:#f8fafc}.demand-row{cursor:pointer}.demand-row:hover td{background:#eaf2ff!important}.row-hold td{background:#fff1f2!important}.item-button{border:0;background:transparent;color:#1d4ed8;font-weight:900;padding:0;cursor:pointer}.copy-btn{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 7px;font-size:10px;font-weight:800}
 .status,.pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:900;background:#e2e8f0}.status.demand{background:#fee2e2;color:#991b1b}.status.good{background:#dcfce7;color:#166534}.status.hold{background:#fecaca;color:#991b1b}.pill.warn{background:#fef3c7;color:#92400e}.pill.good{background:#dcfce7;color:#166534}
 .pager{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:9px}.pager-actions{display:flex;gap:7px}.note{font-size:11px;color:#475569;background:#f8fafc;border:1px solid #cbd5e1;border-radius:9px;padding:9px;margin-top:8px}
 .queue-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.queue-table input[type=number],.queue-table input[type=text]{min-width:80px;border:1px solid #cbd5e1;border-radius:6px;padding:5px}.queue-table .memo-input{min-width:220px}
@@ -70,7 +70,7 @@
         <label><input type="checkbox" data-col-toggle="in-house"> Total In House</label>
         <label><input type="checkbox" data-col-toggle="priority"> Priority Backorder</label>
       </div>
-      <div class="table-wrap"><table><thead id="demand-head"></thead><tbody id="demand-body"></tbody></table></div>
+      <div class="table-wrap"><table id="demand-table" class="demand-table"><colgroup id="demand-colgroup"></colgroup><thead id="demand-head"></thead><tbody id="demand-body"></tbody></table></div>
       <div class="pager"><div id="demand-summary" class="muted"></div><div class="pager-actions"><button id="demand-prev" class="secondary" type="button">Previous</button><button id="demand-next" class="secondary" type="button">Next</button></div></div>
     </section>
 
@@ -138,7 +138,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/csv-export.js?v=demand-staging-20260918-1"></script>
-<script src="js/demand-planning.js?v=demand-workflow-20260918-1"></script>
+<script src="js/demand-planning.js?v=demand-layout-fix-20260918-1"></script>
 <script src="js/employee-signout.js?v=phase1-20260902-1"></script>
 <script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
 </body>
