@@ -369,7 +369,8 @@
         : '<strong>'+num(row.demand_coverage_percent,1)+'%</strong>';
     }
     if (col.key==="item_name") {
-      return row.item_id
+      const canOpen=row.item_id && demandRows.some((item)=>String(item.item_id)===String(row.item_id));
+      return canOpen
         ? '<button class="item-button" type="button" data-wo-open-item="'+esc(row.item_id)+'">'+esc(row.item_name||"—")+'</button>'
         : esc(row.item_name||"—");
     }
