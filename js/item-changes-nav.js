@@ -10,7 +10,7 @@
   // or QA workspaces. The helper independently verifies Administrator role.
   if (document.querySelector(".nav") && !document.querySelector('script[data-pps-pilot-nav]')) {
     const script = document.createElement("script");
-    script.src = "js/management-pps-nav.js?v=wo-prioritization-20260918-1";
+    script.src = "js/management-pps-nav.js?v=daily-review-20260918-1";
     script.dataset.ppsPilotNav = "1";
     document.head.appendChild(script);
   }
