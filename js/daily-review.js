@@ -262,12 +262,12 @@
         : '<span class="blocked">'+esc(r.stage_block_reason||"Not eligible")+'</span>';
 
       return '<tr data-stage-item="'+esc(r.item_id||"")+'">'+
-        '<td><input type="checkbox" data-stage-select '+(eligible?"checked":"disabled")+"></td>'+
+        '<td><input type="checkbox" data-stage-select '+(eligible?"checked":"disabled")+'></td>'+
         '<td><strong>'+esc(r.item_name)+'</strong></td>'+
         '<td><span class="status '+statusClass(r.review_status)+'">'+esc(r.review_status)+'</span></td>'+
         '<td>'+num(r.grand_total,2)+'</td>'+
         '<td>'+num(r.max_build_quantity,2)+'</td>'+
-        '<td><input type="number" min="1" step="1" data-stage-qty value="'+esc(qty)+'" '+(eligible?"":"disabled")+"></td>'+
+        '<td><input type="number" min="1" step="1" data-stage-qty value="'+esc(qty)+'" '+(eligible?"":"disabled")+'></td>'+
         '<td>'+esc(r.work_order_job_type||"—")+'</td>'+
         '<td>'+esc(r.priority_department||"—")+'</td>'+
         '<td>'+availability+'</td>'+
