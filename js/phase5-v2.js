@@ -386,11 +386,21 @@
     requests.forEach((request) => {
       const card = document.createElement("div");
       card.className = "mini-card";
+
+      const canAct = Boolean(request.can_start || request.can_restart);
+      const actionLabel = request.can_restart ? "Restart Rework" : "Start Rework";
+      const linkedState = request.can_restart
+        ? [request.linked_rework_job_number ? `Rework Job #${request.linked_rework_job_number}` : null, "Returned"]
+            .filter(Boolean)
+            .join(" · ")
+        : "";
+
       card.innerHTML = `
         <strong>${escapeHtml(request.item_name || "QA Rework")}</strong>
         <div>${escapeHtml([request.work_order_number, `Qty ${request.requested_quantity}`].filter(Boolean).join(" · "))}</div>
-        <div class="state-meta">${escapeHtml(request.comments || "")}</div>
-        ${request.can_start ? `<div style="margin-top:10px"><button class="primary start-rework" type="button" data-request-id="${escapeHtml(request.rework_request_id)}">Start Rework</button></div>` : ""}
+        ${linkedState ? `<div class="state-meta">${escapeHtml(linkedState)}</div>` : ""}
+        <div class="state-meta">${escapeHtml(request.qa_comments || request.comments || "")}</div>
+        ${canAct ? `<div style="margin-top:10px"><button class="primary start-rework" type="button" data-request-id="${escapeHtml(request.rework_request_id)}" data-restart="${request.can_restart ? "true" : "false"}">${actionLabel}</button></div>` : ""}
       `;
       box.appendChild(card);
     });
@@ -398,12 +408,18 @@
     box.querySelectorAll(".start-rework").forEach((button) => {
       button.addEventListener("click", async () => {
         try {
-          await rpc("start_my_qa_rework", {
+          const result = await rpc("start_my_qa_rework", {
             p_session_token: sessionToken,
             p_rework_request_id: button.dataset.requestId,
             p_comments: null
           });
-          setMessage("QA rework started as Non-Productive work.", "success");
+
+          setMessage(
+            result?.start_action === "Restarted Rework"
+              ? "QA rework restarted successfully."
+              : "QA rework started as Non-Productive work.",
+            "success"
+          );
           await loadState();
         } catch (error) {
           setMessage(error.message, "error");
