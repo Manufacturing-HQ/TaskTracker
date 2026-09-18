@@ -196,16 +196,16 @@
   }
 
   function renderQueue(){
-    const canManage=Boolean(bootstrap?.viewer?.can_manage);
-    $("manager-controls").hidden=!canManage;
-    $("select-head").textContent=canManage?"Select":"";
+    const canImport=Boolean(bootstrap?.viewer?.can_import);
+    $("manager-controls").hidden=!canImport;
+    $("select-head").textContent=canImport?"Select":"";
 
     const totalQty=queue.reduce((sum,row)=>sum+(Number(row.quantity)||0),0);
     $("queue-summary").textContent=queue.length+" pending row(s) · "+num(totalQty)+" units";
 
     $("queue-body").innerHTML=queue.length?queue.map((row)=>
       '<tr>'+
-        '<td>'+(canManage?'<input type="checkbox" data-select-row="'+esc(row.id)+'">':'')+'</td>'+
+        '<td>'+(canImport?'<input type="checkbox" data-select-row="'+esc(row.id)+'">':'')+'</td>'+
         '<td>'+esc(row.external_id||"—")+'</td>'+
         '<td>'+dateText(row.date_created)+'</td>'+
         '<td class="source">'+esc(row.source_label||row.source||"—")+'</td>'+
