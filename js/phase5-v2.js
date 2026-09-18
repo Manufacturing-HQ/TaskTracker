@@ -387,10 +387,15 @@
       const card = document.createElement("div");
       card.className = "mini-card";
 
-      const canAct = Boolean(request.can_start || request.can_restart);
-      const actionLabel = request.can_restart ? "Restart Rework" : "Start Rework";
-      const linkedState = request.can_restart
-        ? [request.linked_rework_job_number ? `Rework Job #${request.linked_rework_job_number}` : null, "Returned"]
+      const canAct = Boolean(request.can_start || request.can_restart || request.can_resume);
+      const actionType = request.can_resume ? "resume" : (request.can_restart ? "restart" : "start");
+      const actionLabel =
+        actionType === "resume" ? "Resume Rework" :
+        actionType === "restart" ? "Restart Rework" :
+        "Start Rework";
+
+      const linkedState = request.linked_rework_job_number
+        ? [`Rework Job #${request.linked_rework_job_number}`, request.linked_rework_job_status]
             .filter(Boolean)
             .join(" · ")
         : "";
@@ -400,14 +405,25 @@
         <div>${escapeHtml([request.work_order_number, `Qty ${request.requested_quantity}`].filter(Boolean).join(" · "))}</div>
         ${linkedState ? `<div class="state-meta">${escapeHtml(linkedState)}</div>` : ""}
         <div class="state-meta">${escapeHtml(request.qa_comments || request.comments || "")}</div>
-        ${canAct ? `<div style="margin-top:10px"><button class="primary start-rework" type="button" data-request-id="${escapeHtml(request.rework_request_id)}" data-restart="${request.can_restart ? "true" : "false"}">${actionLabel}</button></div>` : ""}
+        ${canAct ? `<div style="margin-top:10px"><button class="primary qa-rework-action" type="button" data-request-id="${escapeHtml(request.rework_request_id)}" data-job-id="${escapeHtml(request.linked_rework_job_id || "")}" data-action="${actionType}">${actionLabel}</button></div>` : ""}
       `;
       box.appendChild(card);
     });
 
-    box.querySelectorAll(".start-rework").forEach((button) => {
+    box.querySelectorAll(".qa-rework-action").forEach((button) => {
       button.addEventListener("click", async () => {
         try {
+          if (button.dataset.action === "resume") {
+            const state = await rpc("resume_my_task", {
+              p_session_token: sessionToken,
+              p_job_id: button.dataset.jobId,
+              p_comments: null
+            });
+            setMessage("QA rework resumed successfully.", "success");
+            renderState(state);
+            return;
+          }
+
           const result = await rpc("start_my_qa_rework", {
             p_session_token: sessionToken,
             p_rework_request_id: button.dataset.requestId,
