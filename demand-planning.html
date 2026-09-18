@@ -19,7 +19,7 @@
 .queue-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.queue-table input[type=number],.queue-table input[type=text]{min-width:80px;border:1px solid #cbd5e1;border-radius:6px;padding:5px}.queue-table .memo-input{min-width:220px}
 .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;justify-content:center;align-items:flex-start;padding:24px;overflow:auto}.modal{width:min(1500px,98vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:18px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;position:sticky;top:-24px;background:#fff;z-index:5;padding:4px 0 12px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:24px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}.modal-section{margin-top:18px}.modal-section h3{margin:0 0 9px;font-size:16px}.hold-banner{padding:11px;border-radius:10px;background:#fee2e2;color:#991b1b;font-weight:850;margin-top:12px}.modal-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}.modal-metric{border:1px solid #cbd5e1;border-radius:10px;padding:10px;background:#f8fafc}.modal-metric .label{font-size:9px;font-weight:900;text-transform:uppercase;color:#64748b}.modal-metric .value{font-size:19px;font-weight:950;margin-top:3px}
 .component-details{white-space:normal;min-width:220px}.component-details summary{cursor:pointer;font-weight:800}.subtable{margin-top:7px;max-height:200px;overflow:auto}.subtable table{min-width:450px}.stage-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:10px}.stage-controls .field{min-width:130px}.stage-grid{overflow:auto;border:1px solid #cbd5e1;border-radius:10px}.stage-grid table{min-width:1050px}.stage-total{font-weight:900;margin-top:9px}.stage-warning{margin-top:9px;padding:9px;border-radius:9px;background:#fef3c7;color:#92400e}.click-hint{font-size:10px;color:#64748b;margin-top:3px}
-.optional-columns{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px}.optional-columns label{font-size:10px;font-weight:800}.wo-table{table-layout:fixed}.wo-table th,.wo-table td{overflow:hidden;text-overflow:ellipsis}.priority-explainer{margin:0 0 11px;padding:10px 12px;border:1px solid #bfdbfe;border-radius:10px;background:#eff6ff;color:#1e3a8a;font-size:11px;line-height:1.45}
+.optional-columns{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 10px}.optional-columns label{font-size:10px;font-weight:800}
 @media(max-width:1000px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.modal-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:700px){.metrics,.modal-grid{grid-template-columns:1fr 1fr}.topbar,.section-title{align-items:flex-start;flex-direction:column}.shell{padding:14px 8px 35px}.modal-backdrop{padding:8px}.modal{padding:12px}}
 </style>
@@ -72,38 +72,6 @@
       </div>
       <div class="table-wrap"><table id="demand-table" class="demand-table"><colgroup id="demand-colgroup"></colgroup><thead id="demand-head"></thead><tbody id="demand-body"></tbody></table></div>
       <div class="pager"><div id="demand-summary" class="muted"></div><div class="pager-actions"><button id="demand-prev" class="secondary" type="button">Previous</button><button id="demand-next" class="secondary" type="button">Next</button></div></div>
-    </section>
-
-    <section class="card">
-      <div class="section-title">
-        <div>
-          <h2>W/O Prioritization</h2>
-          <div class="muted">Pending Build and Pending QC Work Orders from the Open Work Order Operation Steps snapshot.</div>
-        </div>
-        <div class="actions"><button id="wo-export" class="secondary" type="button">Export CSV</button></div>
-      </div>
-      <div class="priority-explainer">
-        <strong>Priority logic:</strong> Demand Coverage = Assembly Stock Available ÷ Total Demand.
-        Lower coverage is prioritized first. If coverage is tied, the larger Uncovered Demand is prioritized,
-        then the Work Order that has been in its current operation the longest. WIP is intentionally not counted as assembly stock here.
-      </div>
-      <div class="toolbar">
-        <div class="field search"><label>Quick Search</label><input id="wo-search" type="search" placeholder="Work Order, Item, Builder, QA Employee..."></div>
-        <div class="field"><label>Operation</label><select id="wo-filter-operation"><option value="">All</option></select></div>
-        <div class="field"><label>WO Type</label><select id="wo-filter-type"><option value="">All</option></select></div>
-        <div class="field"><label>Job Type</label><select id="wo-filter-job-type"><option value="">All</option></select></div>
-        <div class="field"><label>Usage Classification</label><select id="wo-filter-usage"><option value="">All</option></select></div>
-        <label class="check"><input id="wo-hide-holds" type="checkbox"> Hide On Hold</label>
-      </div>
-      <div class="note" style="margin:0 0 10px">Operation Started uses the source Operation Completion Time Stamp because that represents when the current operation began. QC Employee is displayed as QA Employee. Source stalled flags/comments are intentionally ignored here.</div>
-      <div class="table-wrap">
-        <table id="wo-table" class="wo-table">
-          <colgroup id="wo-colgroup"></colgroup>
-          <thead id="wo-head"></thead>
-          <tbody id="wo-body"></tbody>
-        </table>
-      </div>
-      <div class="pager"><div id="wo-summary" class="muted"></div><div class="pager-actions"><button id="wo-prev" class="secondary" type="button">Previous</button><button id="wo-next" class="secondary" type="button">Next</button></div></div>
     </section>
 
     <section class="card">
@@ -170,7 +138,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/csv-export.js?v=demand-staging-20260918-1"></script>
-<script src="js/demand-planning.js?v=wo-prioritization-20260918-1"></script>
+<script src="js/demand-planning.js?v=demand-standalone-wo-20260918-1"></script>
 <script src="js/employee-signout.js?v=phase1-20260902-1"></script>
 <script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
 </body>
