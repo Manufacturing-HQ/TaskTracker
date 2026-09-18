@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Inventory Team</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--green:#166534;--amber:#92400e;--red:#991b1b;--purple:#6b21a8}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1650px;margin:0 auto;padding:22px 18px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.danger{border-radius:9px;padding:9px 13px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
+.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:16px}.tile{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #94a3b8;border-top:5px solid #2563eb;border-radius:14px;padding:18px;box-shadow:0 5px 16px rgba(15,23,42,.06);transition:.15s}.tile:hover{transform:translateY(-2px);box-shadow:0 9px 22px rgba(15,23,42,.1)}.tile .icon{font-size:30px}.tile h3{margin:9px 0 4px;font-size:18px}.tile p{margin:0;color:var(--muted);font-size:12px}.tile .count{font-size:24px;font-weight:950;margin-top:10px}.tile.history{border-top-color:#7c3aed}.tile.fgi{border-top-color:#d97706}.tile.cycle{border-top-color:#0f766e}
+.layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:15px}.task-list{display:grid;gap:9px}.task-card{border:1px solid #cbd5e1;border-left:5px solid #64748b;border-radius:10px;padding:12px;background:#f8fafc;cursor:pointer}.task-card:hover{background:#f1f5f9}.task-card.high{border-left-color:#dc2626}.task-card.normal{border-left-color:#2563eb}.task-card.low{border-left-color:#16a34a}.task-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.task-title{font-weight:900}.task-meta{font-size:10px;color:var(--muted);margin-top:5px}.priority-pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.priority-pill.high{background:#fee2e2;color:#991b1b}.priority-pill.normal{background:#dbeafe;color:#1e40af}.priority-pill.low{background:#dcfce7;color:#166534}
+.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px;max-height:520px}table{width:100%;border-collapse:collapse;background:#fff;min-width:900px}th,td{padding:8px 9px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.age{font-weight:900;color:#991b1b}.operation{display:inline-flex;border-radius:999px;padding:3px 7px;background:#fef3c7;color:#92400e;font-weight:900}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;justify-content:center;align-items:flex-start;padding:24px;overflow:auto}.modal{width:min(760px,96vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:18px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:22px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #94a3b8;border-radius:8px;padding:8px;background:#fff}.field textarea{min-height:105px;resize:vertical}.field.full{grid-column:1/-1}.comments{display:grid;gap:8px;margin:12px 0;max-height:320px;overflow:auto}.comment{border:1px solid #dbe3ef;border-radius:9px;padding:9px;background:#f8fafc}.comment strong{font-size:11px}.comment p{margin:5px 0 0;white-space:pre-wrap;font-size:12px}.comment time{font-size:9px;color:var(--muted);margin-left:5px}
+@media(max-width:1100px){.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}}@media(max-width:700px){.tiles{grid-template-columns:1fr}.topbar,.section-title{flex-direction:column;align-items:flex-start}.shell{padding:14px 8px 35px}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Inventory Team Dashboard</h1>
+      <p id="viewer-meta">Inventory operations workspace</p>
+    </div>
+    <div class="top-actions">
+      <a class="secondary" href="index.html">Home</a>
+      <button id="refresh" class="secondary" type="button">Refresh</button>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden>
+    <h2>Inventory Dashboard Access Required</h2>
+    <p>You do not have access to this workspace.</p>
+  </section>
+
+  <main id="app" hidden>
+    <section class="tiles">
+      <a class="tile" href="stage-work-orders.html">
+        <div class="icon">📝</div>
+        <h3>Stage Work Orders</h3>
+        <p>Create manual Work Orders and manage the shared Pending Import queue.</p>
+        <div id="tile-stage-count" class="count">0</div>
+      </a>
+      <a class="tile history" href="work-order-history.html">
+        <div class="icon">📜</div>
+        <h3>History</h3>
+        <p>Review staged Work Orders and edit your rows until they are imported.</p>
+        <div id="tile-history-count" class="count">0</div>
+      </a>
+      <a class="tile fgi" href="fgi-put-away.html">
+        <div class="icon">🏭</div>
+        <h3>FGI Put Away</h3>
+        <p>Station links for Put Away, transfers, adjustments, and reallocation.</p>
+        <div id="tile-fgi-count" class="count">0</div>
+      </a>
+      <a class="tile cycle" href="https://script.google.com/a/macros/ikeyless.com/s/AKfycbxymq_mn2o8VGIFPIfNToJO7ETaK07w-ajHX8rKbOJ74XoPZXsE9jqOHG-r2Mvyu4i0uA/exec" target="_blank" rel="noopener">
+        <div class="icon">🔄</div>
+        <h3>Cycle Counts</h3>
+        <p>Open the current Cycle Count tool.</p>
+        <div class="count" style="font-size:13px">Open Tool ↗</div>
+      </a>
+    </section>
+
+    <div class="layout">
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h2>Inventory Team Tasks</h2>
+            <div class="muted">Team priorities and to-do items.</div>
+          </div>
+          <button id="add-task" class="primary" type="button" hidden>+ Add Task</button>
+        </div>
+        <div id="task-list" class="task-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h2>Stalled Work Orders</h2>
+            <div class="muted">Material Pull and FGI Put Away only. More than 1 day in the current operation.</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>WO #</th><th>Item</th><th>Qty</th><th>Operation</th><th>Started</th><th>Days</th><th>Job Type</th></tr></thead>
+            <tbody id="stalled-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="task-editor" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="task-editor-title">Add Inventory Task</h2><div class="muted">Supervisors, Managers, and Administrators can create and edit tasks.</div></div>
+      <button class="close-btn" type="button" data-close="task-editor">Close</button>
+    </div>
+    <div class="form-grid">
+      <div class="field full"><label>Task Title</label><input id="task-title" maxlength="180"></div>
+      <div class="field"><label>Priority</label><select id="task-priority"><option value="HIGH">High</option><option value="NORMAL" selected>Normal</option><option value="LOW">Low</option></select></div>
+      <div class="field"><label>Due Date</label><input id="task-due" type="date"></div>
+      <div class="field full"><label>Description</label><textarea id="task-description"></textarea></div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button id="task-save" class="primary" type="button">Save Task</button>
+      <button class="secondary" type="button" data-close="task-editor">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="task-detail" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="detail-title">Task</h2><div id="detail-meta" class="muted"></div></div>
+      <button class="close-btn" type="button" data-close="task-detail">Close</button>
+    </div>
+    <div id="detail-description" style="white-space:pre-wrap;margin:14px 0"></div>
+    <div class="actions" id="detail-manager-actions" hidden>
+      <button id="detail-edit" class="secondary" type="button">Edit Task</button>
+      <button id="detail-complete" class="primary" type="button">Complete Task</button>
+    </div>
+    <h3 style="margin:18px 0 8px">Comments</h3>
+    <div id="comment-list" class="comments"></div>
+    <div class="field full"><label>Add Comment</label><textarea id="comment-text" placeholder="Add an update for the team..."></textarea></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="comment-add" class="primary" type="button">Add Comment</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/inventory-team.js?v=inventory-dashboard-20260918-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
