@@ -36,7 +36,8 @@
       const netsuite = addLink(nav,"netsuite-data-link","netsuite-data.html","NetSuite Data (Pilot)",pps);
       const demand = addLink(nav,"demand-planning-link","demand-planning.html","Demand Planning (Pilot)",netsuite);
       const woPriority = addLink(nav,"work-order-prioritization-link","work-order-prioritization.html","W/O Prioritization (Pilot)",demand);
-      addLink(nav,"daily-review-link","daily-review.html","Daily Review (Pilot)",woPriority);
+      const daily = addLink(nav,"daily-review-link","daily-review.html","Daily Review (Pilot)",woPriority);
+      addLink(nav,"sales-order-dashboard-link","sales-order-dashboard.html","Sales Order Dashboard (Pilot)",daily);
     } catch {
       // Admin pilot navigation is intentionally absent unless Administrator access is confirmed.
     }
