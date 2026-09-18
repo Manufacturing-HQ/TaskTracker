@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Stage Work Orders</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--green:#166534;--amber:#92400e;--red:#991b1b}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1800px;margin:0 auto;padding:22px 18px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.danger{border-radius:9px;padding:9px 13px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
+.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
+.setup{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{min-width:150px}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #94a3b8;border-radius:7px;padding:7px 8px;background:#fff}.field textarea{resize:vertical}
+.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px}.entry-table,.queue-table{width:100%;border-collapse:collapse;background:#fff;min-width:1200px}.entry-table th,.entry-table td,.queue-table th,.queue-table td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}.entry-table th,.queue-table th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.entry-table input,.entry-table select{width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:5px;background:#fff}.memo-input{min-width:280px}.item-input{min-width:230px}.qty-input{min-width:80px}.job-input{min-width:130px}.dept-input{min-width:120px}
+.queue-controls{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;background:#e2e8f0}.pill.pending{background:#fef3c7;color:#92400e}.pill.imported{background:#dcfce7;color:#166534}.source{font-weight:800}.note{font-size:11px;color:#475569;background:#f8fafc;border:1px solid #dbe3ef;border-radius:8px;padding:9px;margin-top:8px}
+@media(max-width:800px){.topbar,.section-title{flex-direction:column;align-items:flex-start}.shell{padding:14px 8px 35px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Stage Work Orders</h1>
+      <p id="viewer-meta">Shared Work Order staging queue</p>
+    </div>
+    <div class="top-actions">
+      <a class="secondary" href="inventory-team.html">Inventory Dashboard</a>
+      <a class="secondary" href="work-order-history.html">History</a>
+      <a class="secondary" href="index.html">Home</a>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden>
+    <h2>Inventory Dashboard Access Required</h2>
+    <p>You do not have access to Work Order staging.</p>
+  </section>
+
+  <main id="app" hidden>
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>Manual Work Order Entry</h2>
+          <div class="muted">Created By is captured automatically from the logged-in employee.</div>
+        </div>
+      </div>
+
+      <div class="setup">
+        <div class="field">
+          <label>Default WO Type</label>
+          <select id="default-wo-type"><option value="Production">Production</option><option value="Priority">Priority</option></select>
+        </div>
+        <div class="field">
+          <label>Default Job Type</label>
+          <select id="default-job-type"></select>
+        </div>
+        <button id="add-row" class="secondary" type="button">+ Add Row</button>
+        <button id="add-five" class="secondary" type="button">+ Add 5 Rows</button>
+        <button id="stage-rows" class="primary" type="button">Stage Work Orders</button>
+      </div>
+
+      <datalist id="item-list"></datalist>
+
+      <div class="table-wrap">
+        <table class="entry-table">
+          <thead><tr><th>#</th><th>Item</th><th>Qty</th><th>WO Type</th><th>Job Type</th><th>Priority Dept.</th><th>Memo</th><th></th></tr></thead>
+          <tbody id="entry-body"></tbody>
+        </table>
+      </div>
+      <div class="note">Confirmed Item Holds are a hard stop. Manual staging does not use Max Build as a hard limit because Inventory may intentionally prepare future Work Orders.</div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>Pending Import Queue</h2>
+          <div class="muted">Demand Planning, Daily Review, and Inventory Manual entries share this queue.</div>
+        </div>
+      </div>
+
+      <div class="queue-controls">
+        <div id="queue-summary" class="muted"></div>
+        <div id="manager-controls" class="actions" hidden>
+          <button id="select-all" class="secondary" type="button">Select All</button>
+          <button id="export-selected" class="secondary" type="button">Export Selected for NetSuite</button>
+          <button id="mark-imported" class="primary" type="button">Mark Selected Imported</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="queue-table">
+          <thead><tr><th id="select-head"></th><th>External ID</th><th>Date</th><th>Source</th><th>WO Type</th><th>Item</th><th>Qty</th><th>Job Type</th><th>Priority Dept.</th><th>Created By</th><th>Status</th></tr></thead>
+          <tbody id="queue-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/csv-export.js?v=inventory-stage-20260918-1"></script>
+<script src="js/stage-work-orders.js?v=inventory-stage-20260918-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
