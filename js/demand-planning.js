@@ -3,24 +3,48 @@
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
+  const csv = window.TaskTrackerCsv;
   if (!config || !supabaseLib) throw new Error("Task Tracker configuration failed to load.");
 
   const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
-    auth:{ autoRefreshToken:false, persistSession:false, detectSessionInUrl:false }
+    auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}
   });
   const $ = (id) => document.getElementById(id);
   const token = sessionStorage.getItem(config.sessionStorageKey);
 
   let bootstrap = null;
   let demandRows = [];
-  let woRows = [];
-  let parsedInput = null;
-  let currentRunId = null;
-  let currentValidation = null;
-  let busy = false;
+  let queueRows = [];
+  let currentDetail = null;
+  let currentItemId = null;
+  let stageRows = [];
   let demandPage = 1;
-  let woPage = 1;
   const pageSize = 100;
+  let sortKey = "target_demand";
+  let sortDir = "desc";
+  const optionalColumns = new Set();
+
+  const columns = [
+    {key:"copy",label:"Copy",sort:false},
+    {key:"item_name",label:"Item"},
+    {key:"sku_group",label:"SKU Group"},
+    {key:"usage_classification",label:"Usage"},
+    {key:"work_order_department",label:"WO Department"},
+    {key:"target_demand",label:"Target Demand",numeric:true},
+    {key:"max_build_quantity",label:"Max Build",numeric:true},
+    {key:"pending_staged_quantity",label:"Pending Staged",numeric:true},
+    {key:"available_to_stage",label:"Available to Stage",numeric:true},
+    {key:"weeks_supply",label:"Weeks Supply",numeric:true},
+    {key:"constraint_text",label:"Constraint"},
+    {key:"demand_status",label:"Status"},
+    {key:"preferred_stock_level",label:"Preferred Stock",numeric:true,optional:"preferred"},
+    {key:"fleet_need",label:"Fleet Need",numeric:true,optional:"fleet"},
+    {key:"total_demand",label:"Total Demand",numeric:true,optional:"total-demand"},
+    {key:"production_available",label:"On Hand",numeric:true,optional:"on-hand"},
+    {key:"wip_quantity",label:"WIP",numeric:true,optional:"wip"},
+    {key:"total_in_house",label:"Total In House",numeric:true,optional:"in-house"},
+    {key:"priority_backorder_total",label:"Priority Backorder",numeric:true,optional:"priority"}
+  ];
 
   function esc(value) {
     return String(value ?? "")
@@ -32,16 +56,16 @@
   }
 
   async function rpc(name,args={}) {
-    const { data,error } = await client.rpc(name,args);
-    if (error) throw new Error(error.message || `${name} failed.`);
+    const {data,error} = await client.rpc(name,args);
+    if (error) throw new Error(error.message || (name + " failed."));
     return data;
   }
 
-  function setMessage(message,type="info") {
+  function setMessage(text,type="info") {
     const el=$("message");
-    el.textContent=message||"";
+    el.textContent=text||"";
     el.dataset.type=type;
-    el.hidden=!message;
+    el.hidden=!text;
   }
 
   function showError(error) {
@@ -50,415 +74,576 @@
   }
 
   function num(value,decimals=0) {
-    if (value === null || value === undefined || value === "") return "—";
+    if (value===null || value===undefined || value==="") return "—";
     const n=Number(value);
     if (!Number.isFinite(n)) return String(value);
-    return n.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:decimals});
+    return n.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:decimals});
   }
 
-  function dt(value) {
-    if (!value) return "Never";
+  function dateText(value) {
+    if (!value) return "—";
+    const d=new Date(String(value).length===10 ? (value+"T12:00:00") : value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
+  }
+
+  function dateTime(value) {
+    if (!value) return "—";
     const d=new Date(value);
     return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
   }
 
-  function dateOnly(value) {
-    if (!value) return "—";
-    const d=new Date(`${value}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
+  function unique(rows,key) {
+    return [...new Set(rows.map((r)=>String(r?.[key]??"").trim()).filter(Boolean))]
+      .sort((a,b)=>a.localeCompare(b,undefined,{numeric:true,sensitivity:"base"}));
   }
 
-  function statusPill(status) {
-    const value=String(status||"").toUpperCase();
-    const cls=value==="SUCCESS"?"success":value==="FAILED"?"failed":value==="STAGING"?"staging":"";
-    return `<span class="pill ${cls}">${esc(value||"—")}</span>`;
+  function fillSelect(id,values,label) {
+    const el=$(id);
+    const selected=el.value;
+    el.innerHTML='<option value="">'+esc(label)+'</option>'+values.map((v)=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join("");
+    if ([...el.options].some((o)=>o.value===selected)) el.value=selected;
   }
 
-  function normalizeHeader(value) {
-    return String(value??"").replace(/^\uFEFF/,"").trim().toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
-  }
-
-  function parseCsv(text) {
-    const rows=[]; let row=[]; let field=""; let inQuotes=false;
-    for (let i=0;i<text.length;i+=1) {
-      const ch=text[i];
-      if (inQuotes) {
-        if (ch==='"') {
-          if (text[i+1]==='"') { field+='"'; i+=1; }
-          else inQuotes=false;
-        } else field+=ch;
-        continue;
-      }
-      if (ch==='"' && field==="") inQuotes=true;
-      else if (ch===",") { row.push(field); field=""; }
-      else if (ch==="\n") { row.push(field); rows.push(row); row=[]; field=""; }
-      else if (ch==="\r") { if (text[i+1]!=="\n") { row.push(field); rows.push(row); row=[]; field=""; } }
-      else field+=ch;
-    }
-    if (inQuotes) throw new Error("The CSV contains an unterminated quoted field.");
-    if (field!=="" || row.length) { row.push(field); rows.push(row); }
-    while (rows.length && rows[rows.length-1].every(v=>String(v||"").trim()==="")) rows.pop();
-    if (!rows.length) throw new Error("The CSV is empty.");
-    const headers=rows[0].map((v,i)=>i===0?String(v??"").replace(/^\uFEFF/,"").trim():String(v??"").trim());
-    if (!headers.some(Boolean)) throw new Error("The CSV header row is blank.");
-    const data=[];
-    rows.slice(1).forEach((r,index)=>{
-      if (r.every(v=>String(v||"").trim()==="")) return;
-      if (r.length>headers.length) throw new Error(`CSV row ${index+2} contains more columns than the header row.`);
-      const out=r.map(v=>String(v??"").trim());
-      while(out.length<headers.length) out.push("");
-      data.push(out);
-    });
-    if (!data.length) throw new Error("The CSV contains no usable data rows.");
-    return {headers,rows:data};
-  }
-
-  function headerIndex(headers,aliases) {
-    const normalized=headers.map(normalizeHeader);
-    for (const alias of aliases) {
-      const idx=normalized.indexOf(normalizeHeader(alias));
-      if (idx>=0) return idx;
-    }
-    return -1;
-  }
-
-  function canonicalRows(source,parsed) {
-    const h=parsed.headers;
-    if (source==="ITEM_PLANNING_FIELDS") {
-      const internal=headerIndex(h,["Internal ID","Internal Id"]);
-      const item=headerIndex(h,["Name","Item Name","Item"]);
-      const preferred=headerIndex(h,["Preferred Stock Level","Preferred Stock"]);
-      const usage=headerIndex(h,["Usage Classification","Usage Class"]);
-      const missing=[];
-      if (internal<0) missing.push("Internal ID");
-      if (preferred<0) missing.push("Preferred Stock Level");
-      if (usage<0) missing.push("Usage Classification");
-      if (missing.length) throw new Error(`Missing required header${missing.length===1?"":"s"}: ${missing.join(", ")}.`);
-      return parsed.rows.map(r=>({
-        internal_id:r[internal]||"",
-        item_name:item>=0?(r[item]||""):"",
-        preferred_stock_level:r[preferred]||"",
-        usage_classification:r[usage]||""
-      }));
-    }
-
-    if (source==="FLEET_WIDE_PAR") {
-      const product=headerIndex(h,["product","Item","Name"]);
-      const totalQty=headerIndex(h,["Total Quantity"]);
-      const totalPar=headerIndex(h,["Total Par"]);
-      const transit=headerIndex(h,["In Transit Restocks"]);
-      const reach=headerIndex(h,["To Reach Par"]);
-      const vans=headerIndex(h,["Total Vans Below Par"]);
-      const missing=[];
-      if (product<0) missing.push("product");
-      if (reach<0) missing.push("To Reach Par");
-      if (missing.length) throw new Error(`Missing required header${missing.length===1?"":"s"}: ${missing.join(", ")}.`);
-      return parsed.rows.map(r=>({
-        item_name:r[product]||"",
-        total_quantity:totalQty>=0?(r[totalQty]||""):"",
-        total_par:totalPar>=0?(r[totalPar]||""):"",
-        in_transit_restocks:transit>=0?(r[transit]||""):"",
-        to_reach_par:r[reach]||"",
-        total_vans_below_par:vans>=0?(r[vans]||""):""
-      }));
-    }
-    throw new Error("Select a planning input source first.");
-  }
-
-  function sourceHelp() {
-    const source=$("input-source").value;
-    const box=$("input-help");
-    if (!source) { box.hidden=true; box.textContent=""; return; }
-    if (source==="ITEM_PLANNING_FIELDS") {
-      box.innerHTML="<strong>Item Planning Fields:</strong> export the current Demand Planner <strong>Items</strong> tab as CSV. Only Internal ID, Preferred Stock Level, and Usage Classification are applied. Existing Task Tracker items are matched by Internal ID; no items are created or deleted.";
-    } else {
-      box.innerHTML="<strong>Fleet Wide Par:</strong> export the <strong>Fleet Wide Par</strong> tab as CSV. The import replaces the current Fleet Wide Par snapshot. Fleet Need is the <strong>To Reach Par</strong> field.";
-    }
-    box.hidden=false;
-  }
-
-  function renderInputPreview() {
-    const box=$("input-preview");
-    if (!parsedInput) { box.hidden=true; box.innerHTML=""; return; }
-    const preview=parsedInput.rows.slice(0,5);
-    box.innerHTML=`<strong>${esc(parsedInput.fileName)}</strong><div class="muted" style="margin-top:4px">${num(parsedInput.rows.length)} data rows · ${num(parsedInput.headers.length)} columns</div><div class="table-wrap" style="margin-top:10px;max-height:260px"><table><thead><tr>${parsedInput.headers.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${preview.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-    box.hidden=false;
-  }
-
-  async function handleInputFile() {
-    parsedInput=null; currentValidation=null;
-    $("input-validation").hidden=true; $("commit-input").disabled=true;
-    const file=$("input-file").files?.[0];
-    if (!file) { renderInputPreview(); updateImportButtons(); return; }
+  async function copyText(text) {
+    const value=String(text||"").trim();
+    if (!value) return;
     try {
-      const parsed=parseCsv(await file.text());
-      canonicalRows($("input-source").value,parsed);
-      parsedInput={...parsed,fileName:file.name};
-      renderInputPreview();
-      setMessage(`${file.name} parsed successfully. Stage it to validate against Task Tracker.`,"success");
-    } catch(error) {
-      $("input-file").value=""; renderInputPreview(); showError(error);
+      await navigator.clipboard.writeText(value);
+      setMessage(value+" copied.","success");
+    } catch {
+      const ta=document.createElement("textarea");
+      ta.value=value; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+      setMessage(value+" copied.","success");
     }
-    updateImportButtons();
   }
 
-  function setImportProgress(percent,label) {
-    $("input-progress").hidden=false;
-    $("input-progress-bar").style.width=`${Math.max(0,Math.min(100,percent))}%`;
-    $("input-progress-label").textContent=label||"Working...";
-  }
-
-  function clearImportProgress() {
-    $("input-progress").hidden=true;
-    $("input-progress-bar").style.width="0%";
-    $("input-progress-label").textContent="";
-  }
-
-  function updateImportButtons() {
-    const canStage=!busy && !currentRunId && !!parsedInput && !!$("input-source").value;
-    $("stage-input").disabled=!canStage;
-    $("commit-input").disabled=busy || !currentRunId || !currentValidation?.ready_to_commit;
-    $("abort-input").disabled=busy || !currentRunId;
-    $("input-source").disabled=busy || !!currentRunId;
-    $("input-file").disabled=busy || !!currentRunId;
-    $("reset-input").disabled=busy;
-  }
-
-  function renderValidation(result) {
-    currentValidation=result;
-    const errors=result?.errors||[]; const warnings=result?.warnings||[];
-    const box=$("input-validation");
-    box.innerHTML=`${result?.ready_to_commit?`<div class="ok"><strong>Validation passed.</strong> ${num(result.valid_row_count)} valid row(s) are ready to import${result.skipped_row_count?`; ${num(result.skipped_row_count)} row(s) will be skipped`:""}.</div>`:""}${errors.map(x=>`<div class="bad"><strong>Validation Error:</strong> ${esc(x)}</div>`).join("")}${warnings.map(x=>`<div class="warn"><strong>Warning:</strong> ${esc(x)}</div>`).join("")}`;
-    box.hidden=false;
-    updateImportButtons();
-  }
-
-  async function stageInput() {
-    const source=$("input-source").value;
-    if (!source || !parsedInput) throw new Error("Select an input source and CSV first.");
-    const rows=canonicalRows(source,parsedInput);
-    busy=true; updateImportButtons(); setImportProgress(0,"Starting planning input import...");
-    try {
-      const started=await rpc("start_demand_planning_input_import",{p_session_token:token,p_source_code:source,p_headers:parsedInput.headers,p_source_file_name:parsedInput.fileName});
-      currentRunId=started.run_id;
-      const chunkSize=Number(started.recommended_chunk_size||bootstrap?.recommended_chunk_size||400);
-      for (let offset=0;offset<rows.length;offset+=chunkSize) {
-        const chunk=rows.slice(offset,offset+chunkSize);
-        await rpc("stage_demand_planning_input_chunk",{p_session_token:token,p_run_id:currentRunId,p_start_row:offset+2,p_rows:chunk});
-        const done=Math.min(rows.length,offset+chunk.length);
-        setImportProgress((done/rows.length)*90,`Staged ${num(done)} of ${num(rows.length)} rows...`);
-      }
-      setImportProgress(95,"Validating...");
-      const validation=await rpc("preview_demand_planning_input_import",{p_session_token:token,p_run_id:currentRunId});
-      renderValidation(validation);
-      setImportProgress(100,validation.ready_to_commit?"Validation complete. Ready to import valid rows.":"Validation complete. Review errors.");
-      setMessage(validation.ready_to_commit?"Planning input validation passed. Review any warnings, then import valid rows.":"Planning input validation found errors.",validation.ready_to_commit?"success":"error");
-    } catch(error) {
-      if (currentRunId) { try { await rpc("abort_demand_planning_input_import",{p_session_token:token,p_run_id:currentRunId}); } catch {} }
-      currentRunId=null; currentValidation=null; clearImportProgress(); throw error;
-    } finally { busy=false; updateImportButtons(); }
-  }
-
-  async function commitInput() {
-    if (!currentRunId || !currentValidation?.ready_to_commit) throw new Error("Stage and validate the input first.");
-    const source=$("input-source").value;
-    const label=source==="ITEM_PLANNING_FIELDS"?"update Item Master Preferred Stock / Usage Classification":"replace the current Fleet Wide Par snapshot";
-    if (!window.confirm(`Proceed and ${label} with ${num(currentValidation.valid_row_count)} valid row(s)?`)) return;
-    busy=true; updateImportButtons(); setImportProgress(40,"Applying planning input...");
-    try {
-      const result=await rpc("commit_demand_planning_input_import",{p_session_token:token,p_run_id:currentRunId});
-      if (!result?.success) throw new Error(result?.error||"Planning input import failed.");
-      setImportProgress(100,`Imported ${num(result.applied_row_count)} row(s).`);
-      setMessage(`Planning input refreshed successfully with ${num(result.applied_row_count)} row(s).`,"success");
-      currentRunId=null; currentValidation=null; parsedInput=null;
-      $("input-file").value=""; $("input-validation").hidden=true; renderInputPreview();
-      await refreshAll(false);
-      setTimeout(clearImportProgress,1000);
-    } finally { busy=false; updateImportButtons(); }
-  }
-
-  async function abortInput() {
-    if (currentRunId) await rpc("abort_demand_planning_input_import",{p_session_token:token,p_run_id:currentRunId});
-    resetInput(); setMessage("Staged planning input was aborted.");
-  }
-
-  function resetInput() {
-    parsedInput=null; currentRunId=null; currentValidation=null;
-    $("input-file").value=""; $("input-validation").hidden=true; clearImportProgress(); renderInputPreview(); updateImportButtons();
-  }
-
-  function reviewState() {
-    const calc=bootstrap?.calculation;
-    const el=$("review-state");
-    if (!calc) {
-      el.innerHTML="<strong>No Planning Review has been run yet.</strong> Import the two planning inputs below, then run the review when you are ready.";
-      return;
-    }
-    if (calc.status==="FAILED") {
-      el.innerHTML=`<strong>Last Planning Review failed.</strong> ${esc(calc.error_message||"")} The previous successful current result set, if one exists, was left intact.`;
-      return;
-    }
-    if (calc.is_stale) {
-      el.innerHTML=`<strong>Planning Review is out of date.</strong> At least one NetSuite or planning input changed after the last calculation at ${esc(dt(calc.completed_at))}. Current calculated values remain frozen until you run the review again.`;
-      return;
-    }
-    el.innerHTML=`<strong>Planning Review is current.</strong> Last calculated ${esc(dt(calc.completed_at))}.`;
+  function latestRefreshText() {
+    const sources=Object.values(bootstrap?.latest_sources||{}).filter((x)=>x?.completed_at);
+    if (!sources.length) return "No snapshots";
+    const newest=sources.map((x)=>new Date(x.completed_at)).filter((d)=>!Number.isNaN(d.getTime())).sort((a,b)=>b-a)[0];
+    return newest ? newest.toLocaleString() : "—";
   }
 
   function renderFoundation() {
-    const inputs=bootstrap?.inputs||{}; const calc=bootstrap?.calculation;
-    $("viewer-name").textContent=bootstrap?.viewer?.employee_name||"Administrator";
-    $("metric-items").textContent=num(inputs.planning_item_rows||0);
-    $("metric-items-meta").textContent=`Preferred Stock loaded: ${num(inputs.preferred_stock_rows||0)} · Usage loaded: ${num(inputs.usage_classification_rows||0)}`;
-    $("metric-fleet").textContent=num(inputs.fleet_par_rows||0);
-    $("metric-fleet-meta").textContent=inputs.last_fleet_import?.completed_at?`Last import: ${dt(inputs.last_fleet_import.completed_at)}`:"No Fleet Wide Par import yet";
-    $("metric-results").textContent=num(bootstrap?.current_result_rows||0);
-    $("metric-results-meta").textContent=calc?.is_stale?"Frozen result set · inputs changed":"Latest calculated result set";
-    $("metric-review").textContent=calc?.completed_at?dt(calc.completed_at):"Never";
-    $("metric-review-meta").textContent=calc?`${calc.status} · ${num(calc.result_row_count||0)} rows`:"Import planning inputs first";
-    $("run-review").disabled=busy || !inputs.ready_to_run;
-    reviewState();
-    renderHistory();
+    $("viewer-name").textContent=bootstrap?.viewer?.employee_name || "Administrator";
+    $("metric-items").textContent=num(bootstrap?.eligible_item_count);
+    $("metric-fleet").textContent=num(bootstrap?.fleet_par_row_count);
+    $("metric-staged").textContent=num(bootstrap?.pending_staged_count);
+    $("metric-staged-meta").textContent=num(bootstrap?.pending_staged_quantity)+" total units pending";
+    $("metric-refresh").textContent=latestRefreshText();
+
+    const fleet=Number(bootstrap?.fleet_par_row_count||0);
+    const note=$("foundation-note");
+    if (!fleet) {
+      note.textContent="Fleet Wide Par has not been imported into NetSuite Data yet. Fleet Need is currently treated as 0. Import Fleet Wide Par there when ready.";
+      note.style.background="#fef3c7";
+      note.style.color="#92400e";
+    } else {
+      note.textContent="Demand values are calculated from the current Item Master and the latest NetSuite snapshots whenever this page refreshes. No separate Planning Review is required.";
+      note.style.background="#f8fafc";
+      note.style.color="#475569";
+    }
   }
 
-  async function runReview() {
-    if (!bootstrap?.inputs?.ready_to_run) throw new Error("Planning inputs are not ready yet.");
-    if (!window.confirm("Run Planning Review now?\n\nThis recalculates the current Demand result set from the latest snapshots. Snapshot imports by themselves never trigger this calculation.")) return;
-    busy=true; $("run-review").disabled=true; setMessage("Running shared Demand Planning calculations...");
-    try {
-      const result=await rpc("run_demand_planning_review",{p_session_token:token});
-      if (!result?.success) throw new Error(result?.error||"Planning Review failed.");
-      setMessage(`Planning Review completed successfully with ${num(result.result_row_count)} item rows.`,"success");
-      await refreshAll(false);
-    } finally { busy=false; renderFoundation(); }
+  function renderFilterOptions() {
+    fillSelect("filter-status",unique(demandRows,"demand_status"),"All");
+    fillSelect("filter-dept",unique(demandRows,"work_order_department"),"All");
+    fillSelect("filter-usage",unique(demandRows,"usage_classification"),"All");
+    fillSelect("filter-sku",unique(demandRows,"sku_group"),"All");
   }
 
-  function optionList(id,values) {
-    const el=$(id); const current=el.value;
-    const unique=[...new Set(values.map(v=>String(v??"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-    el.innerHTML='<option value="">All</option>'+unique.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
-    if (unique.includes(current)) el.value=current;
+  function visibleColumns() {
+    return columns.filter((c)=>!c.optional || optionalColumns.has(c.optional));
   }
 
-  function populateFilters() {
-    optionList("filter-status",demandRows.map(r=>r.demand_status));
-    optionList("filter-dept",demandRows.map(r=>r.work_order_department));
-    optionList("filter-usage",demandRows.map(r=>r.usage_classification));
-    optionList("filter-sku",demandRows.map(r=>r.sku_group));
-    optionList("wo-operation",woRows.map(r=>r.operation_in_progress));
-    optionList("wo-demand",woRows.map(r=>r.demand_status));
-  }
+  function filteredRows() {
+    const search=$("demand-search").value.trim().toLowerCase();
+    const status=$("filter-status").value;
+    const dept=$("filter-dept").value;
+    const usage=$("filter-usage").value;
+    const sku=$("filter-sku").value;
+    const minBuild=$("filter-max-build").value==="" ? null : Number($("filter-max-build").value);
+    const hideHolds=$("hide-holds").checked;
 
-  function filteredDemand() {
-    const q=$("demand-search").value.trim().toLowerCase();
-    const status=$("filter-status").value; const dept=$("filter-dept").value; const usage=$("filter-usage").value; const sku=$("filter-sku").value;
-    const minBuild=Number($("filter-max-build").value||0); const hideHolds=$("hide-holds").checked;
-    const rows=demandRows.filter(r=>{
-      if (q && ![r.item_name,r.internal_id,r.sku_group,r.usage_classification,r.work_order_department,r.constraint_text].some(v=>String(v??"").toLowerCase().includes(q))) return false;
-      if (status && r.demand_status!==status) return false;
-      if (dept && r.work_order_department!==dept) return false;
-      if (usage && r.usage_classification!==usage) return false;
-      if (sku && r.sku_group!==sku) return false;
-      if (minBuild && (r.max_build_quantity===null || Number(r.max_build_quantity)<minBuild)) return false;
+    const rows=demandRows.filter((r)=>{
+      if (status && String(r.demand_status||"")!==status) return false;
+      if (dept && String(r.work_order_department||"")!==dept) return false;
+      if (usage && String(r.usage_classification||"")!==usage) return false;
+      if (sku && String(r.sku_group||"")!==sku) return false;
       if (hideHolds && r.is_on_hold) return false;
+      if (minBuild!==null && (r.max_build_quantity===null || Number(r.max_build_quantity)<minBuild)) return false;
+      if (search) {
+        const hay=[
+          r.item_name,r.internal_id,r.sku_group,r.usage_classification,r.work_order_department,
+          r.build_type,r.constraint_text,r.demand_status,r.hold_reason
+        ].map((x)=>String(x??"").toLowerCase()).join(" ");
+        if (!hay.includes(search)) return false;
+      }
       return true;
     });
-    const sort=$("demand-sort").value;
+
     rows.sort((a,b)=>{
-      if (sort==="item-asc") return String(a.item_name||"").localeCompare(String(b.item_name||""));
-      if (sort==="weeks-asc") return (a.weeks_supply===null?Infinity:Number(a.weeks_supply))-(b.weeks_supply===null?Infinity:Number(b.weeks_supply));
-      if (sort==="max-desc") return (b.max_build_quantity===null?-Infinity:Number(b.max_build_quantity))-(a.max_build_quantity===null?-Infinity:Number(a.max_build_quantity));
-      if (sort==="priority-desc") return Number(b.priority_backorder_total||0)-Number(a.priority_backorder_total||0);
-      return Number(b.target_demand||0)-Number(a.target_demand||0);
+      let av=a?.[sortKey], bv=b?.[sortKey];
+      if (columns.find((c)=>c.key===sortKey)?.numeric) {
+        av=av===null||av===undefined ? null : Number(av);
+        bv=bv===null||bv===undefined ? null : Number(bv);
+        if (av===null && bv===null) return String(a.item_name).localeCompare(String(b.item_name));
+        if (av===null) return 1;
+        if (bv===null) return -1;
+        const diff=av-bv;
+        if (diff!==0) return sortDir==="asc" ? diff : -diff;
+      } else {
+        const cmp=String(av??"").localeCompare(String(bv??""),undefined,{numeric:true,sensitivity:"base"});
+        if (cmp!==0) return sortDir==="asc" ? cmp : -cmp;
+      }
+      return String(a.item_name).localeCompare(String(b.item_name));
     });
     return rows;
   }
 
-  function renderDemand() {
-    const combined=$("show-combined").checked;
-    $("demand-head").innerHTML=`<tr><th>Item</th><th>Hold</th><th>SKU Group</th><th>Usage</th><th>Department</th><th>Target Demand</th><th>Total Demand</th>${combined?"<th>Combined Demand</th><th>Combined Target</th>":""}<th>Max Build</th><th>Weeks Supply</th><th>Priority Backorder</th><th>Preferred Stock</th><th>Fleet Need</th><th>On Hand</th><th>WIP</th><th>Total In House</th><th>Status</th><th>Constraint</th></tr>`;
-    const rows=filteredDemand(); const pages=Math.max(1,Math.ceil(rows.length/pageSize)); demandPage=Math.min(Math.max(demandPage,1),pages);
-    const start=(demandPage-1)*pageSize; const shown=rows.slice(start,start+pageSize);
-    $("demand-body").innerHTML=shown.length?shown.map(r=>`<tr class="${r.is_on_hold?"row-hold":""}"><td><strong>${esc(r.item_name)}</strong></td><td>${r.is_on_hold?`<span class="status hold" title="${esc(r.hold_reason||"")}">ON HOLD</span>`:""}</td><td>${esc(r.sku_group||"")}</td><td>${esc(r.usage_classification||"")}</td><td>${esc(r.work_order_department||"")}</td><td><strong>${num(r.target_demand,2)}</strong></td><td>${num(r.total_demand,2)}</td>${combined?`<td>${num(r.combined_demand,2)}</td><td>${num(r.combined_target_demand,2)}</td>`:""}<td>${r.has_bom?num(r.max_build_quantity,2):"N/A"}</td><td>${r.weeks_supply===null?"N/A":num(r.weeks_supply,2)}</td><td>${num(r.priority_backorder_total,2)}</td><td>${num(r.preferred_stock_level,2)}</td><td>${num(r.fleet_need,2)}</td><td>${num(r.production_available,2)}</td><td>${num(r.wip_quantity,2)}</td><td>${num(r.total_in_house,2)}</td><td><span class="status ${r.demand_status==="Demand"?"demand":"good"}">${esc(r.demand_status)}</span></td><td style="white-space:normal;max-width:360px">${esc(r.constraint_text||"").replaceAll("\n","<br>")}</td></tr>`).join(""):`<tr><td colspan="19" class="muted">No rows match the current filters.</td></tr>`;
-    $("demand-summary").textContent=rows.length?`Showing ${num(start+1)}-${num(Math.min(start+pageSize,rows.length))} of ${num(rows.length)} matching items · Page ${demandPage} of ${pages}`:"0 matching items";
-    $("demand-prev").disabled=demandPage<=1; $("demand-next").disabled=demandPage>=pages;
+  function cellHtml(row,col) {
+    if (col.key==="copy") return '<button class="copy-btn" type="button" data-copy="'+esc(row.item_name)+'">Copy</button>';
+    if (col.key==="item_name") return '<button class="item-button" type="button" data-open-item="'+esc(row.item_id)+'">'+esc(row.item_name)+'</button><div class="click-hint">Click for detail</div>';
+    if (col.key==="demand_status") {
+      const cls=row.is_on_hold ? "hold" : (row.demand_status==="Demand" ? "demand" : "good");
+      const text=row.is_on_hold ? "On Hold" : (row.demand_status||"—");
+      return '<span class="status '+cls+'">'+esc(text)+'</span>';
+    }
+    if (col.key==="constraint_text") {
+      const value=String(row.constraint_text||"").trim();
+      if (!value) return "—";
+      const preview=value.replaceAll("\n"," · ");
+      const short=preview.length>95 ? preview.slice(0,95)+"…" : preview;
+      return '<div style="white-space:normal;max-width:280px" title="'+esc(preview)+'">'+esc(short)+'</div>';
+    }
+    if (col.key==="weeks_supply") return num(row.weeks_supply,2);
+    if (col.numeric) return num(row[col.key],2);
+    return esc(row[col.key]||"—");
   }
 
-  function filteredWo() {
-    const q=$("wo-search").value.trim().toLowerCase(); const op=$("wo-operation").value; const status=$("wo-demand").value; const stalled=$("wo-stalled").value; const hide=$("wo-hide-holds").checked;
-    return woRows.filter(r=>{
-      if (q && ![r.document_number,r.item_name,r.work_order_type,r.work_order_job_type,r.build_employee,r.qc_employee,r.stalled_work_order_comments].some(v=>String(v??"").toLowerCase().includes(q))) return false;
-      if (op && r.operation_in_progress!==op) return false;
-      if (status && r.demand_status!==status) return false;
-      if (stalled==="yes" && !r.stalled_work_order) return false;
-      if (stalled==="no" && r.stalled_work_order) return false;
-      if (hide && r.is_on_hold) return false;
-      return true;
+  function renderDemand() {
+    const cols=visibleColumns();
+    $("demand-head").innerHTML='<tr>'+cols.map((c)=>{
+      if (c.sort===false) return '<th>'+esc(c.label)+'</th>';
+      const arrow=sortKey===c.key ? (sortDir==="asc" ? " ▲" : " ▼") : "";
+      return '<th class="sort" data-sort="'+esc(c.key)+'">'+esc(c.label)+arrow+'</th>';
+    }).join("")+'</tr>';
+
+    const filtered=filteredRows();
+    const pages=Math.max(1,Math.ceil(filtered.length/pageSize));
+    if (demandPage>pages) demandPage=pages;
+    const start=(demandPage-1)*pageSize;
+    const pageRows=filtered.slice(start,start+pageSize);
+
+    $("demand-body").innerHTML=pageRows.map((row)=>{
+      return '<tr class="demand-row '+(row.is_on_hold?"row-hold":"")+'" data-row-item="'+esc(row.item_id)+'">'+
+        cols.map((c)=>'<td>'+cellHtml(row,c)+'</td>').join("")+
+      '</tr>';
+    }).join("") || '<tr><td colspan="'+cols.length+'" class="muted">No Items match the selected filters.</td></tr>';
+
+    $("demand-summary").textContent=(filtered.length ? ("Showing "+(start+1)+"–"+Math.min(start+pageSize,filtered.length)+" of "+filtered.length) : "0 Items")+" · Page "+demandPage+" of "+pages;
+    $("demand-prev").disabled=demandPage<=1;
+    $("demand-next").disabled=demandPage>=pages;
+
+    $("demand-head").querySelectorAll("[data-sort]").forEach((th)=>{
+      th.addEventListener("click",()=>{
+        const key=th.dataset.sort;
+        if (sortKey===key) sortDir=sortDir==="asc"?"desc":"asc";
+        else { sortKey=key; sortDir=columns.find((c)=>c.key===key)?.numeric ? "desc" : "asc"; }
+        demandPage=1; renderDemand();
+      });
+    });
+
+    $("demand-body").querySelectorAll("[data-copy]").forEach((button)=>{
+      button.addEventListener("click",(event)=>{event.stopPropagation();copyText(button.dataset.copy);});
+    });
+    $("demand-body").querySelectorAll("[data-open-item]").forEach((button)=>{
+      button.addEventListener("click",(event)=>{event.stopPropagation();openItemModal(button.dataset.openItem);});
+    });
+    $("demand-body").querySelectorAll("[data-row-item]").forEach((row)=>{
+      row.addEventListener("click",()=>openItemModal(row.dataset.rowItem));
     });
   }
 
-  function renderWo() {
-    $("wo-head").innerHTML="<tr><th>Date</th><th>Document #</th><th>W/O Type</th><th>Job Type</th><th>Item</th><th>Qty</th><th>Operation</th><th>Op Completion</th><th>Target Demand</th><th>Demand Status</th><th>Max Build</th><th>Usage</th><th>Build Type</th><th>Department</th><th>Hold</th><th>Build Employee</th><th>QC Employee</th><th>Stalled</th><th>Comments</th></tr>";
-    const rows=filteredWo(); const pages=Math.max(1,Math.ceil(rows.length/pageSize)); woPage=Math.min(Math.max(woPage,1),pages); const start=(woPage-1)*pageSize; const shown=rows.slice(start,start+pageSize);
-    $("wo-body").innerHTML=shown.length?shown.map(r=>`<tr class="${r.is_on_hold?"row-hold":""}"><td>${dateOnly(r.work_order_date)}</td><td><strong>${esc(r.document_number||"")}</strong></td><td>${esc(r.work_order_type||"")}</td><td>${esc(r.work_order_job_type||"")}</td><td><strong>${esc(r.item_name||"")}</strong></td><td>${num(r.quantity,2)}</td><td>${esc(r.operation_in_progress||"")}</td><td>${esc(r.operation_completion_value||"")}</td><td>${num(r.target_demand,2)}</td><td>${r.demand_status?`<span class="status ${r.demand_status==="Demand"?"demand":"good"}">${esc(r.demand_status)}</span>`:"—"}</td><td>${r.max_build_quantity===null||r.max_build_quantity===undefined?"N/A":num(r.max_build_quantity,2)}</td><td>${esc(r.usage_classification||"")}</td><td>${esc(r.build_type||"")}</td><td>${esc(r.work_order_department||"")}</td><td>${r.is_on_hold?`<span class="status hold" title="${esc(r.hold_reason||"")}">ON HOLD</span>`:""}</td><td>${esc(r.build_employee||"")}</td><td>${esc(r.qc_employee||"")}</td><td>${r.stalled_work_order?"Yes":"No"}</td><td style="white-space:normal;max-width:320px">${esc(r.stalled_work_order_comments||"")}</td></tr>`).join(""):`<tr><td colspan="19" class="muted">No work orders match the current filters.</td></tr>`;
-    $("wo-summary").textContent=rows.length?`Showing ${num(start+1)}-${num(Math.min(start+pageSize,rows.length))} of ${num(rows.length)} work orders · Page ${woPage} of ${pages}`:"0 matching work orders";
-    $("wo-prev").disabled=woPage<=1; $("wo-next").disabled=woPage>=pages;
+  function tableOrEmpty(headers,rows,emptyText) {
+    if (!rows.length) return '<div class="note">'+esc(emptyText)+'</div>';
+    return '<table><thead><tr>'+headers.map((h)=>'<th>'+esc(h)+'</th>').join("")+'</tr></thead><tbody>'+
+      rows.join("")+'</tbody></table>';
   }
 
-  function renderHistory() {
-    const calc=bootstrap?.calculation_history||[];
-    $("calc-history").innerHTML=`<table><thead><tr><th>Status</th><th>Started</th><th>Completed</th><th>Result Rows</th><th>Error</th></tr></thead><tbody>${calc.length?calc.map(r=>`<tr><td>${statusPill(r.status)}</td><td>${esc(dt(r.started_at))}</td><td>${esc(dt(r.completed_at))}</td><td>${num(r.result_row_count||0)}</td><td>${esc(r.error_message||"")}</td></tr>`).join(""):'<tr><td colspan="5" class="muted">No calculation history yet.</td></tr>'}</tbody></table>`;
-    const imports=bootstrap?.input_history||[];
-    $("input-history").innerHTML=`<table><thead><tr><th>Source</th><th>Status</th><th>File</th><th>Applied Rows</th><th>Warnings</th><th>Started</th><th>Completed</th><th>Error</th></tr></thead><tbody>${imports.length?imports.map(r=>`<tr><td>${esc(r.source_code)}</td><td>${statusPill(r.status)}</td><td>${esc(r.source_file_name||"")}</td><td>${num(r.applied_row_count||0)}</td><td>${num(r.warning_count||0)}</td><td>${esc(dt(r.started_at))}</td><td>${esc(dt(r.completed_at))}</td><td>${esc(r.error_message||"")}</td></tr>`).join(""):'<tr><td colspan="8" class="muted">No planning input history yet.</td></tr>'}</tbody></table>`;
+  function componentDetailHtml(component) {
+    const inv=Array.isArray(component.inventory)?component.inventory:[];
+    const reqs=Array.isArray(component.requisitions)?component.requisitions:[];
+    const invHtml=inv.length ? '<div class="subtable"><strong>Inventory</strong><table><thead><tr><th>Location</th><th>Bin</th><th>On Hand</th><th>Available</th></tr></thead><tbody>'+
+      inv.map((x)=>'<tr><td>'+esc(x.location||"—")+'</td><td>'+esc(x.bin_number||"—")+'</td><td>'+num(x.on_hand,2)+'</td><td>'+num(x.available,2)+'</td></tr>').join("")+
+      '</tbody></table></div>' : '<div class="muted">No inventory rows.</div>';
+    const reqHtml=reqs.length ? '<div class="subtable"><strong>Open Requisitions</strong><table><thead><tr><th>Document</th><th>Name</th><th>Open Qty</th><th>Days Open</th></tr></thead><tbody>'+
+      reqs.map((x)=>'<tr><td>'+esc(x.document_number||"—")+'</td><td>'+esc(x.name||"—")+'</td><td>'+num(x.open_quantity,2)+'</td><td>'+num(x.days_open,0)+'</td></tr>').join("")+
+      '</tbody></table></div>' : '<div class="muted">No open requisitions.</div>';
+    return '<details class="component-details"><summary>Inventory / Requisition detail</summary>'+invHtml+reqHtml+'</details>';
   }
 
-  async function refreshAll(showMessage=true) {
-    const [b,d,w]=await Promise.all([
+  function renderModalDetail() {
+    const d=currentDetail||{};
+    const s=d.summary||{};
+    $("modal-item-name").textContent=s.item_name||"Item Detail";
+    $("modal-item-meta").textContent=[s.internal_id,s.sku_group,s.usage_classification,s.work_order_department].filter(Boolean).join(" · ");
+
+    const hold=$("modal-hold");
+    if (s.is_on_hold) {
+      hold.hidden=false;
+      hold.textContent="CONFIRMED ITEM HOLD — Work Order staging is blocked. "+(d.hold?.hold_reason||s.hold_reason||"");
+    } else hold.hidden=true;
+
+    const metrics=[
+      ["Preferred Stock",num(s.preferred_stock_level,2)],
+      ["Fleet Need",num(s.fleet_need,2)],
+      ["Target Demand",num(s.target_demand,2)],
+      ["Max Build",s.max_build_quantity===null ? "N/A" : num(s.max_build_quantity,2)],
+      ["Pending Staged",num(s.pending_staged_quantity,2)],
+      ["Available to Stage",s.available_to_stage===null ? "N/A" : num(s.available_to_stage,2)],
+      ["On Hand",num(s.production_available,2)],
+      ["WIP",num(s.wip_quantity,2)],
+      ["Total In House",num(s.total_in_house,2)],
+      ["Priority Backorder",num(s.priority_backorder_total,2)],
+      ["Weeks Supply",num(s.weeks_supply,2)],
+      ["Status",s.demand_status||"—"]
+    ];
+    $("modal-metrics").innerHTML=metrics.map((m)=>'<div class="modal-metric"><div class="label">'+esc(m[0])+'</div><div class="value">'+esc(m[1])+'</div></div>').join("");
+
+    const inventory=Array.isArray(d.inventory)?d.inventory:[];
+    $("modal-inventory").innerHTML=tableOrEmpty(
+      ["Location","Bin","On Hand","Available"],
+      inventory.map((x)=>'<tr><td>'+esc(x.location||"—")+'</td><td>'+esc(x.bin_number||"—")+'</td><td>'+num(x.on_hand,2)+'</td><td>'+num(x.available,2)+'</td></tr>'),
+      "No assembly inventory rows found."
+    );
+
+    const components=Array.isArray(d.components)?d.components:[];
+    $("modal-components").innerHTML=tableOrEmpty(
+      ["Component","Qty / BOM","Production Available","Can Build","Open PO","Open Requisition","Detail"],
+      components.map((c)=>'<tr'+(c.is_limiting?' style="background:#fff7ed"':'')+'><td><strong>'+esc(c.component_name)+'</strong>'+(c.is_limiting?' <span class="pill warn">Limiting</span>':'')+'</td><td>'+num(c.component_quantity,4)+'</td><td>'+num(c.production_available,2)+'</td><td>'+num(c.can_build,0)+'</td><td>'+num(c.open_po_quantity,2)+'</td><td>'+num(c.open_requisition_quantity,2)+'</td><td>'+componentDetailHtml(c)+'</td></tr>'),
+      "No BOM components are linked to this Item."
+    );
+
+    const workOrders=Array.isArray(d.work_orders)?d.work_orders:[];
+    $("modal-work-orders").innerHTML=tableOrEmpty(
+      ["WO #","Date","Qty","Built","Status","WO Type","Current Step","Build Employee","QC Employee","Stalled"],
+      workOrders.map((w)=>'<tr><td><strong>'+esc(w.work_order_number)+'</strong></td><td>'+dateText(w.work_order_date)+'</td><td>'+num(w.quantity,2)+'</td><td>'+num(w.built,2)+'</td><td>'+esc(w.work_order_status||"—")+'</td><td>'+esc(w.work_order_type||"—")+'</td><td>'+esc(w.operation_in_progress||"—")+'</td><td>'+esc(w.build_employee||"—")+'</td><td>'+esc(w.qc_employee||"—")+'</td><td>'+(w.stalled_work_order?('<span class="pill warn">Yes</span> '+esc(w.stalled_work_order_comments||"")):"No")+'</td></tr>'),
+      "No open Work Orders found for this Item."
+    );
+
+    renderModalStaged();
+    resetStageRows();
+    $("modal-loading").hidden=true;
+    $("modal-content").hidden=false;
+  }
+
+  function renderModalStaged() {
+    const rows=Array.isArray(currentDetail?.staged_rows)?currentDetail.staged_rows:[];
+    $("modal-staged").innerHTML=tableOrEmpty(
+      ["External ID","Date","Qty","WO Type","Job Type","Priority Dept.","Created By"],
+      rows.map((r)=>'<tr><td>'+esc(r.external_id||"—")+'</td><td>'+dateText(r.date_created)+'</td><td>'+num(r.quantity,2)+'</td><td>'+esc(r.work_order_type||"—")+'</td><td>'+esc(r.work_order_job_type||"—")+'</td><td>'+esc(r.priority_department||"—")+'</td><td>'+esc(r.created_by||"—")+'</td></tr>'),
+      "No pending staged Work Orders for this Item."
+    );
+  }
+
+  async function openItemModal(itemId) {
+    currentItemId=itemId;
+    currentDetail=null;
+    $("item-modal").hidden=false;
+    $("modal-loading").hidden=false;
+    $("modal-content").hidden=true;
+    const row=demandRows.find((x)=>String(x.item_id)===String(itemId));
+    $("modal-item-name").textContent=row?.item_name||"Item Detail";
+    $("modal-item-meta").textContent="Loading...";
+    try {
+      currentDetail=await rpc("get_demand_item_detail",{p_session_token:token,p_item_id:itemId});
+      renderModalDetail();
+    } catch (error) {
+      $("modal-loading").textContent=error.message;
+      $("modal-loading").style.background="#fee2e2";
+      $("modal-loading").style.color="#991b1b";
+    }
+  }
+
+  function closeModal() {
+    $("item-modal").hidden=true;
+    currentDetail=null;
+    currentItemId=null;
+    stageRows=[];
+  }
+
+  function defaultStageRow() {
+    const dept=String(currentDetail?.summary?.work_order_department||"").trim();
+    return {
+      quantity:"",
+      work_order_type:"Production",
+      work_order_job_type:dept,
+      priority_department:"",
+      work_order_memo:dept ? ("Work Order Job Type = "+dept) : ""
+    };
+  }
+
+  function resetStageRows() {
+    stageRows=[defaultStageRow()];
+    const dept=String(currentDetail?.summary?.work_order_department||"");
+    $("stage-total-target").value="";
+    $("stage-increment").value=/build line/i.test(dept) ? "50" : "";
+    renderStageGrid();
+  }
+
+  function stageTotal() {
+    return stageRows.reduce((sum,r)=>sum+(Number(r.quantity)||0),0);
+  }
+
+  function renderStageWarning() {
+    const s=currentDetail?.summary||{};
+    const total=stageTotal();
+    const warning=$("stage-warning");
+    const submit=$("stage-submit");
+    if (s.is_on_hold) {
+      warning.hidden=false;
+      warning.textContent="This Item is on a confirmed hold. Work Orders cannot be staged.";
+      submit.disabled=true;
+      return;
+    }
+    submit.disabled=!stageRows.length || total<=0;
+    if (s.available_to_stage!==null && s.available_to_stage!==undefined && total>Number(s.available_to_stage)) {
+      warning.hidden=false;
+      warning.textContent="Warning: these rows total "+num(total,2)+" units, but only "+num(s.available_to_stage,2)+" remain within the current Max Build after pending staged Work Orders. You can still proceed after confirmation.";
+    } else {
+      warning.hidden=true;
+      warning.textContent="";
+    }
+  }
+
+  function renderStageGrid() {
+    if (!stageRows.length) {
+      $("stage-grid").innerHTML='<div class="note">No Work Order rows. Use Generate Work Orders or Add Row.</div>';
+      $("stage-total").textContent="Total staged in this batch: 0";
+      renderStageWarning();
+      return;
+    }
+
+    $("stage-grid").innerHTML='<table><thead><tr><th>#</th><th>Quantity</th><th>WO Type</th><th>Work Order Job Type</th><th>Priority Department</th><th>Memo</th><th>Actions</th></tr></thead><tbody>'+
+      stageRows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td><input class="stage-input" data-stage-index="'+i+'" data-stage-field="quantity" type="number" min="1" step="1" value="'+esc(r.quantity)+'"></td><td><input class="stage-input" data-stage-index="'+i+'" data-stage-field="work_order_type" value="'+esc(r.work_order_type)+'"></td><td><input class="stage-input" data-stage-index="'+i+'" data-stage-field="work_order_job_type" value="'+esc(r.work_order_job_type)+'"></td><td><input class="stage-input" data-stage-index="'+i+'" data-stage-field="priority_department" value="'+esc(r.priority_department)+'"></td><td><input class="stage-input" data-stage-index="'+i+'" data-stage-field="work_order_memo" value="'+esc(r.work_order_memo)+'"></td><td><button class="secondary" type="button" data-duplicate-stage="'+i+'">Duplicate</button> <button class="danger" type="button" data-remove-stage="'+i+'">Remove</button></td></tr>').join("")+
+      '</tbody></table>';
+
+    $("stage-grid").querySelectorAll("[data-stage-index]").forEach((input)=>{
+      input.addEventListener("input",()=>{
+        const idx=Number(input.dataset.stageIndex);
+        const field=input.dataset.stageField;
+        stageRows[idx][field]=input.value;
+        $("stage-total").textContent="Total staged in this batch: "+num(stageTotal(),2);
+        renderStageWarning();
+      });
+    });
+    $("stage-grid").querySelectorAll("[data-duplicate-stage]").forEach((button)=>{
+      button.addEventListener("click",()=>{
+        const idx=Number(button.dataset.duplicateStage);
+        stageRows.splice(idx+1,0,{...stageRows[idx]});
+        renderStageGrid();
+      });
+    });
+    $("stage-grid").querySelectorAll("[data-remove-stage]").forEach((button)=>{
+      button.addEventListener("click",()=>{
+        stageRows.splice(Number(button.dataset.removeStage),1);
+        renderStageGrid();
+      });
+    });
+    $("stage-total").textContent="Total staged in this batch: "+num(stageTotal(),2);
+    renderStageWarning();
+  }
+
+  function generateStageRows() {
+    const total=Number($("stage-total-target").value);
+    const increment=Number($("stage-increment").value);
+    if (!(total>0)) return showError(new Error("Enter a Total to Stage greater than zero."));
+    if (!(increment>0)) return showError(new Error("Enter a Suggested Increment greater than zero."));
+    const count=Math.ceil(total/increment);
+    if (count>100) return showError(new Error("This would create more than 100 Work Order rows. Increase the increment or stage a smaller batch."));
+    const base=defaultStageRow();
+    stageRows=[];
+    let remaining=total;
+    while (remaining>0) {
+      const qty=Math.min(increment,remaining);
+      stageRows.push({...base,quantity:String(qty)});
+      remaining-=qty;
+    }
+    renderStageGrid();
+  }
+
+  async function submitStageRows() {
+    const rows=stageRows.map((r)=>({
+      quantity:Number(r.quantity),
+      work_order_type:String(r.work_order_type||"").trim(),
+      work_order_job_type:String(r.work_order_job_type||"").trim(),
+      priority_department:String(r.priority_department||"").trim(),
+      work_order_memo:String(r.work_order_memo||"").trim()
+    }));
+    if (!rows.length || rows.some((r)=>!(r.quantity>0))) throw new Error("Every staged Work Order row needs a Quantity greater than zero.");
+
+    $("stage-submit").disabled=true;
+    try {
+      let result=await rpc("stage_demand_work_orders",{
+        p_session_token:token,p_item_id:currentItemId,p_rows:rows,p_confirm_over_max:false
+      });
+      if (result?.requires_over_max_confirmation) {
+        const ok=window.confirm(
+          "These Work Orders would bring pending staged quantity to "+num(result.total_pending_after_stage,2)+
+          ", above the current Max Build of "+num(result.max_build_quantity,2)+".\n\nStage them anyway?"
+        );
+        if (!ok) return;
+        result=await rpc("stage_demand_work_orders",{
+          p_session_token:token,p_item_id:currentItemId,p_rows:rows,p_confirm_over_max:true
+        });
+      }
+      if (!result?.success) throw new Error(result?.error||"Unable to stage Work Orders.");
+      setMessage(result.inserted_count+" Work Order row(s) staged for "+result.item_name+".","success");
+      await loadData();
+      currentDetail=await rpc("get_demand_item_detail",{p_session_token:token,p_item_id:currentItemId});
+      renderModalDetail();
+    } finally {
+      $("stage-submit").disabled=false;
+    }
+  }
+
+  function renderQueue() {
+    const host=$("queue-table");
+    if (!queueRows.length) {
+      host.innerHTML='<div class="note">No Work Orders are waiting for import.</div>';
+      return;
+    }
+    host.innerHTML='<table><thead><tr><th>Select</th><th>External ID</th><th>Date</th><th>Item</th><th>Qty</th><th>WO Type</th><th>Job Type</th><th>Priority Dept.</th><th>Memo</th><th>Created By</th><th>Actions</th></tr></thead><tbody>'+
+      queueRows.map((r)=>'<tr data-queue-row="'+esc(r.id)+'"><td><input type="checkbox" data-queue-select="'+esc(r.id)+'"></td><td>'+esc(r.external_id||"—")+'</td><td>'+dateText(r.date_created)+'</td><td><strong>'+esc(r.item_name)+'</strong></td><td><input type="number" min="1" step="1" data-q-field="quantity" value="'+esc(r.quantity)+'"></td><td><input type="text" data-q-field="work_order_type" value="'+esc(r.work_order_type||"")+'"></td><td><input type="text" data-q-field="work_order_job_type" value="'+esc(r.work_order_job_type||"")+'"></td><td><input type="text" data-q-field="priority_department" value="'+esc(r.priority_department||"")+'"></td><td><input class="memo-input" type="text" data-q-field="work_order_memo" value="'+esc(r.work_order_memo||"")+'"></td><td>'+esc(r.created_by||"—")+'</td><td><button class="secondary" type="button" data-q-save="'+esc(r.id)+'">Save</button> <button class="danger" type="button" data-q-delete="'+esc(r.id)+'">Delete</button></td></tr>').join("")+
+      '</tbody></table>';
+
+    host.querySelectorAll("[data-q-save]").forEach((button)=>button.addEventListener("click",()=>saveQueueRow(button.dataset.qSave).catch(showError)));
+    host.querySelectorAll("[data-q-delete]").forEach((button)=>button.addEventListener("click",()=>deleteQueueRow(button.dataset.qDelete).catch(showError)));
+  }
+
+  function queueFormValues(id) {
+    const tr=$("queue-table").querySelector('[data-queue-row="'+CSS.escape(id)+'"]');
+    const get=(field)=>tr?.querySelector('[data-q-field="'+field+'"]')?.value??"";
+    return {
+      quantity:Number(get("quantity")),
+      work_order_type:get("work_order_type"),
+      work_order_job_type:get("work_order_job_type"),
+      priority_department:get("priority_department"),
+      work_order_memo:get("work_order_memo")
+    };
+  }
+
+  async function saveQueueRow(id) {
+    const values=queueFormValues(id);
+    let result=await rpc("update_demand_staged_work_order",{
+      p_session_token:token,p_staging_id:id,p_quantity:values.quantity,
+      p_work_order_type:values.work_order_type,p_work_order_job_type:values.work_order_job_type,
+      p_priority_department:values.priority_department,p_work_order_memo:values.work_order_memo,
+      p_confirm_over_max:false
+    });
+    if (result?.requires_over_max_confirmation) {
+      const ok=window.confirm("This edit would put pending quantity above the current Max Build of "+num(result.max_build_quantity,2)+". Save it anyway?");
+      if (!ok) return;
+      result=await rpc("update_demand_staged_work_order",{
+        p_session_token:token,p_staging_id:id,p_quantity:values.quantity,
+        p_work_order_type:values.work_order_type,p_work_order_job_type:values.work_order_job_type,
+        p_priority_department:values.priority_department,p_work_order_memo:values.work_order_memo,
+        p_confirm_over_max:true
+      });
+    }
+    if (!result?.success) throw new Error("Unable to update staged Work Order.");
+    setMessage("Staged Work Order updated.","success");
+    await loadData();
+  }
+
+  async function deleteQueueRow(id) {
+    if (!window.confirm("Delete this pending staged Work Order?")) return;
+    await rpc("delete_demand_staged_work_order",{p_session_token:token,p_staging_id:id});
+    setMessage("Pending staged Work Order deleted.","success");
+    await loadData();
+  }
+
+  function selectedQueueIds() {
+    return [...$("queue-table").querySelectorAll("[data-queue-select]:checked")].map((x)=>x.dataset.queueSelect);
+  }
+
+  async function markSelectedImported() {
+    const ids=selectedQueueIds();
+    if (!ids.length) throw new Error("Select at least one staged Work Order first.");
+    if (!window.confirm("Mark "+ids.length+" selected Work Order row(s) as Imported? Imported rows become read-only and stop counting as Pending Staged.")) return;
+    const result=await rpc("mark_demand_work_orders_imported",{p_session_token:token,p_staging_ids:ids,p_import_date:null});
+    setMessage(result.updated_count+" Work Order row(s) marked Imported.","success");
+    await loadData();
+  }
+
+  function exportQueue() {
+    if (!queueRows.length) throw new Error("There are no pending Work Orders to export.");
+    if (!csv) throw new Error("CSV export is unavailable.");
+    const headers=["External ID","Date Created","Work Order Type","Item","Quantity","Work Order Job Type","Priority Department","Work Order Memo","Created By","Status","Import Date","Usage Classification"];
+    const rows=queueRows.map((r)=>[
+      r.external_id,r.date_created,r.work_order_type,r.item_name,r.quantity,r.work_order_job_type,
+      r.priority_department,r.work_order_memo,r.created_by,"Pending Import","",r.usage_classification
+    ]);
+    csv.download("work-order-staging-pending.csv",headers,rows);
+  }
+
+  async function loadData() {
+    const [b,rows,queue]=await Promise.all([
       rpc("get_demand_planning_bootstrap",{p_session_token:token}),
       rpc("get_demand_planning_results",{p_session_token:token}),
-      rpc("get_demand_work_order_prioritization",{p_session_token:token})
+      rpc("get_demand_work_order_staging_queue",{p_session_token:token,p_include_imported:false})
     ]);
-    bootstrap=b; demandRows=Array.isArray(d)?d:[]; woRows=Array.isArray(w)?w:[];
-    renderFoundation(); populateFilters(); demandPage=1; woPage=1; renderDemand(); renderWo(); updateImportButtons();
-    if (showMessage) setMessage("Demand Planning data refreshed.","success");
-  }
-
-  function showTab(name) {
-    ["demand","wo","history"].forEach(key=>{$(`tab-${key}`).hidden=key!==name;});
-    document.querySelectorAll(".tab").forEach(btn=>btn.classList.toggle("active",btn.dataset.tab===name));
-  }
-
-  function bind() {
-    $("input-source").addEventListener("change",()=>{ resetInput(); sourceHelp(); });
-    $("input-file").addEventListener("change",handleInputFile);
-    $("stage-input").addEventListener("click",()=>stageInput().catch(showError));
-    $("commit-input").addEventListener("click",()=>commitInput().catch(showError));
-    $("abort-input").addEventListener("click",()=>abortInput().catch(showError));
-    $("reset-input").addEventListener("click",resetInput);
-    $("run-review").addEventListener("click",()=>runReview().catch(showError));
-    $("refresh-all").addEventListener("click",()=>refreshAll(true).catch(showError));
-    document.querySelectorAll(".tab").forEach(btn=>btn.addEventListener("click",()=>showTab(btn.dataset.tab)));
-
-    ["demand-search","filter-status","filter-dept","filter-usage","filter-sku","filter-max-build","demand-sort","hide-holds","show-combined"].forEach(id=>$(id).addEventListener("input",()=>{demandPage=1;renderDemand();}));
-    $("demand-prev").addEventListener("click",()=>{demandPage=Math.max(1,demandPage-1);renderDemand();});
-    $("demand-next").addEventListener("click",()=>{demandPage+=1;renderDemand();});
-    ["wo-search","wo-operation","wo-demand","wo-stalled","wo-hide-holds"].forEach(id=>$(id).addEventListener("input",()=>{woPage=1;renderWo();}));
-    $("wo-prev").addEventListener("click",()=>{woPage=Math.max(1,woPage-1);renderWo();});
-    $("wo-next").addEventListener("click",()=>{woPage+=1;renderWo();});
+    bootstrap=b||{};
+    demandRows=Array.isArray(rows)?rows:[];
+    queueRows=Array.isArray(queue)?queue:[];
+    renderFoundation();
+    renderFilterOptions();
+    renderDemand();
+    renderQueue();
   }
 
   async function init() {
-    bind(); sourceHelp();
-    if (!token) { $("access-denied").hidden=false; setMessage("Sign in through Task Tracker before opening Demand Planning.","error"); return; }
+    if (!token) {
+      window.location.replace("index.html");
+      return;
+    }
     try {
-      bootstrap=await rpc("get_demand_planning_bootstrap",{p_session_token:token});
       $("app").hidden=false;
-      await refreshAll(false);
-    } catch(error) {
+      await loadData();
+    } catch (error) {
+      $("app").hidden=true;
       $("access-denied").hidden=false;
-      showError(error);
+      $("access-denied").querySelector("p").textContent=error.message;
     }
   }
+
+  ["demand-search","filter-status","filter-dept","filter-usage","filter-sku","filter-max-build","hide-holds"].forEach((id)=>{
+    $(id)?.addEventListener(id==="demand-search"?"input":"change",()=>{demandPage=1;renderDemand();});
+  });
+
+  document.querySelectorAll("[data-col-toggle]").forEach((box)=>{
+    box.addEventListener("change",()=>{
+      if (box.checked) optionalColumns.add(box.dataset.colToggle);
+      else optionalColumns.delete(box.dataset.colToggle);
+      renderDemand();
+    });
+  });
+
+  $("demand-prev").addEventListener("click",()=>{if(demandPage>1){demandPage--;renderDemand();}});
+  $("demand-next").addEventListener("click",()=>{const pages=Math.ceil(filteredRows().length/pageSize);if(demandPage<pages){demandPage++;renderDemand();}});
+  $("refresh-all").addEventListener("click",()=>loadData().then(()=>setMessage("Demand Planning refreshed.","success")).catch(showError));
+  $("queue-refresh").addEventListener("click",()=>loadData().catch(showError));
+  $("queue-export").addEventListener("click",()=>{try{exportQueue();}catch(error){showError(error);}});
+  $("queue-mark-imported").addEventListener("click",()=>markSelectedImported().catch(showError));
+
+  $("modal-close").addEventListener("click",closeModal);
+  $("item-modal").addEventListener("click",(event)=>{if(event.target===$("item-modal"))closeModal();});
+  $("modal-copy").addEventListener("click",()=>copyText(currentDetail?.summary?.item_name||""));
+  $("stage-generate").addEventListener("click",generateStageRows);
+  $("stage-add-row").addEventListener("click",()=>{stageRows.push(defaultStageRow());renderStageGrid();});
+  $("stage-submit").addEventListener("click",()=>submitStageRows().catch(showError));
 
   init();
 })();
