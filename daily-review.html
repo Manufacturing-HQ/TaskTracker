@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Daily Review</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--navy2:#1e293b;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--green:#166534;--amber:#92400e;--red:#991b1b}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input{font:inherit}button{cursor:pointer}
+.shell{max-width:1880px;margin:0 auto;padding:20px 18px 48px}.topbar{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:14px}.brand h1{margin:0;font-size:29px}.brand p{margin:4px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.warning{border-radius:8px;padding:8px 12px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.warning{border:1px solid #f59e0b;background:#fef3c7;color:#92400e}.primary:disabled,.secondary:disabled,.warning:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:10px 12px;border-radius:9px;background:#e2e8f0;margin-bottom:12px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.message[data-type=warn]{background:#fef3c7;color:#92400e}
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 5px 16px rgba(15,23,42,.05)}
+.toolbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px}.left-tools,.right-tools{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:4px}.field input{height:36px;border:1px solid #cbd5e1;border-radius:7px;padding:6px 8px;background:#fff}.search{width:250px}
+.status-filter{position:relative}.status-filter-button{min-width:185px;justify-content:space-between}.status-panel{position:absolute;top:42px;left:0;z-index:30;width:255px;background:#fff;border:1px solid #94a3b8;border-radius:9px;box-shadow:0 12px 30px rgba(15,23,42,.18);padding:10px}.status-panel label{display:flex;gap:8px;align-items:center;padding:5px 2px;font-size:11px;font-weight:700}.status-panel .mini-actions{display:flex;gap:5px;margin-bottom:7px}.status-panel .mini-actions button{font-size:10px;padding:5px 7px}
+.info{font-size:11px;color:#475569;background:#f8fafc;border:1px solid #dbe3ef;border-radius:8px;padding:9px;margin-bottom:10px}
+.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:7px;max-height:72vh}.review-table{border-collapse:collapse;background:#fff;table-layout:fixed;width:100%;min-width:1420px}.review-table th,.review-table td{padding:6px 7px;border-bottom:1px solid #dbe3ef;border-right:1px solid #e5e7eb;text-align:left;font-size:11px;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.review-table th{background:#f8fafc;color:#111827;position:sticky;top:0;z-index:3;font-weight:900}.review-table th.sort{cursor:pointer}.review-table th.sort:hover{background:#e2e8f0}.sort-indicator{display:inline-block;width:11px;margin-left:3px;color:#64748b;text-align:center}.review-table tbody tr:nth-child(even) td{background:#fbfdff}
+.status{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.status-resolved{background:#dcfce7;color:#166534}.status-gwo{background:#ffedd5;color:#9a3412}.status-pwo{background:#fef9c3;color:#854d0e}.status-wip{background:#dbeafe;color:#1e40af}.status-oos{background:#fee2e2;color:#991b1b}.status-hold{background:#f3e8ff;color:#6b21a8}
+.pager{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:8px}.pager-actions{display:flex;gap:6px}.muted{color:var(--muted)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto}.modal{width:min(1350px,98vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:18px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:23px}.modal-note{font-size:11px;color:#475569;margin-top:5px}.stage-table{min-width:1100px;max-height:58vh}.stage-table input[type=number]{width:90px;border:1px solid #cbd5e1;border-radius:6px;padding:5px}.stage-table input[type=checkbox]{transform:scale(1.05)}.blocked{color:#991b1b;font-weight:700;white-space:normal}.eligible{color:#166534;font-weight:800}.modal-footer{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:12px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}
+@media(max-width:800px){.shell{padding:12px 7px 35px}.topbar,.toolbar,.modal-footer{align-items:flex-start;flex-direction:column}.search{width:min(80vw,320px)}.modal-backdrop{padding:8px}.modal{padding:12px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand"><h1>Daily Review</h1><p>Priority backorder review, daily export, and Priority Work Order staging.</p></div>
+    <div class="top-actions">
+      <a class="secondary" href="management.html">Management</a>
+      <a class="secondary" href="work-order-prioritization.html">W/O Prioritization</a>
+      <a class="secondary" href="netsuite-data.html">NetSuite Data</a>
+      <a class="secondary" href="index.html">Home</a>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden><h2>Administrator Access Required</h2><p>This pilot is currently restricted to Administrator accounts.</p></section>
+
+  <main id="app" hidden>
+    <section class="card">
+      <div class="toolbar">
+        <div class="left-tools">
+          <div class="status-filter">
+            <div class="field">
+              <label>Status</label>
+              <button id="status-button" class="secondary status-filter-button" type="button"><span id="status-button-text">Open Review</span><span>▾</span></button>
+            </div>
+            <div id="status-panel" class="status-panel" hidden>
+              <div class="mini-actions">
+                <button id="status-open-review" class="secondary" type="button">Open Review</button>
+                <button id="status-all" class="secondary" type="button">All</button>
+                <button id="status-clear" class="secondary" type="button">Clear</button>
+              </div>
+              <div id="status-options"></div>
+            </div>
+          </div>
+          <div class="field"><label>Search</label><input id="search" class="search" type="search" placeholder="Item or status..."></div>
+          <button id="refresh" class="secondary" type="button">Refresh</button>
+        </div>
+        <div class="right-tools">
+          <button id="standard-export" class="primary" type="button">↓ Standard Export</button>
+          <button id="stage-priority" class="warning" type="button">⚡ Stage Priority Work Orders</button>
+        </div>
+      </div>
+
+      <div class="info">
+        Standard Export follows the layout of your existing Daily Review tracking sheet. Priority staging uses <strong>Grand Total + 6</strong>, capped at current <strong>Max Build</strong>, and sends approved rows directly into the shared Pending Import staging queue.
+      </div>
+
+      <div class="table-wrap">
+        <table id="review-table" class="review-table">
+          <colgroup>
+            <col style="width:92px"><col style="width:190px"><col style="width:100px"><col style="width:125px">
+            <col style="width:82px"><col style="width:92px"><col style="width:105px"><col style="width:100px">
+            <col style="width:92px"><col style="width:125px"><col style="width:145px"><col style="width:135px"><col style="width:150px">
+          </colgroup>
+          <thead id="review-head"></thead>
+          <tbody id="review-body"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <div id="summary" class="muted"></div>
+        <div class="pager-actions"><button id="prev" class="secondary" type="button">Previous</button><button id="next" class="secondary" type="button">Next</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="stage-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2>Stage Priority Work Orders</h2>
+        <div class="modal-note">Eligible Generate Work Order / Generate Partial Work Order rows from the current filtered Daily Review are listed below. Proposed quantity is editable but cannot exceed current Max Build.</div>
+      </div>
+      <button id="stage-close" class="close-btn" type="button">Close</button>
+    </div>
+    <div id="stage-empty" class="info" hidden>No eligible Priority Work Orders are visible with the current filters.</div>
+    <div id="stage-table-wrap" class="table-wrap stage-table" style="margin-top:12px">
+      <table class="review-table" style="min-width:1100px">
+        <thead><tr><th>Stage</th><th>Item</th><th>Status</th><th>Grand Total</th><th>Max Build</th><th>Proposed Qty</th><th>Job Type</th><th>Priority Dept.</th><th>Availability</th></tr></thead>
+        <tbody id="stage-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <div id="stage-summary" class="muted"></div>
+      <div class="actions"><button id="stage-cancel" class="secondary" type="button">Cancel</button><button id="stage-submit" class="primary" type="button">Stage Selected</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/csv-export.js?v=daily-review-20260918-1"></script>
+<script src="js/daily-review.js?v=daily-review-20260918-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
