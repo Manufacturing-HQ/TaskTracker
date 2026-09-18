@@ -14,6 +14,7 @@
 
   let bootstrap = null;
   let demandRows = [];
+  let woPriorityRows = [];
   let queueRows = [];
   let currentDetail = null;
   let currentItemId = null;
@@ -22,6 +23,10 @@
   const pageSize = 100;
   let sortKey = "target_demand";
   let sortDir = "desc";
+  let woPage = 1;
+  const woPageSize = 100;
+  let woSortKey = "priority_rank";
+  let woSortDir = "asc";
   const optionalColumns = new Set();
 
   const columns = [
@@ -43,6 +48,27 @@
     {key:"wip_quantity",label:"WIP",numeric:true,optional:"wip",width:82},
     {key:"total_in_house",label:"Total In House",numeric:true,optional:"in-house",width:105},
     {key:"priority_backorder_total",label:"Priority Backorder",numeric:true,optional:"priority",width:120}
+  ];
+
+  const woColumns = [
+    {key:"priority_rank",label:"Priority #",numeric:true,width:76},
+    {key:"demand_coverage_percent",label:"Demand Coverage",numeric:true,width:120},
+    {key:"uncovered_demand",label:"Uncovered Demand",numeric:true,width:125},
+    {key:"total_demand",label:"Total Demand",numeric:true,width:105},
+    {key:"assembly_available",label:"Assembly Available",numeric:true,width:120},
+    {key:"work_order_date",label:"Date Printed",date:true,width:100},
+    {key:"document_number",label:"WO #",width:90},
+    {key:"work_order_type",label:"WO Type",width:90},
+    {key:"work_order_job_type",label:"Job Type",width:110},
+    {key:"item_name",label:"Item",width:190},
+    {key:"quantity",label:"Qty",numeric:true,width:72},
+    {key:"operation_in_progress",label:"Operation",width:105},
+    {key:"operation_started_date",label:"Operation Started",date:true,width:118},
+    {key:"days_in_operation",label:"Days in Operation",numeric:true,width:115},
+    {key:"build_employee",label:"Builder",width:145},
+    {key:"qa_employee",label:"QA Employee",width:145},
+    {key:"usage_classification",label:"Usage",width:75},
+    {key:"is_on_hold",label:"Hold",width:80}
   ];
 
   function esc(value) {
@@ -275,6 +301,166 @@
     });
   }
 
+
+  function renderWOFilterOptions() {
+    fillSelect("wo-filter-operation",unique(woPriorityRows,"operation_in_progress"),"All");
+    fillSelect("wo-filter-type",unique(woPriorityRows,"work_order_type"),"All");
+    fillSelect("wo-filter-job-type",unique(woPriorityRows,"work_order_job_type"),"All");
+    fillSelect("wo-filter-usage",unique(woPriorityRows,"usage_classification"),"All");
+  }
+
+  function filteredWORows() {
+    const search=$("wo-search").value.trim().toLowerCase();
+    const operation=$("wo-filter-operation").value;
+    const type=$("wo-filter-type").value;
+    const jobType=$("wo-filter-job-type").value;
+    const usage=$("wo-filter-usage").value;
+    const hideHolds=$("wo-hide-holds").checked;
+
+    const rows=woPriorityRows.filter((r)=>{
+      if (operation && String(r.operation_in_progress||"")!==operation) return false;
+      if (type && String(r.work_order_type||"")!==type) return false;
+      if (jobType && String(r.work_order_job_type||"")!==jobType) return false;
+      if (usage && String(r.usage_classification||"")!==usage) return false;
+      if (hideHolds && r.is_on_hold) return false;
+      if (search) {
+        const hay=[
+          r.document_number,r.item_name,r.work_order_type,r.work_order_job_type,
+          r.operation_in_progress,r.build_employee,r.qa_employee,r.usage_classification,
+          r.hold_reason
+        ].map((x)=>String(x??"").toLowerCase()).join(" ");
+        if (!hay.includes(search)) return false;
+      }
+      return true;
+    });
+
+    const col=woColumns.find((x)=>x.key===woSortKey);
+    rows.sort((a,b)=>{
+      let av=a?.[woSortKey], bv=b?.[woSortKey];
+
+      if (col?.numeric) {
+        av=av===null||av===undefined||av==="" ? null : Number(av);
+        bv=bv===null||bv===undefined||bv==="" ? null : Number(bv);
+        if (av===null && bv===null) return Number(a.priority_rank||0)-Number(b.priority_rank||0);
+        if (av===null) return 1;
+        if (bv===null) return -1;
+        const diff=av-bv;
+        if (diff!==0) return woSortDir==="asc" ? diff : -diff;
+      } else if (col?.date) {
+        const at=av ? new Date(String(av)+"T12:00:00").getTime() : NaN;
+        const bt=bv ? new Date(String(bv)+"T12:00:00").getTime() : NaN;
+        if (Number.isNaN(at) && Number.isNaN(bt)) return Number(a.priority_rank||0)-Number(b.priority_rank||0);
+        if (Number.isNaN(at)) return 1;
+        if (Number.isNaN(bt)) return -1;
+        if (at!==bt) return woSortDir==="asc" ? at-bt : bt-at;
+      } else {
+        const cmp=String(av??"").localeCompare(String(bv??""),undefined,{numeric:true,sensitivity:"base"});
+        if (cmp!==0) return woSortDir==="asc" ? cmp : -cmp;
+      }
+      return Number(a.priority_rank||0)-Number(b.priority_rank||0);
+    });
+    return rows;
+  }
+
+  function woCellHtml(row,col) {
+    if (col.key==="demand_coverage_percent") {
+      return row.demand_coverage_percent===null || row.demand_coverage_percent===undefined
+        ? '<span class="muted">No Demand</span>'
+        : '<strong>'+num(row.demand_coverage_percent,1)+'%</strong>';
+    }
+    if (col.key==="item_name") {
+      const canOpen=row.item_id && demandRows.some((item)=>String(item.item_id)===String(row.item_id));
+      return canOpen
+        ? '<button class="item-button" type="button" data-wo-open-item="'+esc(row.item_id)+'">'+esc(row.item_name||"—")+'</button>'
+        : esc(row.item_name||"—");
+    }
+    if (col.key==="operation_in_progress") {
+      return '<span class="pill">'+esc(row.operation_in_progress||"—")+'</span>';
+    }
+    if (col.key==="is_on_hold") {
+      return row.is_on_hold
+        ? '<span class="status hold" title="'+esc(row.hold_reason||"")+'">On Hold</span>'
+        : "—";
+    }
+    if (col.key==="work_order_date" || col.key==="operation_started_date") return dateText(row[col.key]);
+    if (col.key==="days_in_operation") return row[col.key]===null || row[col.key]===undefined ? "—" : num(row[col.key],0);
+    if (col.numeric) return num(row[col.key],2);
+    return esc(row[col.key]||"—");
+  }
+
+  function renderWOPriority() {
+    const table=$("wo-table");
+    const colgroup=$("wo-colgroup");
+    const tableWidth=Math.max(1500,woColumns.reduce((sum,col)=>sum+(col.width||100),0));
+    if (table) {
+      table.style.width="100%";
+      table.style.minWidth=tableWidth+"px";
+    }
+    if (colgroup) {
+      colgroup.innerHTML=woColumns.map((col)=>'<col style="width:'+(col.width||100)+'px">').join("");
+    }
+
+    $("wo-head").innerHTML='<tr>'+woColumns.map((col)=>{
+      const arrow=woSortKey===col.key ? (woSortDir==="asc" ? "▲" : "▼") : "";
+      return '<th class="sort" data-wo-sort="'+esc(col.key)+'"><span class="sort-label">'+esc(col.label)+'</span><span class="sort-indicator">'+arrow+'</span></th>';
+    }).join("")+'</tr>';
+
+    const filtered=filteredWORows();
+    const pages=Math.max(1,Math.ceil(filtered.length/woPageSize));
+    if (woPage>pages) woPage=pages;
+    const start=(woPage-1)*woPageSize;
+    const pageRows=filtered.slice(start,start+woPageSize);
+
+    $("wo-body").innerHTML=pageRows.map((row)=>
+      '<tr class="'+(row.is_on_hold?"row-hold":"")+'">'+
+      woColumns.map((col)=>'<td>'+woCellHtml(row,col)+'</td>').join("")+
+      '</tr>'
+    ).join("") || '<tr><td colspan="'+woColumns.length+'" class="muted">No Work Orders match the selected filters.</td></tr>';
+
+    $("wo-summary").textContent=(filtered.length
+      ? ("Showing "+(start+1)+"–"+Math.min(start+woPageSize,filtered.length)+" of "+filtered.length)
+      : "0 Work Orders")+" · Page "+woPage+" of "+pages;
+    $("wo-prev").disabled=woPage<=1;
+    $("wo-next").disabled=woPage>=pages;
+
+    $("wo-head").querySelectorAll("[data-wo-sort]").forEach((th)=>{
+      th.addEventListener("click",()=>{
+        const key=th.dataset.woSort;
+        if (woSortKey===key) woSortDir=woSortDir==="asc"?"desc":"asc";
+        else {
+          woSortKey=key;
+          woSortDir=woColumns.find((col)=>col.key===key)?.numeric ? "desc" : "asc";
+          if (key==="priority_rank" || key==="demand_coverage_percent") woSortDir="asc";
+        }
+        woPage=1;
+        renderWOPriority();
+      });
+    });
+
+    $("wo-body").querySelectorAll("[data-wo-open-item]").forEach((button)=>{
+      button.addEventListener("click",()=>openItemModal(button.dataset.woOpenItem));
+    });
+  }
+
+  function exportWOPriority() {
+    const rows=filteredWORows();
+    if (!rows.length) throw new Error("There are no prioritized Work Orders to export.");
+    if (!csv) throw new Error("CSV export is unavailable.");
+    const headers=[
+      "Priority #","Demand Coverage %","Uncovered Demand","Total Demand","Assembly Available",
+      "Date Printed","Work Order","Work Order Type","Work Order Job Type","Item","Quantity",
+      "Operation In Progress","Operation Started","Days In Operation","Builder","QA Employee",
+      "Usage Classification","On Hold"
+    ];
+    const values=rows.map((r)=>[
+      r.priority_rank,r.demand_coverage_percent,r.uncovered_demand,r.total_demand,r.assembly_available,
+      r.work_order_date,r.document_number,r.work_order_type,r.work_order_job_type,r.item_name,r.quantity,
+      r.operation_in_progress,r.operation_started_date,r.days_in_operation,r.build_employee,r.qa_employee,
+      r.usage_classification,r.is_on_hold?"Yes":"No"
+    ]);
+    csv.download("work-order-prioritization.csv",headers,values);
+  }
+
   function tableOrEmpty(headers,rows,emptyText) {
     if (!rows.length) return '<div class="note">'+esc(emptyText)+'</div>';
     return '<table><thead><tr>'+headers.map((h)=>'<th>'+esc(h)+'</th>').join("")+'</tr></thead><tbody>'+
@@ -336,7 +522,7 @@
 
     const workOrders=Array.isArray(d.work_orders)?d.work_orders:[];
     $("modal-work-orders").innerHTML=tableOrEmpty(
-      ["WO #","Date","Qty","Built","Status","WO Type","Current Step","Build Employee","QC Employee","Stalled"],
+      ["WO #","Date","Qty","Built","Status","WO Type","Current Step","Build Employee","QA Employee","Stalled"],
       workOrders.map((w)=>'<tr><td><strong>'+esc(w.work_order_number)+'</strong></td><td>'+dateText(w.work_order_date)+'</td><td>'+num(w.quantity,2)+'</td><td>'+num(w.built,2)+'</td><td>'+esc(w.work_order_status||"—")+'</td><td>'+esc(w.work_order_type||"—")+'</td><td>'+esc(w.operation_in_progress||"—")+'</td><td>'+esc(w.build_employee||"—")+'</td><td>'+esc(w.qc_employee||"—")+'</td><td>'+(w.stalled_work_order?('<span class="pill warn">Yes</span> '+esc(w.stalled_work_order_comments||"")):"No")+'</td></tr>'),
       "No open Work Orders found for this Item."
     );
@@ -598,17 +784,21 @@
   }
 
   async function loadData() {
-    const [b,rows,queue]=await Promise.all([
+    const [b,rows,woRows,queue]=await Promise.all([
       rpc("get_demand_planning_bootstrap",{p_session_token:token}),
       rpc("get_demand_planning_results",{p_session_token:token}),
+      rpc("get_demand_work_order_prioritization",{p_session_token:token}),
       rpc("get_demand_work_order_staging_queue",{p_session_token:token,p_include_imported:false})
     ]);
     bootstrap=b||{};
     demandRows=Array.isArray(rows)?rows:[];
+    woPriorityRows=(Array.isArray(woRows)?woRows:[]).map((row,index)=>({...row,priority_rank:index+1}));
     queueRows=Array.isArray(queue)?queue:[];
     renderFoundation();
     renderFilterOptions();
     renderDemand();
+    renderWOFilterOptions();
+    renderWOPriority();
     renderQueue();
   }
 
@@ -638,6 +828,13 @@
       renderDemand();
     });
   });
+
+  ["wo-search","wo-filter-operation","wo-filter-type","wo-filter-job-type","wo-filter-usage","wo-hide-holds"].forEach((id)=>{
+    $(id)?.addEventListener(id==="wo-search"?"input":"change",()=>{woPage=1;renderWOPriority();});
+  });
+  $("wo-prev").addEventListener("click",()=>{if(woPage>1){woPage--;renderWOPriority();}});
+  $("wo-next").addEventListener("click",()=>{const pages=Math.ceil(filteredWORows().length/woPageSize);if(woPage<pages){woPage++;renderWOPriority();}});
+  $("wo-export").addEventListener("click",()=>{try{exportWOPriority();}catch(error){showError(error);}});
 
   $("demand-prev").addEventListener("click",()=>{if(demandPage>1){demandPage--;renderDemand();}});
   $("demand-next").addEventListener("click",()=>{const pages=Math.ceil(filteredRows().length/pageSize);if(demandPage<pages){demandPage++;renderDemand();}});
