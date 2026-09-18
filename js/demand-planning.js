@@ -227,7 +227,7 @@
     const colgroup=$("demand-colgroup");
     const tableWidth=Math.max(1250,cols.reduce((sum,c)=>sum+(c.width||100),0));
     if (table) {
-      table.style.width=tableWidth+"px";
+      table.style.width="100%";
       table.style.minWidth=tableWidth+"px";
     }
     if (colgroup) {
