@@ -190,9 +190,9 @@
       const end = $("qa-report-end").value;
       const label = setup.viewer.access_scope === "ALL_QA" ? ($("qa-report-rep").selectedOptions?.[0]?.textContent || "all-qa") : setup.viewer.employee_name;
       if (kind === "employee") {
-        csv.download(`qa-report-by-employee-${start}-to-${end}-${csv.slug(label)}.csv`, ["QA Employee","Jobs","Pieces Reviewed","Errors","Error Rate %","Scrap","Rework Returned"], (latestData?.by_employee || []).map((r) => [r.qa_rep,r.total_jobs,r.total_pieces_reviewed,r.total_errors,r.error_rate_percent,r.scrap_pieces,r.rework_returned]));
+        csv.download(`qa-report-by-employee-${start}-to-${end}-${csv.slug(label)}.csv`, ["QA Employee","Jobs","Pieces Reviewed","Errors","Error Rate %","Scrap","Rework Returned"], (latestData?.by_employee || []).map((r) => [r.qa_rep,r.total_jobs,r.total_pieces_reviewed,r.total_errors,pct(r.error_rate_percent),r.scrap_pieces,r.rework_returned]));
       } else {
-        csv.download(`qa-report-by-date-${start}-to-${end}-${csv.slug(label)}.csv`, ["Date","Jobs","Pieces Reviewed","Errors","Error Rate %"], (latestData?.by_date || []).map((r) => [r.review_date,r.total_jobs,r.total_pieces_reviewed,r.total_errors,r.error_rate_percent]));
+        csv.download(`qa-report-by-date-${start}-to-${end}-${csv.slug(label)}.csv`, ["Date","Jobs","Pieces Reviewed","Errors","Error Rate %"], (latestData?.by_date || []).map((r) => [r.review_date,r.total_jobs,r.total_pieces_reviewed,r.total_errors,pct(r.error_rate_percent)]));
       }
     } finally {
       button.disabled = false;
@@ -209,7 +209,7 @@
       await loadBuilderReport();
       const start = $("builder-report-start").value;
       const end = $("builder-report-end").value;
-      csv.download(`builder-report-summary-${start}-to-${end}.csv`, ["Builder","Total Jobs","Quantity","Errors","Error Rate %"], (latestBuilderData?.builder_summary || []).map((r) => [r.builder_name,r.total_jobs,r.quantity,r.errors,r.error_rate_percent]));
+      csv.download(`builder-report-summary-${start}-to-${end}.csv`, ["Builder","Total Jobs","Quantity","Errors","Error Rate %"], (latestBuilderData?.builder_summary || []).map((r) => [r.builder_name,r.total_jobs,r.quantity,r.errors,pct(r.error_rate_percent)]));
     } finally {
       button.disabled = false;
       button.textContent = old;
