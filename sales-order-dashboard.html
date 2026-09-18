@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Sales Order Dashboard</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--navy:#0f172a;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--green:#166534;--amber:#92400e;--red:#991b1b;--purple:#6b21a8;--cyan:#0e7490}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1900px;margin:0 auto;padding:20px 16px 50px}.topbar{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:14px}.brand h1{margin:0;font-size:29px}.brand p{margin:4px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.warning,.danger{border-radius:8px;padding:8px 12px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.warning{border:1px solid #f59e0b;background:#fef3c7;color:#92400e}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.warning:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:10px 12px;border-radius:9px;background:#e2e8f0;margin-bottom:12px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}.message[data-type=warn]{background:#fef3c7;color:#92400e}
+.card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:15px;margin-bottom:14px;box-shadow:0 5px 16px rgba(15,23,42,.05)}
+.metrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;margin-bottom:12px}.metric{border:1px solid #d7e0eb;border-radius:10px;padding:11px;background:#f8fafc}.metric .label{font-size:9px;font-weight:900;color:#64748b;text-transform:uppercase;letter-spacing:.04em}.metric .value{font-size:22px;font-weight:950;margin-top:4px}.metric small{display:block;color:#64748b;margin-top:2px;font-size:9px}
+.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:end;flex-wrap:wrap;margin-bottom:10px}.tool-group{display:flex;gap:7px;align-items:end;flex-wrap:wrap}.field label{display:block;font-size:9px;font-weight:900;margin-bottom:4px}.field input,.field select,.field textarea{border:1px solid #cbd5e1;border-radius:7px;padding:6px 8px;background:#fff}.field input,.field select{height:34px}.field textarea{width:100%;min-height:90px;resize:vertical}.search{width:235px}.check{display:flex;align-items:center;gap:6px;height:34px;font-size:10px;font-weight:800}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.quick button{font-size:10px;padding:6px 9px}.quick button.active{background:#1e293b;color:white;border-color:#1e293b}
+.info{font-size:10px;color:#475569;background:#f8fafc;border:1px solid #dbe3ef;border-radius:8px;padding:8px;margin-bottom:9px}.review-banner{font-size:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:8px;padding:8px;margin-bottom:9px}
+.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:8px;max-height:72vh}.order-table{border-collapse:collapse;background:#fff;min-width:2300px;width:100%}.order-table th,.order-table td{padding:6px 7px;border-bottom:1px solid #dbe3ef;border-right:1px solid #eef2f7;text-align:left;font-size:10px;vertical-align:middle;white-space:nowrap}.order-table th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:3;font-weight:900;cursor:pointer}.order-table tbody tr:nth-child(even) td{background:#fbfdff}.order-table tbody tr{cursor:pointer}.order-table tbody tr:hover td{background:#eef6ff}.duplicate td[data-doc]{background:#fff1f2!important;font-weight:900}.excluded td{opacity:.55}.pending-change td:first-child{box-shadow:inset 4px 0 #f59e0b}.num{text-align:right!important;font-variant-numeric:tabular-nums}.late{color:#991b1b;font-weight:900}.muted{color:var(--muted)}
+.status{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.st-printed{background:#dcfce7;color:#166534}.st-picked{background:#d1fae5;color:#065f46}.st-ready{background:#bbf7d0;color:#166534}.st-realloc{background:#ccfbf1;color:#0f766e}.st-pwo{background:#fef9c3;color:#854d0e}.st-gwo{background:#ffedd5;color:#9a3412}.st-prod{background:#ede9fe;color:#6d28d9}.st-oos{background:#fee2e2;color:#991b1b}.st-proc{background:#cffafe;color:#0e7490}.st-cs{background:#dbeafe;color:#1e40af}.st-review{background:#f3e8ff;color:#6b21a8}.st-cosmetic{background:#fecaca;color:#7f1d1d}.st-pending{background:#e2e8f0;color:#475569}
+.route{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;background:#e2e8f0;color:#475569}
+.pager{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:8px}.pager-actions{display:flex;gap:6px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;justify-content:center;align-items:flex-start;padding:22px;overflow:auto}.modal{width:min(1080px,98vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:17px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:11px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:22px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}.detail-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:13px 0}.detail{border:1px solid #dbe3ef;border-radius:9px;padding:9px;background:#f8fafc}.detail .label{font-size:8px;font-weight:900;color:#64748b;text-transform:uppercase}.detail .value{font-size:12px;font-weight:800;margin-top:4px;word-break:break-word}.route-box{border:1px solid #cbd5e1;border-radius:10px;padding:11px;margin:12px 0}.route-box h3{margin:0 0 7px;font-size:14px}.timeline{display:grid;gap:7px;max-height:330px;overflow:auto}.event{border:1px solid #dbe3ef;border-radius:8px;padding:8px;background:#f8fafc}.event-head{display:flex;justify-content:space-between;gap:10px;font-size:9px;color:#64748b}.event strong{color:#172033}.event p{margin:5px 0 0;white-space:pre-wrap;font-size:11px}.event-change{margin-top:5px;font-size:10px}.modal-actions{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}.detail-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.shell{padding:12px 7px 35px}.topbar,.toolbar,.modal-actions{flex-direction:column;align-items:flex-start}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.detail-grid{grid-template-columns:1fr}.search{width:min(80vw,300px)}.modal-backdrop{padding:7px}.modal{padding:11px}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Sales Order Dashboard</h1>
+      <p>Open Sales Order line review, production status, and persistent exception routing.</p>
+    </div>
+    <div class="top-actions">
+      <a class="secondary" href="management.html">Management</a>
+      <a class="secondary" href="daily-review.html">Daily Review</a>
+      <a class="secondary" href="stage-work-orders.html">Stage Work Orders</a>
+      <a class="secondary" href="netsuite-data.html">NetSuite Data</a>
+      <a class="secondary" href="index.html">Home</a>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden>
+    <h2>Administrator Access Required</h2>
+    <p>This pilot is currently restricted to Administrator accounts.</p>
+  </section>
+
+  <main id="app" hidden>
+    <section class="metrics">
+      <div class="metric"><div class="label">Open Lines</div><div id="metric-lines" class="value">0</div><small id="metric-orders">0 orders</small></div>
+      <div class="metric"><div class="label">Out of Stock Review</div><div id="metric-oos" class="value">0</div><small>Unrouted only</small></div>
+      <div class="metric"><div class="label">Procurement Route</div><div id="metric-proc" class="value">0</div><small>Persistent route</small></div>
+      <div class="metric"><div class="label">GWO / PWO</div><div id="metric-production" class="value">0</div><small>Production action</small></div>
+      <div class="metric"><div class="label">Late Lines</div><div id="metric-late" class="value">0</div><small>Past ship date</small></div>
+      <div class="metric"><div class="label">Pending Review Changes</div><div id="metric-pending" class="value">0</div><small>Live source changed</small></div>
+    </section>
+
+    <section class="card">
+      <div class="toolbar">
+        <div class="tool-group">
+          <div class="field"><label>Search</label><input id="search" class="search" type="search" placeholder="SO, item, customer..."></div>
+          <div class="field"><label>Item Status</label><select id="status-filter"><option value="">All Statuses</option></select></div>
+          <div class="field"><label>Sales Order Type</label><select id="type-filter"><option value="">All Types</option></select></div>
+          <div class="field"><label>Route</label><select id="route-filter"><option value="">All Routes</option><option value="PROCUREMENT">Procurement</option><option value="CUSTOMER_SERVICE">Customer Service</option><option value="REVIEW">Review</option><option value="NONE">Unrouted</option></select></div>
+          <label class="check"><input id="include-excluded" type="checkbox"> Include Excluded</label>
+        </div>
+        <div class="tool-group">
+          <button id="refresh" class="secondary" type="button">Refresh Data</button>
+          <button id="export-visible" class="secondary" type="button">↓ Export Visible</button>
+          <button id="run-review" class="primary" type="button">▶ Run Sales Order Review</button>
+        </div>
+      </div>
+
+      <div class="quick">
+        <button class="secondary" type="button" data-quick="OOS">Out of Stock Review</button>
+        <button class="secondary" type="button" data-quick="REALLOCATE">Reallocate/Pick</button>
+        <button class="secondary" type="button" data-quick="PRODUCTION">Production Review</button>
+        <button class="secondary" type="button" data-quick="STUCK">Stuck &gt;5 Days</button>
+        <button class="secondary" type="button" data-quick="LATE">Late Orders</button>
+        <button class="secondary" type="button" data-quick="DUPLICATES">Multiple-Line Orders</button>
+        <button class="secondary" type="button" data-quick="RESET">Reset Quick Filter</button>
+      </div>
+
+      <div id="review-info" class="review-banner"></div>
+      <div class="info">Status calculations use the current NetSuite snapshots. <strong>Run Sales Order Review</strong> is the point that commits status changes and resets Item Status Date only when the effective status actually changes. A routed out-of-stock decision stays in place until the line recovers or an Administrator changes the route.</div>
+
+      <div class="table-wrap">
+        <table class="order-table">
+          <thead id="order-head"></thead>
+          <tbody id="order-body"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <div id="summary" class="muted"></div>
+        <div class="pager-actions"><button id="prev" class="secondary" type="button">Previous</button><button id="next" class="secondary" type="button">Next</button></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="detail-modal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="detail-title">Sales Order Line</h2>
+        <div id="detail-subtitle" class="muted"></div>
+      </div>
+      <button id="detail-close" class="close-btn" type="button">Close</button>
+    </div>
+
+    <div id="detail-grid" class="detail-grid"></div>
+
+    <div id="route-box" class="route-box">
+      <h3>Review / Routing</h3>
+      <div id="route-note" class="muted" style="font-size:10px;margin-bottom:8px"></div>
+      <div class="actions">
+        <button id="route-procurement" class="secondary" type="button">Route to Procurement</button>
+        <button id="route-customer" class="secondary" type="button">Route to Customer Service</button>
+        <button id="route-review" class="secondary" type="button">Keep in Review</button>
+        <button id="route-clear" class="secondary" type="button">Clear Route</button>
+      </div>
+      <div style="margin-top:9px"><label class="check" style="height:auto"><input id="detail-excluded" type="checkbox"> Exclude this line from normal review filters</label></div>
+    </div>
+
+    <div class="field" style="margin-bottom:10px">
+      <label>Add Comment</label>
+      <textarea id="detail-comment" placeholder="Add a note to the permanent Sales Order line history..."></textarea>
+    </div>
+    <div class="actions" style="margin-bottom:15px"><button id="comment-add" class="primary" type="button">Add Comment</button></div>
+
+    <div class="modal-actions">
+      <h3 style="margin:0">Line History</h3>
+      <div class="muted">Status, routing, exclusion, and comment history</div>
+    </div>
+    <div id="event-list" class="timeline" style="margin-top:9px"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/csv-export.js?v=sales-order-dashboard-20260918-1"></script>
+<script src="js/sales-order-dashboard.js?v=sales-order-dashboard-20260918-1"></script>
+<script src="js/employee-signout.js?v=phase1-20260902-1"></script>
+<script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
+</body>
+</html>
