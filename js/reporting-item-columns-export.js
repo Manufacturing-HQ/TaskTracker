@@ -4,8 +4,15 @@
    Summary-table and drill-down behavior are intentionally isolated: opening a
    drill-down must never cause the summary table to be reprocessed. */
 (() => {
+  const config = window.TaskTrackerConfig;
+  const supabaseLib = window.supabase;
   const tableWrap = document.getElementById("table");
-  if (!tableWrap) return;
+  if (!config || !supabaseLib || !tableWrap) return;
+
+  const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
+  });
+  const sessionKey = config.sessionStorageKey;
 
   const SUMMARY_STORAGE_KEY = "tasktracker.itemReporting.summaryVisibleColumns.v1";
   const JOB_STORAGE_KEY = "tasktracker.itemReporting.jobVisibleColumns.v1";
@@ -38,12 +45,65 @@
     "Assigned Qty", "Productive Min", "Productivity", "QA Status", "Errors", "Scrap"
   ]);
 
+  const JOB_EXPORT_COLUMNS = [
+    { label: "Job", header: "Job Number", value: (job) => job.job_number ?? "" },
+    { label: "Employee", value: (job) => job.employee_name || "--" },
+    { label: "Employee Dept", value: (job) => job.employee_department || "--" },
+    { label: "Completion Date", value: (job) => formatDate(job.completion_date) },
+    { label: "Item / Item Entered", value: (job) => job.internal_id === "SYSTEM-ITEM-NOT-LISTED" ? (job.item_not_listed_detail || job.item_name || "Item Not Listed") : (job.item_name || "--") },
+    { label: "Work Order", value: (job) => job.work_order_number || "--" },
+    { label: "WO Type", value: (job) => job.work_order_type || "--" },
+    { label: "WO Department", value: (job) => job.work_order_department || "--" },
+    { label: "Job Type", value: (job) => job.job_type || "--" },
+    { label: "Operation", value: (job) => job.operation_code || "--" },
+    { label: "Assigned Qty", value: (job) => formatNumber(job.assigned_quantity, 2) },
+    { label: "Completed Qty", value: (job) => formatNumber(job.completed_quantity, 2) },
+    { label: "Productive Min", value: (job) => formatNumber(job.productive_minutes, 2) },
+    { label: "Target Cycle", value: (job) => formatNumber(job.target_cycle_time, 4) },
+    { label: "Actual Cycle", value: (job) => formatNumber(job.actual_cycle_time, 4) },
+    { label: "Productivity", value: (job) => formatPercent(job.productivity_percent) },
+    { label: "QA Status", value: (job) => job.qa_status || "--" },
+    { label: "Passed", value: (job) => formatNumber(job.quantity_passed, 2) },
+    { label: "Rejected", value: (job) => formatNumber(job.quantity_rejected, 2) },
+    { label: "Errors", value: (job) => formatNumber(job.error_quantity, 2) },
+    { label: "Scrap", value: (job) => formatNumber(job.scrap_quantity, 2) },
+    { label: "Rework Returned", value: (job) => formatNumber(job.rework_quantity_returned, 2) },
+    { label: "Corrections", value: (job) => formatNumber(job.correction_count, 0) },
+    { label: "Comments", value: (job) => job.comments || job.qa_comments || "--" }
+  ];
+
   const esc = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+
+  async function rpc(name, args = {}) {
+    const { data, error } = await client.rpc(name, args);
+    if (error) throw new Error(error.message || `${name} failed.`);
+    return data;
+  }
+
+  function formatNumber(value, digits = 2) {
+    if (value === null || value === undefined || value === "") return "--";
+    const n = Number(value);
+    return Number.isFinite(n)
+      ? n.toLocaleString(undefined, { maximumFractionDigits: digits })
+      : String(value);
+  }
+
+  function formatPercent(value) {
+    if (value === null || value === undefined || value === "") return "--";
+    const n = Number(value);
+    return Number.isFinite(n) ? `${n.toFixed(2)}%` : String(value);
+  }
+
+  function formatDate(value) {
+    if (!value) return "--";
+    const d = new Date(`${value}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
+  }
 
   function isItemMode() {
     return document.getElementById("item-tab")?.classList.contains("active") === true;
@@ -129,13 +189,27 @@
 
   function ensureSummaryPicker() {
     const filters = document.getElementById("item-report-filters");
-    if (!filters || document.getElementById("item-summary-column-control")) return false;
-    const wrap = document.createElement("div");
-    wrap.id = "item-summary-column-control";
-    wrap.innerHTML = `<label>Visible Columns</label><details class="item-column-picker"><summary id="item-summary-column-summary">Columns</summary><div id="item-summary-column-panel" class="item-column-picker-panel"></div></details>`;
-    filters.appendChild(wrap);
-    renderSummaryPicker();
-    return true;
+    if (!filters) return false;
+    let installed = false;
+
+    if (!document.getElementById("item-summary-column-control")) {
+      const wrap = document.createElement("div");
+      wrap.id = "item-summary-column-control";
+      wrap.innerHTML = `<label>Visible Columns</label><details class="item-column-picker"><summary id="item-summary-column-summary">Columns</summary><div id="item-summary-column-panel" class="item-column-picker-panel"></div></details>`;
+      filters.appendChild(wrap);
+      renderSummaryPicker();
+      installed = true;
+    }
+
+    if (!document.getElementById("item-master-export-jobs-control")) {
+      const exportWrap = document.createElement("div");
+      exportWrap.id = "item-master-export-jobs-control";
+      exportWrap.innerHTML = `<label>Job-Level Detail</label><button id="item-export-all-jobs" type="button" class="secondary" style="width:100%">Export All Jobs</button>`;
+      filters.appendChild(exportWrap);
+      installed = true;
+    }
+
+    return installed;
   }
 
   function rootSummaryTable() {
@@ -246,6 +320,64 @@
     return String(value || "jobs").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "jobs";
   }
 
+  function masterJobRequestArgs() {
+    const token = sessionStorage.getItem(sessionKey);
+    const start = document.getElementById("start-date")?.value;
+    const end = document.getElementById("end-date")?.value;
+    if (!token) throw new Error("Your reporting session is no longer available.");
+    if (!start || !end) throw new Error("Select a valid date range.");
+    return {
+      p_session_token: token,
+      p_start_date: start,
+      p_end_date: end,
+      p_group_by: currentGroupBy(),
+      p_employee_id: document.getElementById("report-employee")?.value || null,
+      p_work_order_department: document.getElementById("item-wo-department")?.value || null,
+      p_employee_department_id: document.getElementById("item-employee-department")?.value || null,
+      p_job_type: document.getElementById("item-job-type")?.value || null,
+      p_sku_group: document.getElementById("item-sku-group")?.value || null,
+      p_item_search: document.getElementById("item-search")?.value?.trim() || null,
+      p_group_item_id: null,
+      p_group_sku_group: null,
+      p_group_job_type: null,
+      p_group_work_order_department: null
+    };
+  }
+
+  async function exportAllJobsCsv(button) {
+    const csv = window.TaskTrackerCsv;
+    if (!csv) throw new Error("Job CSV export is unavailable.");
+
+    const oldText = button?.textContent || "Export All Jobs";
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Exporting...";
+    }
+
+    try {
+      const data = await rpc("get_item_reporting_jobs", masterJobRequestArgs());
+      const jobs = Array.isArray(data) ? data : [];
+      if (!jobs.length) throw new Error("No jobs matched the current Item Reporting filters.");
+
+      const columns = JOB_EXPORT_COLUMNS.filter((column) => column.label === "Job" || selectedJobs.has(column.label));
+      const headers = columns.map((column) => column.header || column.label);
+      const rows = jobs.map((job) => columns.map((column) => column.value(job)));
+
+      const start = document.getElementById("start-date")?.value || "start";
+      const end = document.getElementById("end-date")?.value || "end";
+      csv.download(
+        `task-tracker-item-jobs-all-${currentGroupBy().toLowerCase()}-${start}-to-${end}.csv`,
+        headers,
+        rows
+      );
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = oldText;
+      }
+    }
+  }
+
   function exportSummaryCsv() {
     const csv = window.TaskTrackerCsv;
     const table = rootSummaryTable();
@@ -293,6 +425,14 @@
 
   function installEvents() {
     document.addEventListener("click", (event) => {
+      const masterExport = event.target.closest?.("#item-export-all-jobs");
+      if (masterExport && isItemMode()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        exportAllJobsCsv(masterExport).catch((error) => alert(error.message || String(error)));
+        return;
+      }
+
       const exportButton = event.target.closest?.("#report-export-csv");
       if (exportButton && isItemMode()) {
         event.preventDefault();
