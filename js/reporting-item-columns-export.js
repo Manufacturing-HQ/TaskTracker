@@ -42,7 +42,7 @@
 
   const JOB_DEFAULTS = new Set([
     "Employee", "Completion Date", "Item / Item Entered", "Work Order", "Job Type",
-    "Assigned Qty", "Productive Min", "Productivity", "QA Status", "Errors", "Scrap"
+    "Assigned Qty", "Productive Min", "Assigned Item Cycle Time", "Productivity", "QA Status", "Errors", "Scrap"
   ]);
 
   const JOB_EXPORT_COLUMNS = [
@@ -59,7 +59,7 @@
     { label: "Assigned Qty", value: (job) => formatNumber(job.assigned_quantity, 2) },
     { label: "Completed Qty", value: (job) => formatNumber(job.completed_quantity, 2) },
     { label: "Productive Min", value: (job) => formatNumber(job.productive_minutes, 2) },
-    { label: "Target Cycle", value: (job) => formatNumber(job.target_cycle_time, 4) },
+    { label: "Assigned Item Cycle Time", value: (job) => formatNumber(job.target_cycle_time, 4) },
     { label: "Actual Cycle", value: (job) => formatNumber(job.actual_cycle_time, 4) },
     { label: "Productivity", value: (job) => formatPercent(job.productivity_percent) },
     { label: "QA Status", value: (job) => job.qa_status || "--" },
@@ -135,6 +135,11 @@
 
   let selectedSummary = loadSelection(SUMMARY_STORAGE_KEY, SUMMARY_DEFAULTS);
   let selectedJobs = loadSelection(JOB_STORAGE_KEY, JOB_DEFAULTS);
+  // Historical cycle time is important job-level context. Migrate older saved
+  // "Target Cycle" preferences and make the explicit snapshot field visible.
+  selectedJobs.delete("Target Cycle");
+  selectedJobs.add("Assigned Item Cycle Time");
+  saveSelection(JOB_STORAGE_KEY, selectedJobs);
 
   function installStyle() {
     if (document.getElementById("item-column-chooser-style")) return;
@@ -198,14 +203,6 @@
       wrap.innerHTML = `<label>Visible Columns</label><details class="item-column-picker"><summary id="item-summary-column-summary">Columns</summary><div id="item-summary-column-panel" class="item-column-picker-panel"></div></details>`;
       filters.appendChild(wrap);
       renderSummaryPicker();
-      installed = true;
-    }
-
-    if (!document.getElementById("item-master-export-jobs-control")) {
-      const exportWrap = document.createElement("div");
-      exportWrap.id = "item-master-export-jobs-control";
-      exportWrap.innerHTML = `<label>Job-Level Detail</label><button id="item-export-all-jobs" type="button" class="secondary" style="width:100%">Export All Jobs</button>`;
-      filters.appendChild(exportWrap);
       installed = true;
     }
 
