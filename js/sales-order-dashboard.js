@@ -18,7 +18,8 @@
   const pageSize=100;
   let sortKey="ship_date";
   let sortDir="asc";
-  let quickFilter="";\n  let focusMode=false;
+  let quickFilter="";
+  let focusMode=false;
   let detailKey=null;
   let detailData=null;
   const selected=new Set();
@@ -519,7 +520,8 @@
     const button=$("focus-table");
     if(button) button.textContent=focusMode?"▣ Show Overview":"⛶ Focus Table";
   }
-\n  function exportVisible(){
+
+  function exportVisible(){
     const data=filteredRows();
     if(!data.length) throw new Error("There are no visible Sales Order rows to export.");
     if(!csv) throw new Error("CSV export is unavailable.");
@@ -710,7 +712,8 @@
     button.addEventListener("click",()=>setQuick(button.dataset.quick));
   });
 
-  $("focus-table").addEventListener("click",()=>setFocusMode(!focusMode));\n  $("refresh").addEventListener("click",()=>loadData().then(()=>setMessage("Sales Order Dashboard refreshed.","success")).catch(showError));
+  $("focus-table").addEventListener("click",()=>setFocusMode(!focusMode));
+  $("refresh").addEventListener("click",()=>loadData().then(()=>setMessage("Sales Order Dashboard refreshed.","success")).catch(showError));
   $("run-review").addEventListener("click",()=>runReview().catch(showError));
   $("export-visible").addEventListener("click",()=>{try{exportVisible();}catch(error){showError(error);}});
   $("apply-status").addEventListener("click",()=>applySelectedStatus().catch(showError));
