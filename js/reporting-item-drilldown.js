@@ -215,7 +215,7 @@
       <div class="table-wrap"><table class="item-job-table"><thead><tr>
         <th>Job</th><th>Employee</th><th>Employee Dept</th><th>Completion Date</th><th>Item / Item Entered</th>
         <th>Work Order</th><th>WO Type</th><th>WO Department</th><th>Job Type</th><th>Operation</th>
-        <th>Assigned Qty</th><th>Completed Qty</th><th>Productive Min</th><th>Target Cycle</th><th>Actual Cycle</th><th>Productivity</th>
+        <th>Assigned Qty</th><th>Completed Qty</th><th>Productive Min</th><th>Assigned Item Cycle Time</th><th>Actual Cycle</th><th>Productivity</th>
         <th>QA Status</th><th>Passed</th><th>Rejected</th><th>Errors</th><th>Scrap</th><th>Rework Returned</th><th>Corrections</th><th>Comments</th>
       </tr></thead><tbody>${body}</tbody></table></div>`;
   }
@@ -306,7 +306,7 @@
       ["Work Order", job.work_order_number], ["WO Type", job.work_order_type], ["WO Department", job.work_order_department],
       ["Job Type", job.job_type], ["Operation", job.operation_code], ["Status", job.job_status],
       ["Assigned Quantity", formatNumber(job.assigned_quantity,2)], ["Completed Quantity", formatNumber(job.completed_quantity,2)],
-      ["Target Cycle", formatNumber(job.cycle_time_snapshot,4)], ["Actual Cycle", formatNumber(actualCycle,4)],
+      ["Assigned Item Cycle Time", formatNumber(job.cycle_time_snapshot,4)], ["Actual Cycle", formatNumber(actualCycle,4)],
       ["Expected Minutes", formatNumber(job.expected_minutes,2)], ["Productive Minutes", formatNumber(productiveMinutes,2)],
       ["Productivity", formatPercent(productivity)], ["Sessions", formatNumber(sessions.length,0)]
     ].filter(([, value]) => value !== null && value !== undefined && value !== "" && value !== "--");
