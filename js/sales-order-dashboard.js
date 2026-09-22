@@ -39,7 +39,7 @@
     {key:"quantity_picked",label:"Quantity Picked",type:"num"},
     {key:"quantity_packed",label:"Quantity Packed",type:"num"},
     {key:"item_status",label:"Item Status",type:"status"},
-    {key:"item_available_new_wall",label:"Available New Wall",type:"available"},
+    {key:"item_available_new_wall",label:"Free Available New Wall",type:"available"},
     {key:"max_build_quantity",label:"Max Build",type:"maxbuild"},
     {key:"work_orders_in_progress",label:"Work Orders In Progress",type:"wip"},
     {key:"constraint_text",label:"Constraint",type:"constraint"},
@@ -529,7 +529,7 @@
     const headers=[
       "Date","Ship Date","Document Number","Sales Order Type","Item Status Date","Item","Customer",
       "Quantity","Amount","Quantity Committed","Quantity Picked","Quantity Packed","Item Status",
-      "Available New Wall","Max Build","Work Orders In Progress","Constraint","Priority Back Order",
+      "Free Available New Wall","Max Build","Work Orders In Progress","Constraint","Priority Back Order",
       "Order Status","Fulfillment Status","Print Date"
     ];
     const values=data.map(r=>[
@@ -569,7 +569,7 @@
       detailBox("Quantity",esc(num(live.quantity,2))),
       detailBox("Amount",esc(money(live.amount))),
       detailBox("Committed / Picked / Packed",esc(num(live.quantity_committed,2)+" / "+num(live.quantity_picked,2)+" / "+num(live.quantity_packed,2))),
-      detailBox("Available New Wall",esc(num(live.item_available_new_wall,2))),
+      detailBox("Free Available New Wall",esc(num(live.item_available_new_wall,2))),
       detailBox("Max Build",esc(num(live.max_build_quantity,2))),
       detailBox("Work Orders In Progress",esc(num(live.work_orders_in_progress,2))),
       detailBox("Priority Back Order",esc(num(live.priority_requirement,2))),
