@@ -243,6 +243,7 @@
     $("transactions-tab")?.classList.remove("active");
     $("item-tab")?.classList.add("active");
     $("item-report-filters").hidden = false;
+    if ($("item-export-all-jobs")) $("item-export-all-jobs").hidden = false;
     $("report-title").textContent = "Item Reporting";
     $("report-note").textContent = "Uses job completion date, Assigned Quantity, historical cycle-time snapshots, and all productive session minutes. Quality uses the latest terminal QA outcome; Programming and Shell Assembly operations intentionally bypass QA.";
     runItemReport();
@@ -251,6 +252,7 @@
   function leaveItemMode() {
     $("item-tab")?.classList.remove("active");
     if ($("item-report-filters")) $("item-report-filters").hidden = true;
+    if ($("item-export-all-jobs")) $("item-export-all-jobs").hidden = true;
   }
 
   async function exportItemCsv() {
