@@ -22,6 +22,7 @@
   let activeProjectDetail = null;
   let queuedMentionIds = new Set();
   let projectCommentSort = "NEWEST";
+  const projectSystemNotesVisibility = new Map();
   let queueAssignmentSetup = null;
 
   const esc = (value) => String(value ?? "")
@@ -614,6 +615,9 @@
       p_project_id: projectId
     });
     activeProject = activeProjectDetail.project;
+    if (!projectSystemNotesVisibility.has(String(projectId))) {
+      projectSystemNotesVisibility.set(String(projectId), false);
+    }
     $("drawer-title").textContent = activeProject.title;
     $("drawer-meta").textContent = [
       statusLabel(activeProject.status),
@@ -636,7 +640,9 @@
     const access = activeProjectDetail.viewer_access || {};
     const tasks = activeProjectDetail.tasks || [];
     const updates = activeProjectDetail.updates || [];
-    const sortedUpdates = [...updates].sort((a, b) => {
+    const showSystemNotes = projectSystemNotesVisibility.get(String(project.project_id)) === true;
+    const visibleUpdates = updates.filter((update) => showSystemNotes || update.update_type !== "SYSTEM");
+    const sortedUpdates = [...visibleUpdates].sort((a, b) => {
       const aTime = new Date(a.created_at).getTime() || 0;
       const bTime = new Date(b.created_at).getTime() || 0;
       return projectCommentSort === "OLDEST" ? aTime - bTime : bTime - aTime;
@@ -651,10 +657,13 @@
 
       <section class="project-section project-comments-section">
         <div class="project-comments-toolbar">
-          <div><h2>Comments</h2><div class="muted">Project conversation and activity.</div></div>
-          <div class="field"><label>Sort Comments</label><select id="comment-sort"><option value="NEWEST" ${projectCommentSort === "NEWEST" ? "selected" : ""}>Newest to Oldest</option><option value="OLDEST" ${projectCommentSort === "OLDEST" ? "selected" : ""}>Oldest to Newest</option></select></div>
+          <div><h2>Comments</h2><div class="muted">Project conversation. Automated task activity is hidden by default.</div></div>
+          <div style="display:flex;gap:14px;align-items:end;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:7px;min-height:38px;font-size:12px;font-weight:850;white-space:nowrap"><input id="show-system-notes" type="checkbox" ${showSystemNotes ? "checked" : ""}> Show System Notes</label>
+            <div class="field"><label>Sort Comments</label><select id="comment-sort"><option value="NEWEST" ${projectCommentSort === "NEWEST" ? "selected" : ""}>Newest to Oldest</option><option value="OLDEST" ${projectCommentSort === "OLDEST" ? "selected" : ""}>Oldest to Newest</option></select></div>
+          </div>
         </div>
-        <div id="project-feed">${sortedUpdates.map((update) => renderUpdate(update, !!access.can_pin_updates)).join("") || '<div class="empty">No comments yet.</div>'}</div>
+        <div id="project-feed">${sortedUpdates.map((update) => renderUpdate(update, !!access.can_pin_updates)).join("") || (updates.length && !showSystemNotes ? '<div class="empty">No user comments yet. Check Show System Notes to view automated project activity.</div>' : '<div class="empty">No comments yet.</div>')}</div>
       </section>
 
       <section class="project-section project-tasks-section">
@@ -691,6 +700,10 @@
     });
     $("drawer-content").querySelectorAll(".pin-update").forEach((el) => {
       el.addEventListener("click", () => togglePin(el.dataset.id, el.dataset.pinned !== "true"));
+    });
+    $("show-system-notes")?.addEventListener("change", (event) => {
+      projectSystemNotesVisibility.set(String(project.project_id), !!event.target.checked);
+      renderProjectDrawer();
     });
     $("comment-sort")?.addEventListener("change", (event) => {
       projectCommentSort = event.target.value === "OLDEST" ? "OLDEST" : "NEWEST";
