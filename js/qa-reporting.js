@@ -160,11 +160,11 @@
     const start = $("builder-report-start").value;
     const end = $("builder-report-end").value;
     if (!start || !end) throw new Error("Select a valid Builder Report date range.");
-    latestBuilderData = await rpc("get_builder_reporting", {
+    latestBuilderData = await rpc("get_builder_reporting_v2", {
       p_session_token: sessionToken,
       p_start_date: start,
       p_end_date: end,
-      p_builder_employee_id: $("builder-report-employee").value || null,
+      p_builder_employee_ids: selectedBuilderIds(),
       p_department: $("builder-report-department").value || null,
       p_supervisor_id: $("builder-report-supervisor").value || null
     });
@@ -216,10 +216,25 @@
     }
   }
 
-  function fillBuilderOptions() {
-    $("builder-report-employee").innerHTML = '<option value="">All Builders</option>' + (builderSetup?.builders || []).map((r) => `<option value="${esc(r.employee_id)}">${esc(r.employee_name)}</option>`).join("");
-    $("builder-report-department").innerHTML = '<option value="">All Departments</option>' + (builderSetup?.departments || []).map((name) => `<option value="${esc(name)}">${esc(name)}</option>`).join("");
-    $("builder-report-supervisor").innerHTML = '<option value="">All Supervisors</option>' + (builderSetup?.supervisors || []).map((r) => `<option value="${esc(r.supervisor_id)}">${esc(r.supervisor_name)}</option>`).join("");
+  function selectedBuilderIds(){
+    return [...document.querySelectorAll('#builder-report-employees input[type="checkbox"]:checked')].map(el=>el.value);
+  }
+
+  function updateBuilderPickerSummary(){
+    const ids=selectedBuilderIds();
+    const summaryEl=$("builder-report-builder-summary");
+    if(!summaryEl) return;
+    if(!ids.length){summaryEl.textContent="All Builders";return;}
+    const names=ids.map(id=>(builderSetup?.builders||[]).find(row=>String(row.employee_id)===String(id))?.employee_name).filter(Boolean);
+    summaryEl.textContent=names.length<=2?names.join(", "):`${names.length} Builders Selected`;
+  }
+
+  function fillBuilderOptions(){
+    $("builder-report-employees").innerHTML=(builderSetup?.builders||[]).map(r=>`<label><input type="checkbox" value="${esc(r.employee_id)}"> <span>${esc(r.employee_name)}</span></label>`).join("")||'<div class="muted">No builders available.</div>';
+    $("builder-report-employees").querySelectorAll('input[type="checkbox"]').forEach(el=>el.addEventListener("change",updateBuilderPickerSummary));
+    updateBuilderPickerSummary();
+    $("builder-report-department").innerHTML='<option value="">All Departments</option>'+(builderSetup?.departments||[]).map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join("");
+    $("builder-report-supervisor").innerHTML='<option value="">All Supervisors</option>'+(builderSetup?.supervisors||[]).map(r=>`<option value="${esc(r.supervisor_id)}">${esc(r.supervisor_name)}</option>`).join("");
   }
 
   async function enter() {
