@@ -528,6 +528,7 @@
     $("project-modal").hidden = false;
     $("project-id").value = project?.project_id || "";
     $("project-modal-title").textContent = project ? "Edit Project" : "New Project";
+    $("delete-project").hidden = !project;
     $("project-title").value = project?.title || "";
     $("project-description").value = project?.description || "";
     $("project-modal-status").value = project?.status || "OPEN";
@@ -541,6 +542,24 @@
       "project-participant",
       (project?.participants || []).map((x) => x.employee_id)
     );
+  }
+
+  async function deleteProject() {
+    const projectId = $("project-id").value;
+    if (!projectId) return;
+    const project = projects.find((row) => row.project_id === projectId);
+    const title = project?.title || $("project-title").value.trim() || "this project";
+    if (!confirm(`Delete "${title}" from active Projects? This will not mark it complete, and the audit history will be retained.`)) return;
+    const reason = prompt("Optional deletion reason:") || null;
+    await rpc("delete_work_hub_project", {
+      p_session_token: sessionToken,
+      p_project_id: projectId,
+      p_reason: reason
+    });
+    $("project-modal").hidden = true;
+    if (activeProject?.project_id === projectId) closeProjectDrawer();
+    await Promise.all([loadProjects(), loadNotifications()]);
+    setMessage("Project removed from active Projects.", "success");
   }
 
   async function saveProjectRecord(project, overrideStatus = null) {
@@ -712,11 +731,29 @@
     $("project-task-modal").hidden = false;
     $("project-task-id").value = task?.project_task_id || "";
     $("project-task-modal-title").textContent = task ? "Edit Project Task" : "Add Project Task";
+    $("delete-project-task").hidden = !task;
     $("project-task-description").value = task?.description || "";
     $("project-task-assignee").innerHTML = optionHtml(projectTaskAssignees(task), task?.assigned_employee_id || bootstrap.viewer.employee_id);
     $("project-task-due").value = task?.due_date || "";
     $("project-task-link-text").value = task?.link_text || "";
     $("project-task-link-url").value = task?.link_url || "";
+  }
+
+  async function deleteProjectTask() {
+    const taskId = $("project-task-id").value;
+    if (!taskId || !activeProject?.project_id) return;
+    const task = (activeProjectDetail?.tasks || []).find((row) => row.project_task_id === taskId);
+    const description = task?.description || $("project-task-description").value.trim() || "this task";
+    if (!confirm(`Delete "${description}" from this project? It will disappear from active Project Tasks without being marked complete.`)) return;
+    const reason = prompt("Optional deletion reason:") || null;
+    await rpc("delete_work_hub_project_task", {
+      p_session_token: sessionToken,
+      p_project_task_id: taskId,
+      p_reason: reason
+    });
+    $("project-task-modal").hidden = true;
+    await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
+    setMessage("Project task removed.", "success");
   }
 
   async function saveProjectTask(event) {
@@ -989,6 +1026,7 @@
     $("toggle-quick-rail").addEventListener("click", () => $("projects-layout").classList.toggle("quick-collapsed"));
     $("new-project").addEventListener("click", () => openProjectModal());
     $("project-form").addEventListener("submit", (event) => saveProject(event).catch(showError));
+    $("delete-project").addEventListener("click", () => deleteProject().catch(showError));
     $("project-status").addEventListener("change", () => loadProjects().catch(showError));
     $("project-owner").addEventListener("change", () => loadProjects().catch(showError));
     let searchTimer = null;
@@ -1000,6 +1038,7 @@
     $("close-drawer").addEventListener("click", closeProjectDrawer);
     $("drawer-overlay").addEventListener("click", closeProjectDrawer);
     $("project-task-form").addEventListener("submit", (event) => saveProjectTask(event).catch(showError));
+    $("delete-project-task").addEventListener("click", () => deleteProjectTask().catch(showError));
     $("queue-completed").addEventListener("change", () => loadQueue().catch(showError));
     document.querySelectorAll("[data-close]").forEach((button) => {
       button.addEventListener("click", () => { $(button.dataset.close).hidden = true; });
