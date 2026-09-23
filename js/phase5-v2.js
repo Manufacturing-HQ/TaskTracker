@@ -33,6 +33,7 @@
   let itemSearchTimer = null;
   let currentState = null;
   let currentAction = null;
+  let editingJob = null;
   let editSelectedItem = null;
   let editItemNotListedMode = false;
   let editSearchTimer = null;
@@ -352,7 +353,7 @@
         <strong>Job #${escapeHtml(job.job_number)} · ${escapeHtml(job.job_status)}</strong>
         <div>${escapeHtml(job.item_not_listed_detail || job.item_name || job.non_productive_task_name || "")}</div>
         <div class="state-meta">${escapeHtml([job.work_order_number, job.job_type].filter(Boolean).join(" · "))}</div>
-        ${["Paused", "Blocked"].includes(job.job_status) ? `<div style="margin-top:10px"><button class="secondary resume-job" type="button" data-job-id="${escapeHtml(job.job_id)}">Resume</button></div>` : ""}
+        ${["Paused", "Blocked"].includes(job.job_status) ? `<div class="actions" style="margin-top:10px"><button class="secondary resume-job" type="button" data-job-id="${escapeHtml(job.job_id)}">Resume</button>${job.task_type_name === "Productive" ? `<button class="secondary edit-unfinished-job" type="button" data-job-id="${escapeHtml(job.job_id)}">Edit Details</button>` : ""}</div>` : ""}
       `;
       box.appendChild(card);
     });
@@ -370,6 +371,15 @@
         } catch (error) {
           setMessage(error.message, "error");
         }
+      });
+    });
+
+    box.querySelectorAll(".edit-unfinished-job").forEach((button) => {
+      button.addEventListener("click", () => {
+        const job = (currentState?.unfinished_jobs || []).find(
+          (row) => String(row.job_id) === String(button.dataset.jobId)
+        );
+        openEditPanel(job).catch((error) => setMessage(error.message, "error"));
       });
     });
   }
@@ -493,16 +503,22 @@
     }
   }
 
-  async function openEditPanel() {
-    const active = currentState?.active_job;
+  async function openEditPanel(job = null) {
+    const active = job || currentState?.active_job;
     if (!active) {
-      setMessage("There is no active task to edit.", "error");
+      setMessage("There is no editable job selected.", "error");
       return;
     }
     if (active.task_type_name !== "Productive") {
-      setMessage("Only the current Productive job can be edited here.", "error");
+      setMessage("Only a Productive job can be edited here.", "error");
       return;
     }
+    if (!["In Progress", "Paused", "Blocked"].includes(active.job_status)) {
+      setMessage(`Job #${active.job_number} can no longer be edited by the employee because it has been submitted beyond active work.`, "error");
+      return;
+    }
+
+    editingJob = active;
 
     if (!startOptions) await loadOptions();
     fillEditSelects();
@@ -539,6 +555,7 @@
   function closeEditPanel() {
     if (!$('edit-job-panel')) return;
     $("edit-job-panel").hidden = true;
+    editingJob = null;
     editSelectedItem = null;
     editItemNotListedMode = false;
     $("edit-item-results").innerHTML = "";
@@ -573,9 +590,9 @@
   }
 
   async function saveJobEdit() {
-    const active = currentState?.active_job;
+    const active = editingJob || currentState?.active_job;
     if (!active) {
-      setMessage("There is no active task to edit.", "error");
+      setMessage("There is no editable job selected.", "error");
       return;
     }
 
