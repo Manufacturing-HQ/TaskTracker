@@ -10,7 +10,7 @@
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
   });
   const token = () => sessionStorage.getItem(config.sessionStorageKey);
-  let admin = false;
+  let canEditHistory = false;
   let decorateTimer = null;
   let decorateBusy = false;
   let currentItem = null;
@@ -63,7 +63,7 @@
   }
 
   async function decorate() {
-    if (!admin || decorateBusy || !token()) return;
+    if (!canEditHistory || decorateBusy || !token()) return;
     const cards = [...list.querySelectorAll("details.history-card")];
     if (!cards.length) return;
     if (cards.every((c) => c.dataset.adminEditDecorated === "1")) return;
@@ -139,7 +139,7 @@
 
     const backdrop = document.createElement("div");
     backdrop.className = "history-edit-backdrop";
-    backdrop.innerHTML = `<div class="history-edit-modal"><h2 style="margin-top:0">Edit Job #${esc(j.job_number)}</h2><div class="history-edit-note">Administrator correction. Task Type is locked. Saving recalculates dependent values and writes a structured correction audit.</div><div class="history-edit-grid">
+    backdrop.innerHTML = `<div class="history-edit-modal"><h2 style="margin-top:0">Edit Job #${esc(j.job_number)}</h2><div class="history-edit-note">Audited History correction. Task Type is locked. Saving recalculates dependent values and writes a structured correction audit.</div><div class="history-edit-grid">
       <div class="full"><label>Task Type</label><input class="history-readonly" value="${esc(j.task_type_name)}" readonly></div>
       <div class="full"><label>Correction Reason</label><input id="history-edit-reason" placeholder="Required"></div>
       ${productiveFields}
@@ -218,10 +218,15 @@
     try {
       const rows = await rpc("get_employee_session_context", { p_session_token: t });
       const ctx = Array.isArray(rows) ? rows[0] : rows;
-      admin = (ctx?.employee_role || ctx?.role) === "Administrator";
-      if (admin) decorate();
-      return admin;
+      if (!ctx?.employee_id) return false;
+      canEditHistory = Boolean(await rpc("has_employee_permission", {
+        p_employee_id: ctx.employee_id,
+        p_permission_code: "history.correct_job_fields"
+      }));
+      if (canEditHistory) decorate();
+      return canEditHistory;
     } catch {
+      canEditHistory = false;
       return false;
     }
   }
@@ -229,7 +234,7 @@
   const observer = new MutationObserver(() => {
     clearTimeout(decorateTimer);
     decorateTimer = setTimeout(() => {
-      if (admin) decorate();
+      if (canEditHistory) decorate();
       else initAdmin();
     }, 160);
   });
@@ -239,6 +244,6 @@
   const timer = setInterval(() => {
     tries += 1;
     initAdmin();
-    if (admin || tries > 30) clearInterval(timer);
+    if (canEditHistory || tries > 30) clearInterval(timer);
   }, 300);
 })();
