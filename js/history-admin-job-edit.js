@@ -185,7 +185,7 @@
       save.disabled = true;
       save.textContent = "Saving...";
       try {
-        await rpc("edit_permitted_job_v2", {
+        await rpc("edit_history_job_v2", {
           p_session_token: token(),
           p_job_id: j.job_id,
           p_correction_reason: reason,
