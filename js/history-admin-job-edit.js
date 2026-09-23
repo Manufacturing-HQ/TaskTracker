@@ -219,9 +219,8 @@
       const rows = await rpc("get_employee_session_context", { p_session_token: t });
       const ctx = Array.isArray(rows) ? rows[0] : rows;
       if (!ctx?.employee_id) return false;
-      canEditHistory = Boolean(await rpc("has_employee_permission", {
-        p_employee_id: ctx.employee_id,
-        p_permission_code: "history.correct_job_fields"
+      canEditHistory = Boolean(await rpc("can_correct_history_jobs", {
+        p_session_token: t
       }));
       if (canEditHistory) decorate();
       return canEditHistory;
