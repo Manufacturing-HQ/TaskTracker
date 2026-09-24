@@ -13,6 +13,7 @@
   const token=sessionStorage.getItem(config.sessionStorageKey);
 
   let payload=null;
+  let permissionFlags={};
   let rows=[];
   let page=1;
   const pageSize=100;
@@ -87,6 +88,22 @@
     const {data,error}=await client.rpc(name,args);
     if(error) throw new Error(error.message||(name+" failed."));
     return data;
+  }
+
+  const can=(code)=>permissionFlags?.[code]===true;
+
+  function applyPermissionUi(){
+    const canRun=can("sales_order_dashboard.run_review");
+    const canStatus=can("sales_order_dashboard.update_status");
+    const canManage=can("sales_order_dashboard.manage_lines");
+    const canSelect=canStatus||canManage;
+
+    $("run-review").hidden=!canRun;
+    $("bulk-status").closest(".field").hidden=!canStatus;
+    $("apply-status").hidden=!canStatus;
+    $("hide-selected").hidden=!canManage;
+    $("unhide-selected").hidden=!canManage;
+    $("clear-selection").hidden=!canSelect;
   }
 
   function setMessage(text,type="info"){
@@ -256,11 +273,14 @@
   }
 
   function statusSelectHtml(row){
-    const disabled=!row.reviewed||protectedDashboardStatus(row.dashboard_status);
+    const canStatus=can("sales_order_dashboard.update_status");
+    const disabled=!canStatus||!row.reviewed||protectedDashboardStatus(row.dashboard_status);
     const options=manualOptions(row.item_status);
-    const title=protectedDashboardStatus(row.dashboard_status)
-      ? "This Item Status is protected by the current Dashboard Status."
-      : (!row.reviewed?"Run Sales Order Review before manually updating this line.":"Update Item Status");
+    const title=!canStatus
+      ? "Read-only access. You do not have permission to update Item Status."
+      : protectedDashboardStatus(row.dashboard_status)
+        ? "This Item Status is protected by the current Dashboard Status."
+        : (!row.reviewed?"Run Sales Order Review before manually updating this line.":"Update Item Status");
     return '<select class="status-select" data-row-status="'+esc(keyOf(row))+'" '+(disabled?"disabled":"")+' title="'+esc(title)+'">'+
       options.map(v=>'<option value="'+esc(v)+'" '+(v===row.item_status?"selected":"")+'>'+esc(v)+'</option>').join("")+
     '</select>';
@@ -268,7 +288,8 @@
 
   function cellHtml(row,col){
     if(col.type==="select"){
-      return '<input type="checkbox" data-row-select="'+esc(keyOf(row))+'" '+(selected.has(keyOf(row))?"checked":"")+' '+(row.reviewed?"":"disabled")+'>';
+      const selectable=(can("sales_order_dashboard.update_status")||can("sales_order_dashboard.manage_lines"))&&row.reviewed;
+      return '<input type="checkbox" data-row-select="'+esc(keyOf(row))+'" '+(selected.has(keyOf(row))?"checked":"")+' '+(selectable?"":"disabled")+'>';
     }
     if(col.type==="date") return dateText(row[col.key]);
     if(col.type==="num"||col.type==="available"||col.type==="maxbuild"||col.type==="wip") return num(row[col.key],2);
@@ -310,7 +331,7 @@
     if(page>pages) page=pages;
     const start=(page-1)*pageSize;
     const pageRows=filtered.slice(start,start+pageSize);
-    const selectablePageRows=pageRows.filter(r=>r.reviewed);
+    const selectablePageRows=pageRows.filter(r=>(can("sales_order_dashboard.update_status")||can("sales_order_dashboard.manage_lines"))&&r.reviewed);
     const allPageSelected=selectablePageRows.length>0&&selectablePageRows.every(r=>selected.has(keyOf(r)));
 
     $("order-head").innerHTML='<tr>'+columns.map(col=>{
@@ -583,13 +604,21 @@
     const protectedStatus=protectedDashboardStatus(live.calculated_status);
     const options=manualOptions(itemStatus);
     $("detail-status").innerHTML=options.map(v=>'<option value="'+esc(v)+'" '+(v===itemStatus?"selected":"")+'>'+esc(v)+'</option>').join("");
-    $("detail-status").disabled=!reviewed||protectedStatus;
-    $("detail-status-save").disabled=!reviewed||protectedStatus;
-    $("detail-hidden").disabled=!reviewed;
+    const canStatus=can("sales_order_dashboard.update_status");
+    const canManage=can("sales_order_dashboard.manage_lines");
+    $("detail-status").disabled=!canStatus||!reviewed||protectedStatus;
+    $("detail-status-save").disabled=!canStatus||!reviewed||protectedStatus;
+    $("detail-status-save").hidden=!canStatus;
+    $("detail-hidden").disabled=!canManage||!reviewed;
     $("detail-hidden").checked=Boolean(workflow?.exclude_review);
-    $("comment-add").disabled=!reviewed;
+    $("detail-hidden").closest("label").hidden=!canManage;
+    $("detail-comment").disabled=!canManage;
+    $("comment-add").disabled=!canManage||!reviewed;
+    $("comment-add").hidden=!canManage;
 
-    if(!reviewed){
+    if(!canStatus&&!canManage){
+      $("detail-status-note").textContent="Read-only access. Status, visibility, and comment controls are restricted.";
+    }else if(!reviewed){
       $("detail-status-note").textContent="Run Sales Order Review before manually updating Item Status, hiding, or commenting on this line.";
     }else if(protectedStatus){
       $("detail-status-note").textContent=live.calculated_status+" is protected by the current Dashboard Status and cannot be manually overridden.";
@@ -694,7 +723,17 @@
       return;
     }
     try{
+      permissionFlags=await rpc("get_current_permission_flags",{
+        p_session_token:token,
+        p_permission_codes:[
+          "sales_order_dashboard.view",
+          "sales_order_dashboard.run_review",
+          "sales_order_dashboard.update_status",
+          "sales_order_dashboard.manage_lines"
+        ]
+      });
       $("app").hidden=false;
+      applyPermissionUi();
       await loadData();
     }catch(error){
       $("app").hidden=true;
