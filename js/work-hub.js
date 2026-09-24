@@ -212,8 +212,37 @@
     }
 
     if (view === "routines") loadRoutines().catch(showError);
-    if (view === "projects") Promise.all([loadQuickTasks(), loadProjects()]).catch(showError);
-    if (view === "queue") loadQueue().catch(showError);
+    if (view === "projects") {
+      Promise.all([loadQuickTasks(), loadProjects()]).catch(showError);
+      markViewNotificationsRead("projects").catch(showError);
+    }
+    if (view === "queue") {
+      loadQueue().catch(showError);
+      markViewNotificationsRead("queue").catch(showError);
+    }
+  }
+
+  async function markViewNotificationsRead(view) {
+    if (!sessionToken || !["projects","queue"].includes(view)) return;
+    const data = await rpc("get_my_notifications", {
+      p_session_token: sessionToken,
+      p_unread_only: true,
+      p_limit: 100
+    });
+    const rows = Array.isArray(data?.notifications) ? data.notifications : [];
+    const matches = rows.filter((n) => {
+      const type = String(n.record_type || "").toUpperCase();
+      if (view === "queue") return type === "SUPERVISOR_TASK";
+      return ["PROJECT","PROJECT_TASK","QUICK_TASK"].includes(type);
+    });
+    if (!matches.length) return;
+    await Promise.all(matches.map((n) => rpc("mark_notification_read", {
+      p_session_token: sessionToken,
+      p_notification_id: n.notification_id,
+      p_mark_all: false
+    })));
+    window.dispatchEvent(new CustomEvent("tasktracker:notifications-changed"));
+    await loadNotifications();
   }
 
   async function navigateNotification(notification) {
