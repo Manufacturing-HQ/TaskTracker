@@ -95,11 +95,11 @@
       href: "sales-order-dashboard.html",
       pages: ["sales-order-dashboard.html","pps-operations.html"],
       children: [
-        ["Sales Order Dashboard","sales-order-dashboard.html",{adminOnly:true}],
-        ["Pick Batches","pps-operations.html#pick",{adminOnly:true}],
-        ["PPS QA Queue","pps-operations.html#qa",{adminOnly:true}],
-        ["Cosmetic Rejections","pps-operations.html#cosmetic",{adminOnly:true}],
-        ["PPS Reporting","pps-operations.html#reporting",{adminOnly:true}]
+        ["Sales Order Dashboard","sales-order-dashboard.html",{permission:"sales_order_dashboard.view"}],
+        ["Pick Batches","pps-operations.html#pick",{permission:"pps.pick_batch.create"}],
+        ["PPS QA Queue","pps-operations.html#qa",{permission:"pps.qa.process"}],
+        ["Cosmetic Rejections","pps-operations.html#cosmetic",{permission:"pps.cosmetic.manage"}],
+        ["PPS Reporting","pps-operations.html#reporting",{permission:"pps.reporting.view"}]
       ]
     },
     inventory_team: {
@@ -107,8 +107,8 @@
       href: "inventory-team.html",
       pages: ["inventory-team.html","stage-work-orders.html","work-order-history.html","fgi-put-away.html","demand-planning.html","work-order-prioritization.html","daily-review.html","netsuite-data.html"],
       children: [
-        ["Inventory Team Dashboard","inventory-team.html"],
-        ["Demand Planning","demand-planning.html",{adminOnly:true}],
+        ["Inventory Team Dashboard","inventory-team.html",{permission:"inventory_dashboard.view"}],
+        ["Demand Planning","demand-planning.html",{permission:"demand_planning.view"}],
         ["W/O Prioritization","work-order-prioritization.html",{adminOnly:true}],
         ["Daily Review","daily-review.html",{adminOnly:true}],
         ["NetSuite Data","netsuite-data.html",{adminOnly:true}]
@@ -245,8 +245,10 @@
 
   function visibleChildren(key, definition, bootstrap) {
     const role = bootstrap?.viewer?.role || "";
+    const permissions = bootstrap?.permissions || {};
     return (definition.children || []).filter((entry) => {
       const options = entry[2] || {};
+      if (options.permission && !permissions[options.permission]) return false;
       return !options.adminOnly || role === "Administrator";
     });
   }
@@ -459,7 +461,7 @@
 
       const main = createLink(
         definition.label,
-        definition.href,
+        sections[key]?.href || definition.href,
         activeSection === key
       );
       main.dataset.short = shortLabel(definition.label);
