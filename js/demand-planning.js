@@ -13,6 +13,7 @@
   const token = sessionStorage.getItem(config.sessionStorageKey);
 
   let bootstrap = null;
+  let permissionFlags = {};
   let demandRows = [];
   let queueRows = [];
   let currentDetail = null;
@@ -60,6 +61,34 @@
     const {data,error} = await client.rpc(name,args);
     if (error) throw new Error(error.message || (name + " failed."));
     return data;
+  }
+
+  const can = (code) => permissionFlags?.[code] === true;
+
+  function applyPermissionUi() {
+    const canStage = can("demand_planning.stage_work_orders");
+    const canImport = can("inventory_dashboard.import");
+    const stageSection = $("stage-work-orders-section");
+    if (stageSection) stageSection.hidden = !canStage;
+    $("queue-mark-imported").hidden = !canImport;
+  }
+
+  function applyQueuePermissions() {
+    const canStage = can("demand_planning.stage_work_orders");
+    const canImport = can("inventory_dashboard.import");
+    const host = $("queue-table");
+    if (!host) return;
+
+    host.querySelectorAll("[data-q-field]").forEach((input) => {
+      input.disabled = !canStage;
+    });
+    host.querySelectorAll("[data-q-save],[data-q-delete]").forEach((button) => {
+      button.hidden = !canStage;
+    });
+    host.querySelectorAll("[data-queue-select]").forEach((box) => {
+      box.disabled = !canImport;
+      box.closest("td")?.toggleAttribute("hidden",!canImport);
+    });
   }
 
   function setMessage(text,type="info") {
@@ -127,7 +156,7 @@
   }
 
   function renderFoundation() {
-    $("viewer-name").textContent=bootstrap?.viewer?.employee_name || "Administrator";
+    $("viewer-name").textContent=bootstrap?.viewer?.employee_name || "Employee";
     $("metric-items").textContent=num(bootstrap?.eligible_item_count);
     $("metric-fleet").textContent=num(bootstrap?.fleet_par_row_count);
     $("metric-staged").textContent=num(bootstrap?.pending_staged_count);
@@ -345,7 +374,7 @@
     );
 
     renderModalStaged();
-    resetStageRows();
+    if (can("demand_planning.stage_work_orders")) resetStageRows();
     $("modal-loading").hidden=true;
     $("modal-content").hidden=false;
   }
@@ -524,6 +553,7 @@
     const host=$("queue-table");
     if (!queueRows.length) {
       host.innerHTML='<div class="note">No Work Orders are waiting for import.</div>';
+      applyQueuePermissions();
       return;
     }
     host.innerHTML='<table><thead><tr><th>Select</th><th>External ID</th><th>Date</th><th>Item</th><th>Qty</th><th>WO Type</th><th>Job Type</th><th>Priority Dept.</th><th>Memo</th><th>Created By</th><th>Actions</th></tr></thead><tbody>'+
@@ -532,6 +562,7 @@
 
     host.querySelectorAll("[data-q-save]").forEach((button)=>button.addEventListener("click",()=>saveQueueRow(button.dataset.qSave).catch(showError)));
     host.querySelectorAll("[data-q-delete]").forEach((button)=>button.addEventListener("click",()=>deleteQueueRow(button.dataset.qDelete).catch(showError)));
+    applyQueuePermissions();
   }
 
   function queueFormValues(id) {
@@ -621,7 +652,17 @@
       return;
     }
     try {
+      permissionFlags=await rpc("get_current_permission_flags",{
+        p_session_token:token,
+        p_permission_codes:[
+          "demand_planning.view",
+          "demand_planning.stage_work_orders",
+          "inventory_dashboard.import"
+        ]
+      });
+      if (!can("demand_planning.view")) throw new Error("You do not have permission to view Demand Planning.");
       $("app").hidden=false;
+      applyPermissionUi();
       await loadData();
     } catch (error) {
       $("app").hidden=true;
