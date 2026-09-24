@@ -131,6 +131,8 @@
       .tt-nav-sub[hidden]{display:none!important}
       .tt-nav-sub a{padding:8px 10px;font-size:12px;font-weight:700;border-left:2px solid #334155;border-radius:7px}
       .tt-nav-sub a.active{border-left-color:#60a5fa;background:#17233c}
+      .tt-nav-badge{margin-left:auto;display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:10px;font-weight:900;line-height:1}
+      .tt-nav-collapsed .tt-nav-badge{margin-left:0}
       .tt-nav-collapse{margin:0 0 12px;width:100%;border:1px solid #475569;background:transparent;color:#cbd5e1;border-radius:9px;padding:8px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
       .tt-nav-collapse:hover{background:#17233c;color:#fff}
       .tt-nav-legacy-hidden{display:none!important}
@@ -203,10 +205,116 @@
   function createLink(label, href, active = false) {
     const link = document.createElement("a");
     link.href = href;
-    link.textContent = label;
+    const text = document.createElement("span");
+    text.className = "tt-nav-label";
+    text.textContent = label;
+    link.appendChild(text);
     link.dataset.short = shortLabel(label);
+    link.dataset.navLabel = label;
     if (active) link.classList.add("active");
     return link;
+  }
+
+  function setNavBadge(link, count) {
+    if (!link) return;
+    const value = Math.max(0, Number(count || 0));
+    let badge = link.querySelector(":scope > .tt-nav-badge");
+    if (!value) {
+      badge?.remove();
+      return;
+    }
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "tt-nav-badge";
+      link.appendChild(badge);
+    }
+    badge.textContent = value > 99 ? "99+" : String(value);
+    badge.setAttribute("aria-label", value + " notification" + (value === 1 ? "" : "s"));
+  }
+
+  function unreadNavigationGroups(rows) {
+    const unread = (Array.isArray(rows) ? rows : []).filter((n) => !n.is_read);
+    return {
+      projects: unread.filter((n) => ["PROJECT","PROJECT_TASK","QUICK_TASK"].includes(String(n.record_type || "").toUpperCase())),
+      queue: unread.filter((n) => String(n.record_type || "").toUpperCase() === "SUPERVISOR_TASK")
+    };
+  }
+
+  async function loadNavigationNotificationState() {
+    const token = sessionStorage.getItem(sessionKey);
+    if (!token) return { memoCount: 0, projects: [], queue: [] };
+    const [memoResult, notificationResult] = await Promise.allSettled([
+      rpc("get_my_pending_memo_notice", { p_session_token: token }),
+      rpc("get_my_notifications", { p_session_token: token, p_unread_only: true, p_limit: 100 })
+    ]);
+    const memoCount = memoResult.status === "fulfilled" ? Number(memoResult.value?.pending_count || 0) : 0;
+    const groups = notificationResult.status === "fulfilled"
+      ? unreadNavigationGroups(notificationResult.value?.notifications || [])
+      : { projects: [], queue: [] };
+    return { memoCount, ...groups };
+  }
+
+  async function markNavigationNotificationsRead(rows) {
+    const token = sessionStorage.getItem(sessionKey);
+    if (!token || !rows?.length) return;
+    await Promise.all(rows.map((n) => rpc("mark_notification_read", {
+      p_session_token: token,
+      p_notification_id: n.notification_id,
+      p_mark_all: false
+    })));
+  }
+
+  async function refreshNavigationBadges(shared) {
+    if (!shared) return;
+    const state = await loadNavigationNotificationState();
+
+    shared.querySelectorAll('a[data-nav-label="Memos"]').forEach((link) => setNavBadge(link, state.memoCount));
+
+    const projectSection = shared.querySelector('.tt-nav-section[data-section-key="project_dashboard"]');
+    if (!projectSection) return;
+
+    const main = projectSection.querySelector(":scope > a");
+    const sub = projectSection.querySelector(":scope > .tt-nav-sub");
+    const projectLink = [...(sub?.querySelectorAll("a") || [])].find((a) => a.dataset.navLabel === "Projects");
+    const queueLink = [...(sub?.querySelectorAll("a") || [])].find((a) => a.dataset.navLabel === "Task Queue");
+    const mainCount = state.projects.length + state.queue.length;
+
+    setNavBadge(main, sub?.hidden ? mainCount : 0);
+    setNavBadge(projectLink, sub?.hidden ? 0 : state.projects.length);
+    setNavBadge(queueLink, sub?.hidden ? 0 : state.queue.length);
+
+    if (main && sub && !main.dataset.notificationExpandBound) {
+      main.dataset.notificationExpandBound = "1";
+      main.addEventListener("click", (event) => {
+        if (!sub.hidden) return;
+        event.preventDefault();
+        sub.hidden = false;
+        setNavBadge(main, 0);
+        setNavBadge(projectLink, state.projects.length);
+        setNavBadge(queueLink, state.queue.length);
+      });
+    }
+
+    const bindChild = (link, rows) => {
+      if (!link || link.dataset.notificationReadBound) return;
+      link.dataset.notificationReadBound = "1";
+      link.addEventListener("click", async (event) => {
+        if (!rows.length) return;
+        event.preventDefault();
+        const href = link.getAttribute("href");
+        try {
+          await markNavigationNotificationsRead(rows);
+          setNavBadge(link, 0);
+          if (href) window.location.href = href;
+        } catch (error) {
+          console.warn("Could not mark navigation notifications read:", error?.message || error);
+          if (href) window.location.href = href;
+        }
+      });
+    };
+
+    bindChild(projectLink, state.projects);
+    bindChild(queueLink, state.queue);
   }
 
   function currentSectionKey() {
@@ -524,6 +632,17 @@
     applyEmployeeHash();
     applyPpsHash();
     applyHistoryHash();
+    refreshNavigationBadges(shared).catch((error) => {
+      console.warn("Navigation notifications did not load:", error?.message || error);
+    });
+    window.setInterval(() => {
+      if (!document.hidden) {
+        refreshNavigationBadges(shared).catch(() => {});
+      }
+    }, 120000);
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) refreshNavigationBadges(shared).catch(() => {});
+    });
     window.addEventListener("hashchange", () => {
       if (currentPage === "management.html") applyManagementHash();
       if (currentPage === "employee.html") applyEmployeeHash();
