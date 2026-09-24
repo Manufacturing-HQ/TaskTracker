@@ -106,6 +106,7 @@
       .tt-nav-host .brand{position:relative}
       .tt-generated-shell{min-height:100vh;display:grid;grid-template-columns:245px minmax(0,1fr);background:var(--bg,#e8eef5)}
       .tt-generated-shell>.side{min-height:100vh}
+      .tt-generated-side{background:#0b1220;color:#fff;padding:20px 16px;display:flex;flex-direction:column}
       .tt-generated-content{min-width:0}
       .tt-generated-content>.shell{max-width:none!important;margin:0!important}
       .tt-generated-content .topbar .top-actions{display:none!important}
