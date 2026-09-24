@@ -11,15 +11,15 @@
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><h1>PPS Operations</h1><p>Admin Pilot · Pick Batches → QA → Cosmetic Rejections</p></div>
+    <div class="brand"><h1>PPS Operations</h1><p>Pick Batches → QA → Cosmetic Rejections → Reporting</p></div>
     <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
   </div>
 
   <div id="message" class="message" hidden></div>
-  <section id="access-denied" class="card" hidden><h2>Administrator Access Required</h2><p>This pilot is currently restricted to Administrator accounts.</p></section>
+  <section id="access-denied" class="card" hidden><h2>PPS Operations Access Required</h2><p>You do not have permission to access PPS Operations.</p></section>
 
   <main id="app" hidden>
-    <section class="card"><div class="section-title"><div><strong id="viewer-name"></strong><div id="viewer-meta" class="muted"></div></div><span class="pill">ADMIN PILOT</span></div></section>
+    <section class="card"><div class="section-title"><div><strong id="viewer-name"></strong><div id="viewer-meta" class="muted"></div></div><span class="pill">PERMISSION BASED</span></div></section>
 
     <div class="tabs">
       <button class="tab active" type="button" data-tab="pick">Pick Batches</button>
@@ -30,7 +30,7 @@
 
     <section id="tab-pick">
       <div class="card">
-        <div class="section-title"><div><h2 id="pick-form-title">Create Pick Batch</h2><div class="muted">The logged-in user is automatically recorded as the picker during this admin pilot.</div></div><button id="cancel-edit" class="secondary" type="button" hidden>Cancel Edit</button></div>
+        <div class="section-title"><div><h2 id="pick-form-title">Create Pick Batch</h2><div class="muted">The logged-in user is automatically recorded as the picker for this Pick Batch.</div></div><button id="cancel-edit" class="secondary" type="button" hidden>Cancel Edit</button></div>
         <div id="edit-banner" class="edit-banner" hidden></div>
         <div class="grid">
           <div class="field"><label for="pick-bin">Pick Bin</label><select id="pick-bin"><option value="">Select bin</option></select></div>
@@ -90,7 +90,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=nav-layout-complete-20260924-1"></script>
-<script src="js/pps-operations.js?v=admin-pilot-20260917-1"></script>
+<script src="js/pps-operations.js?v=capability-permissions-20260924-1"></script>
 <script src="js/employee-signout.js?v=phase1-20260902-1"></script>
 <script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
 </body>
