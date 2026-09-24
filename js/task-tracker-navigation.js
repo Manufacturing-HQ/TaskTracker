@@ -83,7 +83,10 @@
       pages: ["sales-order-dashboard.html","pps-operations.html"],
       children: [
         ["Sales Order Dashboard","sales-order-dashboard.html",{adminOnly:true}],
-        ["PPS Operations","pps-operations.html",{adminOnly:true}]
+        ["Pick Batches","pps-operations.html#pick",{adminOnly:true}],
+        ["PPS QA Queue","pps-operations.html#qa",{adminOnly:true}],
+        ["Cosmetic Rejections","pps-operations.html#cosmetic",{adminOnly:true}],
+        ["PPS Reporting","pps-operations.html#reporting",{adminOnly:true}]
       ]
     },
     inventory_team: {
@@ -171,8 +174,10 @@
     const [path, hash = ""] = String(href || "").split("#");
     const page = (path.split("/").pop() || currentPage).toLowerCase();
     if (page !== currentPage) return false;
+    const currentHash = String(location.hash || "").replace(/^#/,"").toLowerCase();
+    if (currentPage === "pps-operations.html" && hash.toLowerCase() === "pick" && !currentHash) return true;
     if (!hash) return !location.hash;
-    return String(location.hash || "").replace(/^#/,"").toLowerCase() === hash.toLowerCase();
+    return currentHash === hash.toLowerCase();
   }
 
   function shortLabel(label) {
@@ -265,6 +270,14 @@
       if (tries < 12) window.setTimeout(focusTarget,100);
     };
     window.setTimeout(focusTarget,120);
+  }
+
+  function applyPpsHash() {
+    if (currentPage !== "pps-operations.html") return;
+    const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
+    const tab = ["pick","qa","cosmetic","reporting"].includes(hash) ? hash : "pick";
+    const button = document.querySelector(`[data-tab="${tab}"]`);
+    if (button) window.setTimeout(() => button.click(),0);
   }
 
   function applyHistoryHash() {
@@ -422,9 +435,11 @@
     }
 
     applyManagementHash();
+    applyPpsHash();
     applyHistoryHash();
     window.addEventListener("hashchange", () => {
       if (currentPage === "management.html") applyManagementHash();
+      if (currentPage === "pps-operations.html") applyPpsHash();
       if (currentPage === "history.html") applyHistoryHash();
       window.setTimeout(() => {
         const current = currentSectionKey();
