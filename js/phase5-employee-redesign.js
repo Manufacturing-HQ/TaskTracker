@@ -181,12 +181,49 @@
 
   async function loadMemos(include){
     const rows=await rpc("get_my_memos",{p_session_token:sessionToken,p_include_acknowledged:include});
-    const c=$("memo-list");
+    const host=$("memo-list");
     if(!rows?.length){
-      c.innerHTML='<div class="empty">No memos found.</div>';
+      host.innerHTML='<div class="empty">No memos found.</div>';
       return;
     }
-    c.innerHTML=rows.map(m=>`<article class="memo-card"><span class="status-pill">${m.acknowledged_at?"Acknowledged":"Pending"}</span><h3>${escapeHtml(m.memo_title||m.category_name||"Memo")}</h3><div class="details">${escapeHtml(m.category_name||"")} · ${new Date(m.assigned_at||m.created_at).toLocaleString()}</div><p>${escapeHtml(m.memo_body||"")}</p>${m.acknowledgment_comments?`<div class="details"><strong>Your comments:</strong> ${escapeHtml(m.acknowledgment_comments)}</div>`:""}</article>`).join("");
+    host.innerHTML=rows.map(m=>`<article class="memo-card" data-memo-assignment="${escapeHtml(m.assignment_id)}">
+      <span class="status-pill">${m.acknowledged_at?"Acknowledged":"Pending"}</span>
+      <h3>${escapeHtml(m.memo_title||m.category_name||"Memo")}</h3>
+      <div class="details">${escapeHtml(m.category_name||"")} · ${new Date(m.assigned_at||m.created_at).toLocaleString()}</div>
+      <p>${escapeHtml(m.memo_body||"")}</p>
+      ${m.acknowledged_at
+        ? `<div class="details"><strong>Acknowledged:</strong> ${new Date(m.acknowledged_at).toLocaleString()}</div>${m.acknowledgment_comments?`<div class="details" style="margin-top:6px"><strong>Your comments:</strong> ${escapeHtml(m.acknowledgment_comments)}</div>`:""}`
+        : `<div style="margin-top:14px;padding-top:12px;border-top:1px solid #cbd5e1">
+            <label class="details"><strong>Acknowledgment comments</strong> (optional)</label>
+            <textarea data-ack-comment rows="3" maxlength="2000" placeholder="Optional comments" style="width:100%;margin-top:7px;border:1px solid #94a3b8;border-radius:9px;padding:8px 10px;font:inherit;resize:vertical"></textarea>
+            <button type="button" class="primary" data-acknowledge="${escapeHtml(m.assignment_id)}" style="margin-top:8px">Acknowledge Memo</button>
+          </div>`}
+    </article>`).join("");
+
+    host.querySelectorAll("[data-acknowledge]").forEach((button)=>{
+      button.addEventListener("click",async()=>{
+        const card=button.closest("[data-memo-assignment]");
+        const comment=card?.querySelector("[data-ack-comment]")?.value.trim()||null;
+        const assignmentId=button.dataset.acknowledge;
+        button.disabled=true;
+        const original=button.textContent;
+        button.textContent="Acknowledging...";
+        try{
+          await rpc("acknowledge_my_memo",{
+            p_session_token:sessionToken,
+            p_memo_assignment_id:assignmentId,
+            p_acknowledgment_comments:comment
+          });
+          window.dispatchEvent(new CustomEvent("tasktracker:notifications-changed"));
+          await loadMemos(include);
+          if(!$("view-dashboard")?.hidden) await loadDashboard();
+        }catch(error){
+          button.disabled=false;
+          button.textContent=original;
+          showError(error);
+        }
+      });
+    });
   }
 
   async function init(){
