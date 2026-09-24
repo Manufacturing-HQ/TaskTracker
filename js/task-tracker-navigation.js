@@ -104,6 +104,19 @@
       .tt-nav-collapse:hover{background:#17233c;color:#fff}
       .tt-nav-legacy-hidden{display:none!important}
       .tt-nav-host .brand{position:relative}
+      .tt-generated-shell{min-height:100vh;display:grid;grid-template-columns:245px minmax(0,1fr);background:var(--bg,#e8eef5)}
+      .tt-generated-shell>.side{min-height:100vh}
+      .tt-generated-content{min-width:0}
+      .tt-generated-content>.shell{max-width:none!important;margin:0!important}
+      .tt-generated-content .topbar .top-actions{display:none!important}
+      .tt-generated-content .topbar>a[href="index.html"]{display:none!important}
+      .tt-generated-side .brand{display:flex;gap:10px;align-items:center;padding:4px 8px 20px}
+      .tt-generated-side .mark{width:42px;height:42px;border-radius:12px;background:#2563eb;display:grid;place-items:center;font-weight:900;color:#fff}
+      .tt-generated-side .side-footer{margin-top:auto}
+      .tt-generated-side .who{background:rgba(255,255,255,.06);border:1px solid #334155;border-radius:12px;padding:12px}
+      .tt-generated-side .who strong,.tt-generated-side .who span{display:block}
+      .tt-generated-side .who span{font-size:12px;color:#94a3b8;margin-top:4px}
+      .tt-generated-side .side-footer button{width:100%;margin-top:10px;background:transparent;color:white;border:1px solid #475569;border-radius:9px;padding:10px}
       .tt-nav-collapsed .side{padding-left:10px;padding-right:10px}
       .tt-nav-collapsed .tt-shared-nav a,.tt-nav-collapsed .tt-nav-main-button{justify-content:center;padding-left:7px;padding-right:7px;font-size:0}
       .tt-nav-collapsed .tt-shared-nav a::before,.tt-nav-collapsed .tt-nav-main-button::before{content:attr(data-short);font-size:12px;font-weight:900}
@@ -115,8 +128,13 @@
       .tt-nav-collapsed .side-footer .who{display:none}
       @media(min-width:901px){
         .app.tt-nav-collapsed{grid-template-columns:76px minmax(0,1fr)!important}
+        .tt-generated-shell.tt-nav-collapsed{grid-template-columns:76px minmax(0,1fr)!important}
       }
       @media(max-width:900px){
+        .tt-generated-shell{grid-template-columns:1fr}
+        .tt-generated-shell>.side{min-height:auto}
+        .tt-generated-content>.shell{padding-top:18px!important}
+
         .tt-nav-collapse{display:none}
         .tt-nav-collapsed .tt-shared-nav a,.tt-nav-collapsed .tt-nav-main-button{justify-content:flex-start;padding:11px 12px;font-size:inherit}
         .tt-nav-collapsed .tt-shared-nav a::before,.tt-nav-collapsed .tt-nav-main-button::before{content:none}
@@ -174,10 +192,51 @@
     if (button) window.setTimeout(() => button.click(), 0);
   }
 
+  function ensureNavigationHost(bootstrap) {
+    let side = document.querySelector("aside.side");
+    let app = document.getElementById("app");
+    if (!app) return null;
+    if (side) return { side, app, shell: app };
+
+    const pageShell = app.closest(".shell");
+    if (!pageShell || pageShell.dataset.ttNavWrapped === "1") {
+      const existing = document.querySelector(".tt-generated-shell");
+      const existingSide = existing?.querySelector(":scope > aside.side");
+      return existingSide ? { side: existingSide, app, shell: existing } : null;
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "tt-generated-shell";
+    pageShell.parentNode.insertBefore(wrapper,pageShell);
+
+    side = document.createElement("aside");
+    side.className = "side tt-generated-side";
+    side.innerHTML = `
+      <div class="brand">
+        <div class="mark">TT</div>
+        <div><strong>Task Tracker</strong><div style="font-size:12px;color:#94a3b8">Workspace</div></div>
+      </div>
+      <div class="side-footer">
+        <div class="who">
+          <strong>${esc(bootstrap?.viewer?.employee_name || "")}</strong>
+          <span>${esc([bootstrap?.viewer?.role,bootstrap?.viewer?.department].filter(Boolean).join(" · "))}</span>
+        </div>
+      </div>`;
+
+    const content = document.createElement("div");
+    content.className = "tt-generated-content";
+    wrapper.appendChild(side);
+    wrapper.appendChild(content);
+    content.appendChild(pageShell);
+    pageShell.dataset.ttNavWrapped = "1";
+
+    return { side, app, shell: wrapper };
+  }
+
   function renderNavigation(bootstrap) {
-    const side = document.querySelector("aside.side");
-    const app = document.getElementById("app");
-    if (!side || !app) return false;
+    const host = ensureNavigationHost(bootstrap);
+    if (!host) return false;
+    const { side, app, shell } = host;
     if (side.querySelector(".tt-shared-nav")) return true;
 
     injectStyles();
@@ -238,21 +297,22 @@
     collapse.textContent = "Collapse Navigation";
     collapse.setAttribute("aria-label","Collapse navigation");
 
+    const collapseTarget = shell || app;
     const collapsed = localStorage.getItem(collapseKey) === "1";
-    if (collapsed) app.classList.add("tt-nav-collapsed");
+    if (collapsed) collapseTarget.classList.add("tt-nav-collapsed");
 
     const updateCollapseLabel = () => {
-      const isCollapsed = app.classList.contains("tt-nav-collapsed");
+      const isCollapsed = collapseTarget.classList.contains("tt-nav-collapsed");
       collapse.textContent = isCollapsed ? "Expand Navigation" : "Collapse Navigation";
       collapse.setAttribute("aria-label",collapse.textContent);
     };
     updateCollapseLabel();
 
     collapse.addEventListener("click", () => {
-      app.classList.toggle("tt-nav-collapsed");
+      collapseTarget.classList.toggle("tt-nav-collapsed");
       localStorage.setItem(
         collapseKey,
-        app.classList.contains("tt-nav-collapsed") ? "1" : "0"
+        collapseTarget.classList.contains("tt-nav-collapsed") ? "1" : "0"
       );
       updateCollapseLabel();
     });
