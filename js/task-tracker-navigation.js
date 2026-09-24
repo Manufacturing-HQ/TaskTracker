@@ -42,14 +42,27 @@
         ["Reporting","reporting.html"]
       ]
     },
+    employees_setup: {
+      label: "Employees & Setup",
+      href: "management.html#employees",
+      pages: [],
+      children: [
+        ["Employees","management.html#employees"],
+        ["Items","management.html#items"],
+        ["BOM","management.html#boms"],
+        ["Item / Cycle Time Import","management.html#item-import"],
+        ["BOM Import","management.html#bom-import"]
+      ]
+    },
     project_dashboard: {
       label: "Project Dashboard",
       href: "work-hub.html#routines",
-      pages: ["work-hub.html"],
+      pages: ["work-hub.html","weekly-reviews.html"],
       children: [
         ["Daily & Weekly","work-hub.html#routines"],
         ["Projects","work-hub.html#projects"],
-        ["Task Queue","work-hub.html#queue"]
+        ["Task Queue","work-hub.html#queue"],
+        ["Weekly Reviews","weekly-reviews.html"]
       ]
     },
     item_change_log: {
@@ -92,7 +105,7 @@
     inventory_team: {
       label: "Inventory Team",
       href: "inventory-team.html",
-      pages: ["inventory-team.html","demand-planning.html","work-order-prioritization.html","daily-review.html","netsuite-data.html"],
+      pages: ["inventory-team.html","stage-work-orders.html","work-order-history.html","fgi-put-away.html","demand-planning.html","work-order-prioritization.html","daily-review.html","netsuite-data.html"],
       children: [
         ["Inventory Team Dashboard","inventory-team.html"],
         ["Demand Planning","demand-planning.html",{adminOnly:true}],
@@ -126,8 +139,7 @@
       .tt-generated-side{background:#0b1220;color:#fff;padding:20px 16px;display:flex;flex-direction:column}
       .tt-generated-content{min-width:0}
       .tt-generated-content>.shell{max-width:none!important;margin:0!important}
-      .tt-generated-content .topbar .top-actions{display:none!important}
-      .tt-generated-content .topbar>a[href="index.html"]{display:none!important}
+      .tt-nav-legacy-top-link{display:none!important}
       .tt-generated-side .brand{display:flex;gap:10px;align-items:center;padding:4px 8px 20px}
       .tt-generated-side .mark{width:42px;height:42px;border-radius:12px;background:#2563eb;display:grid;place-items:center;font-weight:900;color:#fff}
       .tt-generated-side .side-footer{margin-top:auto}
@@ -201,6 +213,7 @@
       const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
       if (!hash || hash === "home") return null;
       if (["attendance","audit","memos","overview","operations"].includes(hash)) return "operations";
+      if (["employees","items","boms","item-import","bom-import","setup"].includes(hash)) return "employees_setup";
     }
     for (const [key, definition] of Object.entries(sectionDefinitions)) {
       if (definition.pages.includes(currentPage)) return key;
@@ -210,12 +223,24 @@
 
   function isHomeActive(bootstrap) {
     const homePath = String(bootstrap?.home?.href || "index.html").split("#")[0].toLowerCase();
+    if (homePath === "employee.html" && currentPage === "weekly-reviews.html") return true;
     if (currentPage !== homePath) return false;
     if (currentPage === "management.html") {
       const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
       return !hash || hash === "home";
     }
     return true;
+  }
+
+  function homeChildren(bootstrap) {
+    const homePath = String(bootstrap?.home?.href || "index.html").split("#")[0].toLowerCase();
+    if (homePath !== "employee.html") return [];
+    return [
+      ["Start / Current Task","employee.html#task"],
+      ["My Dashboard","employee.html#dashboard"],
+      ["Memos","employee.html#memos"],
+      ["Weekly Reviews","weekly-reviews.html"]
+    ];
   }
 
   function visibleChildren(key, definition, bootstrap) {
@@ -228,6 +253,7 @@
 
   function sectionVisible(key, sections, bootstrap) {
     if (sections[key]?.visible) return true;
+    if (key === "employees_setup") return !!sections.operations?.visible;
     return key === "shipping_team" && bootstrap?.viewer?.role === "Administrator";
   }
 
@@ -243,6 +269,33 @@
 
     if (!hash || hash === "home") {
       document.querySelector('button[data-view="home"]')?.click();
+      return;
+    }
+
+    const setupMap = {
+      "employees":"employees",
+      "items":"items",
+      "boms":"boms",
+      "item-import":"import",
+      "bom-import":"bom-import",
+      "setup":"employees"
+    };
+
+    if (setupMap[hash]) {
+      document.querySelector('button[data-view="overview"]')?.click();
+      let tries = 0;
+      const openSetup = () => {
+        tries += 1;
+        document.querySelector('[data-hub-tab="setup"]')?.click();
+        const targetTab = document.querySelector(`#ops-master [data-ops-tab="${setupMap[hash]}"]`);
+        if (targetTab) {
+          targetTab.click();
+          document.getElementById("ops-master")?.scrollIntoView({behavior:"auto",block:"start"});
+          return;
+        }
+        if (tries < 24) window.setTimeout(openSetup,100);
+      };
+      window.setTimeout(openSetup,120);
       return;
     }
 
@@ -267,9 +320,17 @@
         target.scrollIntoView({behavior:"auto",block:"start"});
         return;
       }
-      if (tries < 12) window.setTimeout(focusTarget,100);
+      if (tries < 18) window.setTimeout(focusTarget,100);
     };
     window.setTimeout(focusTarget,120);
+  }
+
+  function applyEmployeeHash() {
+    if (currentPage !== "employee.html") return;
+    const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
+    const view = ["task","dashboard","memos"].includes(hash) ? hash : "task";
+    const button = document.querySelector(`.nav button[data-view="${view}"]`);
+    if (button) window.setTimeout(() => button.click(),0);
   }
 
   function applyPpsHash() {
@@ -328,8 +389,16 @@
     content.appendChild(pageShell);
     pageShell.dataset.ttNavWrapped = "1";
 
+    pageShell.querySelectorAll(".topbar .top-actions a").forEach((link) => {
+      const href = String(link.getAttribute("href") || "").toLowerCase();
+      if (href.includes(".html") || href === "index.html") link.classList.add("tt-nav-legacy-top-link");
+    });
+    pageShell.querySelectorAll(".topbar > a[href='index.html'], .topbar .top-actions #sign-out").forEach((el) => {
+      el.classList.add("tt-nav-legacy-top-link");
+    });
+
     side.querySelector("#tt-shared-sign-out")?.addEventListener("click", () => {
-      const existing = pageShell.querySelector("#sign-out");
+      const existing = pageShell.querySelector("#sign-out") || pageShell.querySelector("#logout");
       if (existing) existing.click();
       else window.location.href = "index.html";
     });
@@ -363,6 +432,20 @@
     homeNote.className = "tt-nav-home-note";
     homeNote.textContent = `Default: ${bootstrap?.home?.default_label || "Workspace"}`;
     shared.appendChild(homeNote);
+
+    const homeEntries = homeChildren(bootstrap);
+    let homeSub = null;
+    if (homeEntries.length) {
+      homeSub = document.createElement("div");
+      homeSub.className = "tt-nav-sub tt-nav-home-sub";
+      homeSub.hidden = !isHomeActive(bootstrap);
+      homeEntries.forEach(([label,href]) => {
+        const child = createLink(label,href,isHrefActive(href));
+        child.dataset.short = shortLabel(label);
+        homeSub.appendChild(child);
+      });
+      shared.appendChild(homeSub);
+    }
 
     const activeSection = currentSectionKey();
     const sections = bootstrap?.sections || {};
@@ -435,10 +518,12 @@
     }
 
     applyManagementHash();
+    applyEmployeeHash();
     applyPpsHash();
     applyHistoryHash();
     window.addEventListener("hashchange", () => {
       if (currentPage === "management.html") applyManagementHash();
+      if (currentPage === "employee.html") applyEmployeeHash();
       if (currentPage === "pps-operations.html") applyPpsHash();
       if (currentPage === "history.html") applyHistoryHash();
       window.setTimeout(() => {
@@ -452,6 +537,7 @@
           if (sub) sub.hidden = key !== current && !keepTransitionSubnavExpanded(key,bootstrap);
         });
         home.classList.toggle("active",isHomeActive(bootstrap));
+        if (homeSub) homeSub.hidden = !isHomeActive(bootstrap);
         shared.querySelectorAll(".tt-nav-sub a").forEach((link) => {
           link.classList.toggle("active",isHrefActive(link.getAttribute("href")));
         });
