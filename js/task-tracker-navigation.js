@@ -111,6 +111,7 @@
       .tt-nav-home-note{display:block;margin:-3px 11px 5px;color:#94a3b8;font-size:10px;line-height:1.2}
       .tt-nav-section{display:grid;gap:4px}
       .tt-nav-sub{display:grid;gap:3px;padding-left:12px;margin-top:-2px}
+      .tt-nav-sub[hidden]{display:none!important}
       .tt-nav-sub a{padding:8px 10px;font-size:12px;font-weight:700;border-left:2px solid #334155;border-radius:7px}
       .tt-nav-sub a.active{border-left-color:#60a5fa;background:#17233c}
       .tt-nav-collapse{margin:0 0 12px;width:100%;border:1px solid #475569;background:transparent;color:#cbd5e1;border-radius:9px;padding:8px 10px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
@@ -223,6 +224,12 @@
   function sectionVisible(key, sections, bootstrap) {
     if (sections[key]?.visible) return true;
     return key === "shipping_team" && bootstrap?.viewer?.role === "Administrator";
+  }
+
+  function keepTransitionSubnavExpanded(key, bootstrap) {
+    return currentPage === "management.html"
+      && bootstrap?.viewer?.role === "Administrator"
+      && ["shipping_team","inventory_team"].includes(key);
   }
 
   function applyManagementHash() {
@@ -352,6 +359,7 @@
 
       const wrapper = document.createElement("div");
       wrapper.className = "tt-nav-section";
+      wrapper.dataset.sectionKey = key;
 
       const main = createLink(
         definition.label,
@@ -362,9 +370,10 @@
       wrapper.appendChild(main);
 
       const children = visibleChildren(key,definition,bootstrap);
-      if (children.length && activeSection === key) {
+      if (children.length) {
         const sub = document.createElement("div");
         sub.className = "tt-nav-sub";
+        sub.hidden = activeSection !== key && !keepTransitionSubnavExpanded(key,bootstrap);
         children.forEach(([label, href]) => {
           const child = createLink(label, href, isHrefActive(href));
           child.dataset.short = shortLabel(label);
@@ -420,10 +429,12 @@
       window.setTimeout(() => {
         const current = currentSectionKey();
         shared.querySelectorAll(".tt-nav-section").forEach((section) => {
+          const key = section.dataset.sectionKey || "";
           const link = section.querySelector(":scope > a");
           if (!link) return;
-          const definitionEntry = Object.entries(sectionDefinitions).find(([,d]) => d.label === link.textContent);
-          link.classList.toggle("active",definitionEntry?.[0] === current);
+          link.classList.toggle("active",key === current);
+          const sub = section.querySelector(":scope > .tt-nav-sub");
+          if (sub) sub.hidden = key !== current && !keepTransitionSubnavExpanded(key,bootstrap);
         });
         home.classList.toggle("active",isHomeActive(bootstrap));
         shared.querySelectorAll(".tt-nav-sub a").forEach((link) => {
