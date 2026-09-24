@@ -222,6 +222,7 @@
           <strong>${esc(bootstrap?.viewer?.employee_name || "")}</strong>
           <span>${esc([bootstrap?.viewer?.role,bootstrap?.viewer?.department].filter(Boolean).join(" · "))}</span>
         </div>
+        <button id="tt-shared-sign-out" type="button">Sign Out</button>
       </div>`;
 
     const content = document.createElement("div");
@@ -230,6 +231,12 @@
     wrapper.appendChild(content);
     content.appendChild(pageShell);
     pageShell.dataset.ttNavWrapped = "1";
+
+    side.querySelector("#tt-shared-sign-out")?.addEventListener("click", () => {
+      const existing = pageShell.querySelector("#sign-out");
+      if (existing) existing.click();
+      else window.location.href = "index.html";
+    });
 
     return { side, app, shell: wrapper };
   }
