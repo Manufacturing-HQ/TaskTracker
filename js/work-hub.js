@@ -73,7 +73,7 @@
     const pilotCopy = document.querySelector("#login .muted");
     if (pilotCopy) pilotCopy.textContent = "Daily routines, projects, quick tasks, and your operational task queue.";
     const brandCopy = document.querySelector(".brand > div:last-child > div");
-    if (brandCopy) brandCopy.textContent = "Operations Workspace";
+    if (brandCopy) brandCopy.textContent = "Projects & Operations";
   }
 
   async function listEmployees() {
@@ -188,7 +188,7 @@
     const labels = {
       routines: ["Daily & Weekly", "Recurring operational responsibilities."],
       projects: ["Projects", "Projects, conversation, project tasks, and quick reminders."],
-      queue: ["Task Queue", "Your existing Supervisor Operations queue, now organized inside Work Hub."]
+      queue: ["Task Queue", "Your existing Supervisor Operations queue, organized inside Project Dashboard."]
     };
     $("page-title").textContent = labels[view][0];
     $("page-subtitle").textContent = labels[view][1];
