@@ -109,7 +109,7 @@
       children: [
         ["Inventory Team Dashboard","inventory-team.html",{permission:"inventory_dashboard.view"}],
         ["Demand Planning","demand-planning.html",{permission:"demand_planning.view"}],
-        ["W/O Prioritization","work-order-prioritization.html",{adminOnly:true}],
+        ["W/O Prioritization","work-order-prioritization.html",{permission:"work_order_prioritization.use"}],
         ["Daily Review","daily-review.html",{adminOnly:true}],
         ["NetSuite Data","netsuite-data.html",{adminOnly:true}]
       ]
