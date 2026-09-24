@@ -31,12 +31,12 @@
   const sectionDefinitions = {
     operations: {
       label: "Operations",
-      href: "management.html",
+      href: "management.html#attendance",
       pages: ["management.html","attendance.html","change-log.html","reporting.html"],
       children: [
-        ["Company Live Status","management.html#home"],
         ["Attendance Audit","management.html#attendance"],
         ["Task Tracker Audit","management.html#audit"],
+        ["Memos","management.html#memos"],
         ["Attendance / Employee Summary","attendance.html"],
         ["Change Log","change-log.html"],
         ["Reporting","reporting.html"]
@@ -77,12 +77,25 @@
         ["QA Reporting","qa-reporting.html"]
       ]
     },
+    shipping_team: {
+      label: "Shipping Team",
+      href: "sales-order-dashboard.html",
+      pages: ["sales-order-dashboard.html","pps-operations.html"],
+      children: [
+        ["Sales Order Dashboard","sales-order-dashboard.html",{adminOnly:true}],
+        ["PPS Operations","pps-operations.html",{adminOnly:true}]
+      ]
+    },
     inventory_team: {
       label: "Inventory Team",
       href: "inventory-team.html",
-      pages: ["inventory-team.html"],
+      pages: ["inventory-team.html","demand-planning.html","work-order-prioritization.html","daily-review.html","netsuite-data.html"],
       children: [
-        ["Inventory Team Dashboard","inventory-team.html"]
+        ["Inventory Team Dashboard","inventory-team.html"],
+        ["Demand Planning","demand-planning.html",{adminOnly:true}],
+        ["W/O Prioritization","work-order-prioritization.html",{adminOnly:true}],
+        ["Daily Review","daily-review.html",{adminOnly:true}],
+        ["NetSuite Data","netsuite-data.html",{adminOnly:true}]
       ]
     }
   };
@@ -178,10 +191,73 @@
   }
 
   function currentSectionKey() {
+    if (currentPage === "management.html") {
+      const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
+      if (!hash || hash === "home") return null;
+      if (["attendance","audit","memos","overview","operations"].includes(hash)) return "operations";
+    }
     for (const [key, definition] of Object.entries(sectionDefinitions)) {
       if (definition.pages.includes(currentPage)) return key;
     }
     return null;
+  }
+
+  function isHomeActive(bootstrap) {
+    const homePath = String(bootstrap?.home?.href || "index.html").split("#")[0].toLowerCase();
+    if (currentPage !== homePath) return false;
+    if (currentPage === "management.html") {
+      const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
+      return !hash || hash === "home";
+    }
+    return true;
+  }
+
+  function visibleChildren(key, definition, bootstrap) {
+    const role = bootstrap?.viewer?.role || "";
+    return (definition.children || []).filter((entry) => {
+      const options = entry[2] || {};
+      return !options.adminOnly || role === "Administrator";
+    });
+  }
+
+  function sectionVisible(key, sections, bootstrap) {
+    if (sections[key]?.visible) return true;
+    return key === "shipping_team" && bootstrap?.viewer?.role === "Administrator";
+  }
+
+  function applyManagementHash() {
+    if (currentPage !== "management.html") return;
+    const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
+
+    if (!hash || hash === "home") {
+      document.querySelector('button[data-view="home"]')?.click();
+      return;
+    }
+
+    if (!["attendance","audit","memos","overview","operations"].includes(hash)) return;
+
+    document.querySelector('button[data-view="overview"]')?.click();
+
+    let tries = 0;
+    const focusTarget = () => {
+      tries += 1;
+      document.querySelector('[data-hub-tab="daily"]')?.click();
+
+      const target = hash === "audit"
+        ? document.getElementById("view-audit")
+        : hash === "memos"
+          ? document.getElementById("management-memos-panel")
+          : hash === "attendance"
+            ? document.getElementById("view-attendance")
+            : document.getElementById("ops-hub");
+
+      if (target) {
+        target.scrollIntoView({behavior:"auto",block:"start"});
+        return;
+      }
+      if (tries < 12) window.setTimeout(focusTarget,100);
+    };
+    window.setTimeout(focusTarget,120);
   }
 
   function applyHistoryHash() {
@@ -258,7 +334,7 @@
     const home = createLink(
       "Home",
       bootstrap?.home?.href || "index.html",
-      currentPage === String(bootstrap?.home?.href || "").split("#")[0].toLowerCase()
+      isHomeActive(bootstrap)
     );
     home.dataset.short = "H";
     shared.appendChild(home);
@@ -272,7 +348,7 @@
     const sections = bootstrap?.sections || {};
 
     for (const [key, definition] of Object.entries(sectionDefinitions)) {
-      if (!sections[key]?.visible) continue;
+      if (!sectionVisible(key, sections, bootstrap)) continue;
 
       const wrapper = document.createElement("div");
       wrapper.className = "tt-nav-section";
@@ -285,10 +361,11 @@
       main.dataset.short = shortLabel(definition.label);
       wrapper.appendChild(main);
 
-      if (definition.children.length && activeSection === key) {
+      const children = visibleChildren(key,definition,bootstrap);
+      if (children.length && activeSection === key) {
         const sub = document.createElement("div");
         sub.className = "tt-nav-sub";
-        definition.children.forEach(([label, href]) => {
+        children.forEach(([label, href]) => {
           const child = createLink(label, href, isHrefActive(href));
           child.dataset.short = shortLabel(label);
           sub.appendChild(child);
@@ -335,9 +412,24 @@
       side.insertBefore(shared, footer || null);
     }
 
+    applyManagementHash();
     applyHistoryHash();
     window.addEventListener("hashchange", () => {
+      if (currentPage === "management.html") applyManagementHash();
       if (currentPage === "history.html") applyHistoryHash();
+      window.setTimeout(() => {
+        const current = currentSectionKey();
+        shared.querySelectorAll(".tt-nav-section").forEach((section) => {
+          const link = section.querySelector(":scope > a");
+          if (!link) return;
+          const definitionEntry = Object.entries(sectionDefinitions).find(([,d]) => d.label === link.textContent);
+          link.classList.toggle("active",definitionEntry?.[0] === current);
+        });
+        home.classList.toggle("active",isHomeActive(bootstrap));
+        shared.querySelectorAll(".tt-nav-sub a").forEach((link) => {
+          link.classList.toggle("active",isHrefActive(link.getAttribute("href")));
+        });
+      },0);
     });
 
     return true;
