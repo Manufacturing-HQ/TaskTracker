@@ -27,12 +27,12 @@
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><h1>Demand Planning</h1><p>Filter, sort, review what can be built, and stage Work Orders.</p></div>
+    <div class="brand"><h1>Demand Planning</h1><p>Filter, sort, and review what can be built. Work Order staging is permission controlled.</p></div>
     <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="netsuite-data.html">NetSuite Data</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
   </div>
 
   <div id="message" class="message" hidden></div>
-  <section id="access-denied" class="card" hidden><h2>Administrator Access Required</h2><p>This pilot is currently restricted to Administrator accounts.</p></section>
+  <section id="access-denied" class="card" hidden><h2>Demand Planning Access Required</h2><p>You do not have permission to view Demand Planning.</p></section>
 
   <main id="app" hidden>
     <section class="card">
@@ -75,7 +75,7 @@
     </section>
 
     <section class="card">
-      <div class="section-title"><div><h2>Work Order Staging Queue</h2><div class="muted">Pending rows remain editable until they are marked Imported.</div></div></div>
+      <div class="section-title"><div><h2>Work Order Staging Queue</h2><div class="muted">Pending rows are visible here. Editing and import actions depend on your permissions.</div></div></div>
       <div class="queue-actions">
         <button id="queue-export" class="secondary" type="button">Export Pending CSV</button>
         <button id="queue-mark-imported" class="primary" type="button">Mark Selected Imported</button>
@@ -113,7 +113,7 @@
         <div id="modal-work-orders" class="table-wrap"></div>
       </section>
 
-      <section class="modal-section">
+      <section id="stage-work-orders-section" class="modal-section">
         <h3>Stage Work Orders</h3>
         <div class="stage-controls">
           <div class="field"><label>Total to Stage</label><input id="stage-total-target" class="stage-input" type="number" min="1" step="1"></div>
@@ -139,7 +139,7 @@
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=nav-layout-complete-20260924-1"></script>
 <script src="js/csv-export.js?v=demand-staging-20260918-1"></script>
-<script src="js/demand-planning.js?v=demand-standalone-wo-20260918-1"></script>
+<script src="js/demand-planning.js?v=capability-permissions-20260924-1"></script>
 <script src="js/employee-signout.js?v=phase1-20260902-1"></script>
 <script src="js/employee-session-watch.js?v=phase1-20260902-1"></script>
 </body>
