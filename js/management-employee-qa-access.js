@@ -54,7 +54,8 @@
       "pps.reporting.view":"View PPS Reporting",
       "pps.cosmetic.manage":"Manage PPS Cosmetic Rejections",
       "demand_planning.view":"View Demand Planning",
-      "demand_planning.stage_work_orders":"Stage Work Orders from Demand Planning"
+      "demand_planning.stage_work_orders":"Stage Work Orders from Demand Planning",
+      "work_order_prioritization.use":"Use Work Order Prioritization"
     };
     return labels[code] || code;
   }
