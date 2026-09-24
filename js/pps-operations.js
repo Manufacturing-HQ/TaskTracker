@@ -12,6 +12,7 @@
   const $ = (id) => document.getElementById(id);
   const sessionToken = sessionStorage.getItem(config.sessionStorageKey);
   let bootstrap = null;
+  let permissionFlags = {};
   let editingBatchId = null;
   let qaReview = null;
   let lastQaRenewAt = 0;
@@ -63,6 +64,38 @@
     return d.toISOString().slice(0,10);
   }
 
+  const can = (code) => permissionFlags?.[code] === true;
+  const tabPermission = {
+    pick:"pps.pick_batch.create",
+    qa:"pps.qa.process",
+    cosmetic:"pps.cosmetic.manage",
+    reporting:"pps.reporting.view"
+  };
+  const canTab = (tab) => !!tabPermission[tab] && can(tabPermission[tab]);
+
+  function firstAllowedTab() {
+    return ["pick","qa","cosmetic","reporting"].find(canTab) || null;
+  }
+
+  function configurePermissionUi() {
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.hidden = !canTab(button.dataset.tab);
+    });
+    ["pick","qa","cosmetic","reporting"].forEach((name) => {
+      const section = $("tab-" + name);
+      if (section) section.hidden = true;
+    });
+  }
+
+  async function loadAllowedData() {
+    const jobs = [];
+    if (canTab("pick")) jobs.push(loadBatches());
+    if (canTab("qa")) jobs.push(loadQaQueue());
+    if (canTab("cosmetic")) jobs.push(loadCosmetics());
+    if (canTab("reporting")) jobs.push(loadReporting());
+    await Promise.all(jobs);
+  }
+
   function statusLabel(status) {
     const value = String(status || "");
     if (value === "SUBMITTED") return '<span class="status submitted">Submitted</span>';
@@ -74,6 +107,8 @@
   }
 
   function setTab(tab) {
+    if (!canTab(tab)) tab = firstAllowedTab();
+    if (!tab) return;
     document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
     ["pick","qa","cosmetic","reporting"].forEach((name) => {
       $("tab-" + name).hidden = name !== tab;
@@ -188,7 +223,7 @@
       const batchNumber = result?.batch?.batch_number || "Pick Batch";
       setMessage(`${batchNumber} saved successfully.`, "success");
       resetPickForm();
-      await Promise.all([loadBatches(), loadQaQueue(), loadReporting()]);
+      await loadAllowedData();
     } finally {
       button.disabled = false;
       button.textContent = editingBatchId ? "Save Pick Batch" : "Submit Pick Batch";
@@ -388,7 +423,7 @@
       setMessage(`${result.batch_number} QA review completed.`, "success");
       qaReview = null;
       $("qa-review-card").hidden = true;
-      await Promise.all([loadQaQueue(), loadBatches(), loadCosmetics(), loadReporting()]);
+      await loadAllowedData();
       window.scrollTo({ top:0, behavior:"smooth" });
     } finally {
       button.disabled = false;
@@ -423,7 +458,7 @@
   async function markCosmeticUpdated(rejectionId) {
     await rpc("mark_pps_cosmetic_rejection_updated", { p_session_token:sessionToken, p_rejection_id:rejectionId });
     setMessage("Cosmetic Rejection marked as updated in NetSuite.", "success");
-    await Promise.all([loadCosmetics(), loadReporting()]);
+    await loadAllowedData();
   }
 
   function csvCell(value) {
@@ -508,15 +543,31 @@
   async function init() {
     if (!sessionToken) {
       $("access-denied").hidden = false;
-      setMessage("Sign in through Task Tracker with an Administrator account before opening PPS Operations.", "error");
+      setMessage("Sign in through Task Tracker before opening PPS Operations.", "error");
       return;
     }
 
     try {
-      bootstrap = await rpc("get_pps_operations_bootstrap", { p_session_token:sessionToken });
-      if (bootstrap?.viewer?.role !== "Administrator") throw new Error("PPS Operations is currently available only to Administrator accounts.");
+      const [bootstrapData,flags] = await Promise.all([
+        rpc("get_pps_operations_bootstrap", { p_session_token:sessionToken }),
+        rpc("get_current_permission_flags", {
+          p_session_token:sessionToken,
+          p_permission_codes:[
+            "pps.pick_batch.create",
+            "pps.qa.process",
+            "pps.reporting.view",
+            "pps.cosmetic.manage"
+          ]
+        })
+      ]);
+      bootstrap = bootstrapData || {};
+      permissionFlags = flags || {};
+
+      const firstTab = firstAllowedTab();
+      if (!firstTab) throw new Error("You do not have permission to access PPS Operations.");
+
       $("viewer-name").textContent = bootstrap.viewer.employee_name;
-      $("viewer-meta").textContent = `Administrator · Business Date ${formatDate(bootstrap.business_date)} · QA lock ${bootstrap.qa_lock_minutes} minutes`;
+      $("viewer-meta").textContent = `${bootstrap.viewer.role} · Business Date ${formatDate(bootstrap.business_date)} · QA lock ${bootstrap.qa_lock_minutes} minutes`;
       $("picker-name").value = bootstrap.viewer.employee_name;
       $("pick-bin").innerHTML = '<option value="">Select bin</option>' + (bootstrap.pick_bins || []).map((x) => `<option value="${esc(x)}">${esc(x)}</option>`).join("");
 
@@ -526,15 +577,19 @@
       $("report-start").value = defaultStart;
       $("report-end").value = bootstrap.business_date;
 
+      configurePermissionUi();
       wireEvents();
-      resetPickForm();
+      if (canTab("pick")) resetPickForm();
       $("app").hidden = false;
-      await Promise.all([loadBatches(),loadQaQueue(),loadCosmetics(),loadReporting()]);
+      await loadAllowedData();
+
+      const requested = String(location.hash || "").replace(/^#/,"").toLowerCase();
+      setTab(canTab(requested) ? requested : firstTab);
     } catch (error) {
+      $("app").hidden = true;
       $("access-denied").hidden = false;
       showError(error);
     }
   }
-
   init();
 })();
