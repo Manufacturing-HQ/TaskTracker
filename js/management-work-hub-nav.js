@@ -18,8 +18,8 @@
     if (hasAccess && overviewCopy) {
       const role = document.getElementById("side-meta")?.textContent || "";
       overviewCopy.textContent = role.startsWith("Supervisor")
-        ? "Use the navigation for Attendance Audit, Task Tracker Audit, Work Hub, Attendance / Employee Summary, Training, and Reporting."
-        : "Use the navigation for Attendance Audit, Task Tracker Audit, Work Hub, Attendance / Employee Summary, QA, Training, and Reporting.";
+        ? "Use the navigation for Attendance Audit, Task Tracker Audit, Project Dashboard, Attendance / Employee Summary, Training, and Reporting."
+        : "Use the navigation for Attendance Audit, Task Tracker Audit, Project Dashboard, Attendance / Employee Summary, Quality & Training and Reporting.";
     }
   }
 
