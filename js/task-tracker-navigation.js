@@ -289,22 +289,25 @@
         if (!sub.hidden) return;
         event.preventDefault();
         sub.hidden = false;
-        setNavBadge(main, 0);
-        setNavBadge(projectLink, state.projects.length);
-        setNavBadge(queueLink, state.queue.length);
+        refreshNavigationBadges(shared).catch(() => {});
       });
     }
 
     const bindChild = (link, rows) => {
-      if (!link || link.dataset.notificationReadBound) return;
+      if (!link) return;
+      link._ttNotificationRows = rows || [];
+      if (link.dataset.notificationReadBound) return;
       link.dataset.notificationReadBound = "1";
       link.addEventListener("click", async (event) => {
-        if (!rows.length) return;
+        const currentRows = Array.isArray(link._ttNotificationRows) ? link._ttNotificationRows : [];
+        if (!currentRows.length) return;
         event.preventDefault();
         const href = link.getAttribute("href");
         try {
-          await markNavigationNotificationsRead(rows);
+          await markNavigationNotificationsRead(currentRows);
+          link._ttNotificationRows = [];
           setNavBadge(link, 0);
+          window.dispatchEvent(new CustomEvent("tasktracker:notifications-changed"));
           if (href) window.location.href = href;
         } catch (error) {
           console.warn("Could not mark navigation notifications read:", error?.message || error);
@@ -642,6 +645,9 @@
     }, 120000);
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) refreshNavigationBadges(shared).catch(() => {});
+    });
+    window.addEventListener("tasktracker:notifications-changed", () => {
+      refreshNavigationBadges(shared).catch(() => {});
     });
     window.addEventListener("hashchange", () => {
       if (currentPage === "management.html") applyManagementHash();
