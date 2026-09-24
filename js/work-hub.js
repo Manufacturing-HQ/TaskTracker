@@ -172,6 +172,19 @@
     ensureQueueAssignmentUi();
     $("routine-date").value = todayLocal();
     await loadNotifications();
+
+    const linkedProjectId = new URLSearchParams(window.location.search).get("project_id");
+    if (linkedProjectId) {
+      switchView("projects", false);
+      await Promise.all([loadQuickTasks(), loadProjects()]);
+      try {
+        await openProjectDrawer(linkedProjectId);
+      } catch (error) {
+        showError(error);
+      }
+      return;
+    }
+
     switchView(viewFromHash(), false);
   }
 
@@ -211,10 +224,21 @@
     else if (notification.link_path?.includes("#queue")) view = "queue";
 
     switchView(view);
-    if (view === "projects" && type === "PROJECT" && notification.record_id) {
-      await Promise.all([loadQuickTasks(), loadProjects()]);
-      const card = Array.from(document.querySelectorAll(".project-card[data-id]")).find((el) => el.dataset.id === notification.record_id);
-      if (card) card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    if (view === "projects") {
+      let projectId = null;
+      try {
+        const linkUrl = new URL(notification.link_path || "", window.location.origin + window.location.pathname);
+        projectId = linkUrl.searchParams.get("project_id");
+      } catch {}
+
+      if (!projectId && type === "PROJECT" && notification.record_id) {
+        projectId = notification.record_id;
+      }
+
+      if (projectId) {
+        await Promise.all([loadQuickTasks(), loadProjects()]);
+        await openProjectDrawer(projectId);
+      }
     }
   }
 
