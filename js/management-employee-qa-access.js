@@ -44,7 +44,17 @@
       "item_changes.view":"View Item Changes",
       "item_changes.submit":"Submit Item Change Requests",
       "item_changes.manage":"Manage Item Change Requests",
-      "item_changes.hold_authorize":"Authorize Operational Item Holds"
+      "item_changes.hold_authorize":"Authorize Operational Item Holds",
+      "sales_order_dashboard.view":"View Sales Order Dashboard",
+      "sales_order_dashboard.run_review":"Run Sales Order Review",
+      "sales_order_dashboard.update_status":"Update Sales Order Item Status",
+      "sales_order_dashboard.manage_lines":"Manage Sales Order Review Lines",
+      "pps.pick_batch.create":"Create PPS Pick Batches",
+      "pps.qa.process":"Process PPS QA Batches",
+      "pps.reporting.view":"View PPS Reporting",
+      "pps.cosmetic.manage":"Manage PPS Cosmetic Rejections",
+      "demand_planning.view":"View Demand Planning",
+      "demand_planning.stage_work_orders":"Stage Work Orders from Demand Planning"
     };
     return labels[code] || code;
   }
