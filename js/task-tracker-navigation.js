@@ -105,11 +105,12 @@
     inventory_team: {
       label: "Inventory Team",
       href: "inventory-team.html",
-      pages: ["inventory-team.html","stage-work-orders.html","work-order-history.html","fgi-put-away.html","demand-planning.html","work-order-prioritization.html","daily-review.html","netsuite-data.html"],
+      pages: ["inventory-team.html","stage-work-orders.html","work-order-history.html","fgi-put-away.html","demand-planning.html","work-order-prioritization.html","stalled-work-orders.html","daily-review.html","netsuite-data.html"],
       children: [
         ["Inventory Team Dashboard","inventory-team.html",{permission:"inventory_dashboard.view"}],
         ["Demand Planning","demand-planning.html",{permission:"demand_planning.view"}],
         ["W/O Prioritization","work-order-prioritization.html",{permission:"work_order_prioritization.use"}],
+        ["Stalled Work Orders","stalled-work-orders.html",{permission:"stalled_work_orders.view"}],
         ["Daily Review","daily-review.html",{adminOnly:true}],
         ["NetSuite Data","netsuite-data.html",{adminOnly:true}]
       ]
