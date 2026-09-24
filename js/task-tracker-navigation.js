@@ -340,7 +340,7 @@
     const hash = String(location.hash || "").replace(/^#/,"").toLowerCase();
     const tab = ["pick","qa","cosmetic","reporting"].includes(hash) ? hash : "pick";
     const button = document.querySelector(`[data-tab="${tab}"]`);
-    if (button) window.setTimeout(() => button.click(),0);
+    if (button && !button.hidden) window.setTimeout(() => button.click(),0);
   }
 
   function applyHistoryHash() {
