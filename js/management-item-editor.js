@@ -126,6 +126,15 @@
       }
     };
     type.addEventListener("change", enforceTypeRule);
+    const operation = modal.querySelector("#oi-op");
+    if (!row) {
+      operation.addEventListener("change", () => {
+        if (["P","SA","T"].includes(operation.value)) {
+          demandPlanning.checked = false;
+          demandNote.textContent = "Programming, Shell Assembly, and Testing task Items default to excluded from Demand Planning.";
+        }
+      });
+    }
     enforceTypeRule();
 
     modal.querySelector("#oi-cancel").addEventListener("click", () => modal.remove());
