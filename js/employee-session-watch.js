@@ -9,13 +9,29 @@
   const sessionKey = config.sessionStorageKey;
   const heartbeatIntervalMs = 5 * 60 * 1000;
 
-  function goToNeutralLogin() {
-    sessionStorage.removeItem(sessionKey);
-    window.top.location.replace("index.html");
+  function currentReturnTarget() {
+    try {
+      const topUrl = new URL(window.top.location.href);
+      if (topUrl.origin !== window.location.origin) return null;
+      const file = topUrl.pathname.split("/").pop() || "";
+      if (!/^[A-Za-z0-9._-]+\.html$/.test(file) || file.toLowerCase() === "index.html") return null;
+      return `${file}${topUrl.search}${topUrl.hash}`;
+    } catch {
+      return null;
+    }
   }
 
-  // Protected Task Tracker pages are no longer login surfaces. A direct link or
-  // old bookmark without an active platform session always returns to index.html.
+  function goToNeutralLogin() {
+    sessionStorage.removeItem(sessionKey);
+    const returnTarget = currentReturnTarget();
+    const destination = returnTarget
+      ? `index.html?return_to=${encodeURIComponent(returnTarget)}`
+      : "index.html";
+    window.top.location.replace(destination);
+  }
+
+  // Protected Task Tracker pages redirect through the neutral login while
+  // preserving the requested page so successful sign-in returns the user there.
   if (!sessionStorage.getItem(sessionKey)) {
     goToNeutralLogin();
     return;
