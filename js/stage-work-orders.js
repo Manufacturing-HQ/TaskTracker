@@ -232,7 +232,7 @@
   function renderQueue(){
     const canImport=Boolean(bootstrap?.viewer?.can_import);
     $("manager-controls").hidden=!canImport;
-    $("select-head").innerHTML=canImport?'<input id="check-all-queue" type="checkbox" title="Check all Pending Import rows" aria-label="Check all Pending Import rows">':"";
+    $("select-head").innerHTML=canImport?'<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input id="check-all-queue" type="checkbox" title="Check all Pending Import rows" aria-label="Check all Pending Import rows"> All</label>':"";
 
     const totalQty=queue.reduce((sum,row)=>sum+(Number(row.quantity)||0),0);
     $("queue-summary").textContent=queue.length+" pending row(s) · "+num(totalQty)+" units";
