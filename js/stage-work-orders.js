@@ -101,7 +101,7 @@
       '<tr data-entry-index="'+index+'">'+
         '<td>'+(index+1)+'</td>'+
         '<td><input class="item-input" list="item-list" data-field="item_name" value="'+esc(row.item_name)+'" placeholder="Search Item"></td>'+
-        '<td><input class="qty-input" type="number" min="1" step="1" data-field="quantity" value="'+esc(row.quantity)+'"></td>'+
+        '<td><div class="qty-fill-wrap"><input class="qty-input" type="number" min="1" step="1" data-field="quantity" value="'+esc(row.quantity)+'"><button class="qty-fill-handle" type="button" data-fill-qty="'+index+'" title="Fill this quantity down into blank rows" aria-label="Fill quantity down"></button></div></td>'+
         '<td><select data-field="work_order_type"><option value="Production" '+(row.work_order_type==="Production"?"selected":"")+'>Production</option><option value="Priority" '+(row.work_order_type==="Priority"?"selected":"")+'>Priority</option></select></td>'+
         '<td><select class="job-input" data-field="work_order_job_type">'+renderJobTypeOptions(row.work_order_job_type)+'</select></td>'+
         '<td><select class="dept-input" data-field="priority_department">'+renderPriorityOptions(row.priority_department)+'</select></td>'+
@@ -145,6 +145,30 @@
         rows.splice(Number(button.dataset.remove),1);
         if(!rows.length) rows.push(emptyRow());
         renderEntryRows();
+      });
+    });
+
+    $("entry-body").querySelectorAll("[data-fill-qty]").forEach((button)=>{
+      button.addEventListener("click",()=>{
+        const index=Number(button.dataset.fillQty);
+        const value=String(rows[index]?.quantity??"").trim();
+        if(!(Number(value)>0)){
+          setMessage("Enter a Quantity greater than zero before filling down.","error");
+          return;
+        }
+        let filled=0;
+        for(let i=index+1;i<rows.length;i++){
+          if(String(rows[i].quantity??"").trim()===""){
+            rows[i].quantity=value;
+            filled++;
+          }
+        }
+        if(!filled){
+          setMessage("There are no blank Quantity rows below this row.","info");
+          return;
+        }
+        renderEntryRows();
+        setMessage("Filled Quantity "+value+" into "+filled+" blank row"+(filled===1?"":"s")+".","success");
       });
     });
   }
