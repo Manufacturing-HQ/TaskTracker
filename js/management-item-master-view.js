@@ -227,6 +227,7 @@
   let currentBomRows = [];
   let editingBom = null;
   let editingComponents = [];
+  let editingOriginalComponents = [];
   let selectedAddItem = null;
   let componentSearchTimer = null;
   let componentSearchSequence = 0;
@@ -364,7 +365,7 @@
           <div class="req-muted" style="margin-top:4px">Search the Item Master, select the component, enter the quantity, then add the line.</div>
           <div style="display:grid;grid-template-columns:minmax(280px,1fr) 130px auto;gap:10px;align-items:end;margin-top:10px">
             <div><label style="display:block;font-size:12px;font-weight:800;margin-bottom:5px">Component</label><input id="bom-add-search" placeholder="Search item name or Internal ID" autocomplete="off"></div>
-            <div><label style="display:block;font-size:12px;font-weight:800;margin-bottom:5px">Quantity</label><input id="bom-add-qty" type="number" min="0.000001" step="any" value="1"></div>
+            <div><label style="display:block;font-size:12px;font-weight:800;margin-bottom:5px">Quantity</label><input id="bom-add-qty" type="number" min="0" step="any" value="1"></div>
             <button id="bom-add-line" class="ghost" type="button" disabled>Add Line</button>
           </div>
           <div id="bom-add-selected" class="req-muted" style="margin-top:7px"></div>
@@ -405,8 +406,28 @@
     if(overlay)overlay.hidden=true;
     editingBom=null;
     editingComponents=[];
+    editingOriginalComponents=[];
     selectedAddItem=null;
     componentSearchSequence++;
+  }
+
+  function normalizedBomComponents(rows) {
+    return (Array.isArray(rows)?rows:[]).map((component)=>({
+      key:component.component_item_id
+        ? `id:${String(component.component_item_id)}`
+        : `name:${String(component.component_name||"").trim().toLowerCase()}`,
+      quantity:Number(component.component_quantity)
+    })).sort((a,b)=>a.key.localeCompare(b.key));
+  }
+
+  function bomComponentsChanged() {
+    const before=normalizedBomComponents(editingOriginalComponents);
+    const after=normalizedBomComponents(editingComponents);
+    if(before.length!==after.length)return true;
+    return before.some((row,index)=>
+      row.key!==after[index].key
+      || row.quantity!==after[index].quantity
+    );
   }
 
   function renderBomEditRows() {
@@ -419,7 +440,7 @@
     const body=editingComponents.map((component,index)=>`<tr>
       <td><strong>${esc(component.component_name)}</strong></td>
       <td>${component.component_item_id?'<span style="color:#166534;font-weight:800">Linked to Item Master</span>':'<span style="color:#92400e;font-weight:800">Text-only component</span>'}</td>
-      <td><input data-bom-qty="${index}" type="number" min="0.000001" step="any" value="${esc(component.component_quantity)}" style="width:120px"></td>
+      <td><input data-bom-qty="${index}" type="number" min="0" step="any" value="${esc(component.component_quantity)}" style="width:120px"></td>
       <td><button class="ghost bom-remove-line" type="button" data-index="${index}" style="color:#991b1b">Remove</button></td>
     </tr>`).join("");
     host.innerHTML=`<div class="ops-table-wrap"><table class="ops-table" style="min-width:720px"><thead><tr><th>Component</th><th>Item Master Link</th><th>Quantity</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
@@ -486,8 +507,8 @@
     if(!selectedAddItem)return;
     const qtyInput=document.getElementById("bom-add-qty");
     const quantity=Number(qtyInput?.value);
-    if(!Number.isFinite(quantity) || quantity<=0){
-      setBomEditMessage("Enter a component quantity greater than zero.","error");
+    if(!Number.isFinite(quantity) || quantity<0){
+      setBomEditMessage("Enter a component quantity of zero or greater.","error");
       return;
     }
     const duplicate=editingComponents.some((component)=>
@@ -525,6 +546,7 @@
       component_name:component.component_name||"",
       component_quantity:String(component.component_quantity??"")
     }));
+    editingOriginalComponents=editingComponents.map((component)=>({...component}));
     selectedAddItem=null;
     setBomEditMessage("");
     document.getElementById("bom-edit-title").textContent=`Edit BOM · ${row.bill_name||row.internal_id||""}`;
@@ -545,13 +567,17 @@
     }
     const payload=editingComponents.map((component)=>{
       const quantity=Number(component.component_quantity);
-      if(!Number.isFinite(quantity) || quantity<=0)throw new Error(`Enter a quantity greater than zero for ${component.component_name||"every component"}.`);
+      if(!Number.isFinite(quantity) || quantity<0)throw new Error(`Enter a quantity of zero or greater for ${component.component_name||"every component"}.`);
       return {
         component_item_id:component.component_item_id||null,
         component_name:component.component_name,
         component_quantity:String(quantity)
       };
     });
+    if(!bomComponentsChanged()){
+      setBomEditMessage("No changes were made.");
+      return;
+    }
     if(!confirm(`Save manual changes to ${editingBom.bill_name||editingBom.internal_id}? The BOM will contain ${payload.length} component line(s).`))return;
 
     const button=document.getElementById("bom-edit-save");
