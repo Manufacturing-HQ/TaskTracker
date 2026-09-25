@@ -8,7 +8,7 @@
     :root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#172033;background:#f4f7fb;--navy:#0b1220;--navy2:#17233c;--blue:#2563eb;--slate:#64748b;--border:#dbe3ef}
     *{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;min-height:100vh}button,select,input{font:inherit}button{cursor:pointer}
     .shell{min-height:100vh;display:grid;grid-template-columns:minmax(360px,.9fr) minmax(480px,1.1fr)}
-    .brand{padding:52px;color:#fff;background:linear-gradient(145deg,#0b1220,#17233c);display:flex;flex-direction:column;justify-content:space-between}.brand h1{font-size:58px;line-height:1.02;letter-spacing:-.055em;margin:20px 0}.brand p{color:#c4cfdf;font-size:18px;line-height:1.7;max-width:580px}.mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-weight:900}.login-side{display:grid;place-items:center;padding:42px;background:linear-gradient(135deg,#f8fafc,#e8eef5)}.card{width:min(520px,100%);background:#fff;border:1px solid var(--border);border-radius:24px;padding:38px;box-shadow:0 26px 70px rgba(11,18,32,.16)}.card h2{font-size:32px;margin:0 0 10px}.muted{color:var(--slate)}label{display:block;font-weight:800;font-size:13px;margin:18px 0 8px}select,input{width:100%;min-height:52px;border:1px solid #cbd5e1;border-radius:12px;padding:0 14px;background:#fff}.primary{border:0;border-radius:11px;padding:12px 16px;font-weight:800;background:var(--blue);color:#fff;width:100%;margin-top:20px;min-height:54px}.message{margin-top:16px;padding:12px 14px;border-radius:10px;background:#e2e8f0}.message[data-type="error"]{background:#fee2e2;color:#991b1b}.recognized-user{margin-top:18px;padding:14px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:space-between;gap:14px}.recognized-user strong{display:block;margin-top:3px}.link-button{border:0;background:transparent;color:#1d4ed8;font-weight:800;padding:6px 0;white-space:nowrap}.remember-row{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;margin-top:14px;color:#475569}.remember-row input{width:18px;height:18px;min-height:0;margin:0}.routing{text-align:center}.routing .spinner{width:42px;height:42px;border:4px solid #dbe3ef;border-top-color:#2563eb;border-radius:50%;margin:0 auto 18px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    .brand{padding:52px;color:#fff;background:linear-gradient(145deg,#0b1220,#17233c);display:flex;flex-direction:column;justify-content:space-between}.brand h1{font-size:58px;line-height:1.02;letter-spacing:-.055em;margin:20px 0}.brand p{color:#c4cfdf;font-size:18px;line-height:1.7;max-width:580px}.mark{width:50px;height:50px;border-radius:15px;display:grid;place-items:center;background:rgba(255,255,255,.1);font-weight:900}.login-side{display:grid;place-items:center;padding:42px;background:linear-gradient(135deg,#f8fafc,#e8eef5)}.card{width:min(520px,100%);background:#fff;border:1px solid var(--border);border-radius:24px;padding:38px;box-shadow:0 26px 70px rgba(11,18,32,.16)}.card h2{font-size:32px;margin:0 0 10px}.muted{color:var(--slate)}label{display:block;font-weight:800;font-size:13px;margin:18px 0 8px}select,input{width:100%;min-height:52px;border:1px solid #cbd5e1;border-radius:12px;padding:0 14px;background:#fff}.primary{border:0;border-radius:11px;padding:12px 16px;font-weight:800;background:var(--blue);color:#fff;width:100%;margin-top:20px;min-height:54px}.message{margin-top:16px;padding:12px 14px;border-radius:10px;background:#e2e8f0}.message[data-type="error"]{background:#fee2e2;color:#991b1b}.recognized-user{margin-top:18px;padding:14px;border:1px solid #bfdbfe;border-radius:12px;background:#eff6ff;display:flex;align-items:center;justify-content:space-between;gap:14px}.recognized-user strong{display:block;margin-top:3px}.recognized-actions{display:grid;gap:4px;text-align:right}.link-button{border:0;background:transparent;color:#1d4ed8;font-weight:800;padding:4px 0;white-space:nowrap}.link-button.danger{color:#991b1b}.remember-row{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;margin-top:14px;color:#475569}.remember-row input{width:18px;height:18px;min-height:0;margin:0}.routing{text-align:center}.routing .spinner{width:42px;height:42px;border:4px solid #dbe3ef;border-top-color:#2563eb;border-radius:50%;margin:0 auto 18px;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
     @media(max-width:900px){.shell{grid-template-columns:1fr}.brand{display:none}.login-side{padding:20px}}
   </style>
 </head>
@@ -24,13 +24,16 @@
         <div class="muted">Your role will automatically open the correct workspace.</div>
         <div id="recognized-user" class="recognized-user" hidden>
           <div><span class="muted" style="font-size:12px">Recognized device</span><strong id="recognized-employee-name"></strong></div>
-          <button id="change-employee" class="link-button" type="button">Use a different employee</button>
+          <div class="recognized-actions">
+            <button id="change-employee" class="link-button" type="button">Use a different employee</button>
+            <button id="forget-device" class="link-button danger" type="button">Forget this device</button>
+          </div>
         </div>
         <label id="employee-label" for="employee">Employee</label>
         <select id="employee" required><option value="">Loading employees...</option></select>
         <label for="pin">PIN</label>
         <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
-        <label class="remember-row"><input id="remember-device" type="checkbox" checked> Remember my employee selection on this device</label>
+        <label class="remember-row"><input id="remember-device" type="checkbox" checked> Trust this device and skip PIN for 90 days</label>
         <button class="primary" type="submit">Sign In</button>
         <div id="message" class="message" hidden></div>
       </form>
@@ -41,6 +44,6 @@
       </div>
     </section>
   </div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script src="js/app-router.js?v=device-login-20260925-2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="js/config.js"></script><script src="js/app-router.js?v=trusted-device-20260925-1"></script>
 </body>
 </html>
