@@ -52,14 +52,22 @@
 
   function rememberEmployee(employee) {
     if (!employee?.id) return;
-    localStorage.setItem(rememberedEmployeeKey, JSON.stringify({
-      employeeId: String(employee.id),
-      employeeName: String(employee.name || "")
-    }));
+    try {
+      localStorage.setItem(rememberedEmployeeKey, JSON.stringify({
+        employeeId: String(employee.id),
+        employeeName: String(employee.name || "")
+      }));
+    } catch {
+      // Device recognition is a convenience only; login must still succeed if storage is unavailable.
+    }
   }
 
   function forgetRememberedEmployee() {
-    localStorage.removeItem(rememberedEmployeeKey);
+    try {
+      localStorage.removeItem(rememberedEmployeeKey);
+    } catch {
+      // Ignore unavailable browser storage.
+    }
   }
 
   function setRememberedEmployeeUi(employee = null) {
