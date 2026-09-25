@@ -11,8 +11,11 @@
 
   const $ = (id) => document.getElementById(id);
   const sessionKey = config.sessionStorageKey;
+  const rememberedEmployeeKey = "task_tracker_remembered_employee";
+  const returnTargetParam = "return_to";
   let sessionToken = sessionStorage.getItem(sessionKey);
   let sessionEmployee = null;
+  let returnTarget = readReturnTarget();
 
   function setMessage(message, type = "info") {
     const el = $("message");
@@ -32,6 +35,70 @@
     $("routing").hidden = false;
   }
 
+  function readRememberedEmployee() {
+    try {
+      const raw = localStorage.getItem(rememberedEmployeeKey);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.employeeId) return null;
+      return {
+        employeeId: String(parsed.employeeId),
+        employeeName: String(parsed.employeeName || "")
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function rememberEmployee(employee) {
+    if (!employee?.id) return;
+    localStorage.setItem(rememberedEmployeeKey, JSON.stringify({
+      employeeId: String(employee.id),
+      employeeName: String(employee.name || "")
+    }));
+  }
+
+  function forgetRememberedEmployee() {
+    localStorage.removeItem(rememberedEmployeeKey);
+  }
+
+  function setRememberedEmployeeUi(employee = null) {
+    const recognized = $("recognized-user");
+    const recognizedName = $("recognized-employee-name");
+    const label = $("employee-label");
+    const select = $("employee");
+    if (!recognized || !recognizedName || !label || !select) return;
+
+    if (employee) {
+      recognizedName.textContent = employee.employee_name || employee.employeeName || "Saved employee";
+      recognized.hidden = false;
+      label.hidden = true;
+      select.hidden = true;
+      select.value = employee.employee_id || employee.employeeId || "";
+      $("remember-device").checked = true;
+      window.setTimeout(() => $("pin")?.focus(), 0);
+    } else {
+      recognized.hidden = true;
+      label.hidden = false;
+      select.hidden = false;
+    }
+  }
+
+  function readReturnTarget() {
+    const raw = new URLSearchParams(window.location.search).get(returnTargetParam);
+    if (!raw) return null;
+    if (raw.includes("\\") || raw.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(raw)) return null;
+    try {
+      const url = new URL(raw, window.location.href);
+      if (url.origin !== window.location.origin) return null;
+      const file = url.pathname.split("/").pop() || "";
+      if (!/^[A-Za-z0-9._-]+\.html$/.test(file) || file.toLowerCase() === "index.html") return null;
+      return `${file}${url.search}${url.hash}`;
+    } catch {
+      return null;
+    }
+  }
+
   async function rpc(name, args = {}) {
     const { data, error } = await client.rpc(name, args);
     if (error) throw new Error(error.message || `${name} failed.`);
@@ -48,6 +115,14 @@
       option.textContent = row.employee_name;
       select.appendChild(option);
     });
+
+    const remembered = readRememberedEmployee();
+    const matched = remembered
+      ? (rows || []).find((row) => String(row.employee_id) === remembered.employeeId)
+      : null;
+
+    if (remembered && !matched) forgetRememberedEmployee();
+    setRememberedEmployeeUi(matched || null);
   }
 
   async function restoreSession() {
@@ -79,9 +154,11 @@
   async function routeToWorkspace() {
     const role = sessionEmployee?.employee_role || sessionEmployee?.role || "";
     showRouting();
-    $("routing-message").textContent = `Signed in as ${sessionEmployee?.employee_name || "employee"} · ${role}.`;
+    $("routing-message").textContent = returnTarget
+      ? `Signed in as ${sessionEmployee?.employee_name || "employee"} · Opening requested page…`
+      : `Signed in as ${sessionEmployee?.employee_name || "employee"} · ${role}.`;
     try {
-      const destination = await resolveWorkspace();
+      const destination = returnTarget || await resolveWorkspace();
       window.location.replace(destination);
     } catch (error) {
       showLogin(error.message || "Unable to open the correct workspace.", "error");
@@ -104,6 +181,16 @@
     sessionToken = row.session_token;
     sessionStorage.setItem(sessionKey, sessionToken);
     sessionEmployee = row;
+
+    if ($("remember-device")?.checked) {
+      rememberEmployee({
+        id: row.employee_id,
+        name: row.employee_name
+      });
+    } else {
+      forgetRememberedEmployee();
+    }
+
     $("pin").value = "";
     await routeToWorkspace();
   }
@@ -119,6 +206,14 @@
 
   $("login-form").addEventListener("submit", (event) => {
     login(event).catch((error) => showLogin(error.message || "Unable to sign in.", "error"));
+  });
+
+  $("change-employee")?.addEventListener("click", () => {
+    forgetRememberedEmployee();
+    setRememberedEmployeeUi(null);
+    $("employee").value = "";
+    $("remember-device").checked = true;
+    $("employee").focus();
   });
 
   init();
