@@ -283,16 +283,6 @@
     setNavBadge(projectLink, sub?.hidden ? 0 : state.projects.length);
     setNavBadge(queueLink, sub?.hidden ? 0 : state.queue.length);
 
-    if (main && sub && !main.dataset.notificationExpandBound) {
-      main.dataset.notificationExpandBound = "1";
-      main.addEventListener("click", (event) => {
-        if (!sub.hidden) return;
-        event.preventDefault();
-        sub.hidden = false;
-        refreshNavigationBadges(shared).catch(() => {});
-      });
-    }
-
     const bindChild = (link, rows) => {
       if (!link) return;
       link._ttNotificationRows = rows || [];
@@ -590,6 +580,12 @@
           sub.appendChild(child);
         });
         wrapper.appendChild(sub);
+
+        main.addEventListener("click", (event) => {
+          event.preventDefault();
+          sub.hidden = !sub.hidden;
+          refreshNavigationBadges(shared).catch(() => {});
+        });
       }
 
       shared.appendChild(wrapper);
