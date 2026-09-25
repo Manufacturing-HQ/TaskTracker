@@ -396,6 +396,7 @@
     $("routine-modal").hidden = false;
     $("routine-id").value = task?.routine_id || "";
     $("routine-modal-title").textContent = task ? "Edit Routine Task" : "Add Routine Task";
+    $("delete-routine").hidden = !task;
     $("routine-type").value = task?.recurrence || routineMode;
     $("routine-title").value = task?.title || "";
     $("routine-description").value = task?.description || "";
@@ -438,6 +439,22 @@
     $("routine-weekly").classList.toggle("active", routineMode === "WEEKLY");
     await Promise.all([loadRoutines(), loadNotifications()]);
     setMessage("Routine task saved.", "success");
+  }
+
+  async function deleteRoutine() {
+    const routineId = $("routine-id").value;
+    if (!routineId) return;
+    const task = routineTasks.find((row) => row.routine_id === routineId);
+    const title = task?.title || $("routine-title").value.trim() || "this routine task";
+    if (!confirm(`Delete "${title}"? It will be removed from future Daily & Weekly task lists, while past completion history and audit records remain intact.`)) return;
+
+    await rpc("delete_work_hub_routine", {
+      p_session_token: sessionToken,
+      p_routine_id: routineId
+    });
+    $("routine-modal").hidden = true;
+    await Promise.all([loadRoutines(), loadNotifications()]);
+    setMessage("Routine task deleted.", "success");
   }
 
   async function loadQuickTasks() {
@@ -1086,6 +1103,7 @@
     $("add-routine").addEventListener("click", () => openRoutineModal());
     $("routine-type").addEventListener("change", syncWeekdayVisibility);
     $("routine-form").addEventListener("submit", (event) => saveRoutine(event).catch(showError));
+    $("delete-routine").addEventListener("click", () => deleteRoutine().catch(showError));
     $("quick-employee").addEventListener("change", () => loadQuickTasks().catch(showError));
     $("add-quick").addEventListener("click", () => openQuickModal());
     $("quick-form").addEventListener("submit", (event) => saveQuickTask(event).catch(showError));
