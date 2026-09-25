@@ -70,11 +70,12 @@
       <td>${esc(r.item_status||"—")}</td>
       <td>${notesCell(r.build_notes)}</td>
       <td>${r.allow_productive_task?"Yes":"No"}</td>
+      <td>${r.include_on_demand_planning?"Yes":"No"}</td>
       <td>${r.is_placeholder?'<span class="ops-badge">Placeholder</span>':(r.is_active?"Active":"Inactive")}</td>
       <td>${canEdit?`<button class="ghost" type="button" data-im-edit="${esc(r.id)}">Edit</button>`:"—"}</td>
     </tr>`).join("");
 
-    host.innerHTML=`<table class="ops-table" data-item-master-table="1" style="min-width:2300px"><thead><tr>
+    host.innerHTML=`<table class="ops-table" data-item-master-table="1" style="min-width:2420px"><thead><tr>
       ${sortable("Item","item_name")}
       <th>Internal ID</th>
       ${sortable("Item Type","item_type")}
@@ -90,9 +91,10 @@
       ${sortable("Item Status","item_status")}
       <th>Build Notes</th>
       ${sortable("Productive Task","allow_productive_task")}
+      <th>Demand Planning</th>
       ${sortable("Active","is_active")}
       <th>Action</th>
-    </tr></thead><tbody>${body||'<tr><td colspan="18" class="ops-empty">No Items found.</td></tr>'}</tbody></table>
+    </tr></thead><tbody>${body||'<tr><td colspan="19" class="ops-empty">No Items found.</td></tr>'}</tbody></table>
     <div class="req-pager"><div class="left"><span>Rows per page</span><select id="im-pagesize"><option>25</option><option>50</option><option>100</option></select><span class="req-muted">Showing ${total?page*pageSize+1:0}–${Math.min((page+1)*pageSize,total)} of ${total}</span></div><div class="right"><button class="ghost" id="im-prev" ${page<=0?"disabled":""}>Previous</button><button class="ghost" id="im-next" ${(page+1)*pageSize>=total?"disabled":""}>Next</button></div></div>`;
 
     host.querySelectorAll("[data-im-sort]").forEach((th)=>{
@@ -145,7 +147,7 @@
       "Item Category":r.item_category,"Preferred Stock Level":r.preferred_stock_level,"Usage Classification":r.usage_classification,
       Make:r.make,"SKU Group":r.sku_group,"WO Department":r.work_order_department,
       "Build Type":r.build_type,Operation:r.operation_code,"Cycle Time":r.item_cycle_time_minutes,"Item Status":r.item_status,
-      "Build Notes":r.build_notes,"Productive Task Allowed":r.allow_productive_task?"Yes":"No",Active:r.is_active?"Active":"Inactive"
+      "Build Notes":r.build_notes,"Productive Task Allowed":r.allow_productive_task?"Yes":"No","Demand Planning Included":r.include_on_demand_planning?"Yes":"No",Active:r.is_active?"Active":"Inactive"
     }));
     if(!rows.length)return;
     const headers=Object.keys(rows[0]);
