@@ -12,6 +12,7 @@
   const $ = (id) => document.getElementById(id);
   const sessionKey = config.sessionStorageKey;
   const rememberedEmployeeKey = "task_tracker_remembered_employee";
+  const trustedDeviceKey = "task_tracker_trusted_device_token";
   const returnTargetParam = "return_to";
   let sessionToken = sessionStorage.getItem(sessionKey);
   let sessionEmployee = null;
@@ -67,6 +68,42 @@
       localStorage.removeItem(rememberedEmployeeKey);
     } catch {
       // Ignore unavailable browser storage.
+    }
+  }
+
+  function readTrustedDeviceToken() {
+    try {
+      return localStorage.getItem(trustedDeviceKey) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function storeTrustedDeviceToken(token) {
+    if (!token) return;
+    try {
+      localStorage.setItem(trustedDeviceKey, token);
+    } catch {
+      // Trusted-device login is optional; normal PIN login still works.
+    }
+  }
+
+  function clearTrustedDeviceToken() {
+    try {
+      localStorage.removeItem(trustedDeviceKey);
+    } catch {
+      // Ignore unavailable browser storage.
+    }
+  }
+
+  async function revokeStoredTrustedDevice() {
+    const token = readTrustedDeviceToken();
+    clearTrustedDeviceToken();
+    if (!token) return;
+    try {
+      await rpc("revoke_trusted_employee_device", { p_device_token: token });
+    } catch (error) {
+      console.warn("Trusted device could not be revoked on the server:", error?.message || error);
     }
   }
 
@@ -148,6 +185,51 @@
     }
   }
 
+  async function loginWithTrustedDevice() {
+    const deviceToken = readTrustedDeviceToken();
+    if (!deviceToken) return false;
+
+    try {
+      const rows = await rpc("login_with_trusted_employee_device", {
+        p_device_token: deviceToken
+      });
+      const row = Array.isArray(rows) ? rows[0] : rows;
+
+      if (!row?.login_successful || !row.session_token) {
+        clearTrustedDeviceToken();
+        return false;
+      }
+
+      sessionToken = row.session_token;
+      sessionStorage.setItem(sessionKey, sessionToken);
+      sessionEmployee = row;
+      rememberEmployee({
+        id: row.employee_id,
+        name: row.employee_name
+      });
+
+      await routeToWorkspace();
+      return true;
+    } catch (error) {
+      console.warn("Trusted-device login failed:", error?.message || error);
+      clearTrustedDeviceToken();
+      return false;
+    }
+  }
+
+  async function trustCurrentDevice() {
+    const existingToken = readTrustedDeviceToken();
+    const rows = await rpc("register_trusted_employee_device", {
+      p_session_token: sessionToken,
+      p_existing_device_token: existingToken,
+      p_device_label: String(navigator.userAgent || "Task Tracker device").slice(0, 250)
+    });
+    const row = Array.isArray(rows) ? rows[0] : rows;
+    if (!row?.device_token) throw new Error("Trusted device registration did not return a device token.");
+    storeTrustedDeviceToken(row.device_token);
+    return row;
+  }
+
   async function resolveWorkspace() {
     const route = await rpc("get_workspace_route", { p_session_token: sessionToken });
     if (!route?.destination) throw new Error("Unable to determine the correct workspace.");
@@ -195,7 +277,13 @@
         id: row.employee_id,
         name: row.employee_name
       });
+      try {
+        await trustCurrentDevice();
+      } catch (error) {
+        console.warn("The device could not be trusted; PIN login will still work:", error?.message || error);
+      }
     } else {
+      await revokeStoredTrustedDevice();
       forgetRememberedEmployee();
     }
 
@@ -205,8 +293,27 @@
 
   async function init() {
     try {
+      if (await restoreSession()) {
+        await routeToWorkspace();
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const suppressTrustedLogin = params.get("manual_signout") === "1";
+
+      if (suppressTrustedLogin) {
+        params.delete("manual_signout");
+        const cleaned = params.toString();
+        history.replaceState(null, "", cleaned ? `index.html?${cleaned}` : "index.html");
+      } else if (await loginWithTrustedDevice()) {
+        return;
+      }
+
       await listEmployees();
-      if (await restoreSession()) await routeToWorkspace();
+
+      if (suppressTrustedLogin && readTrustedDeviceToken()) {
+        setMessage("Signed out. This device is still trusted for future visits.", "info");
+      }
     } catch (error) {
       showLogin(error.message || "Unable to restore the previous session.", "error");
     }
@@ -216,11 +323,23 @@
     login(event).catch((error) => showLogin(error.message || "Unable to sign in.", "error"));
   });
 
-  $("change-employee")?.addEventListener("click", () => {
+  $("change-employee")?.addEventListener("click", async () => {
+    await revokeStoredTrustedDevice();
     forgetRememberedEmployee();
     setRememberedEmployeeUi(null);
     $("employee").value = "";
     $("remember-device").checked = true;
+    setMessage("");
+    $("employee").focus();
+  });
+
+  $("forget-device")?.addEventListener("click", async () => {
+    await revokeStoredTrustedDevice();
+    forgetRememberedEmployee();
+    setRememberedEmployeeUi(null);
+    $("employee").value = "";
+    $("remember-device").checked = true;
+    setMessage("This device is no longer trusted. Sign in with your employee name and PIN.", "info");
     $("employee").focus();
   });
 
