@@ -71,6 +71,27 @@
     $("tile-stage-count").textContent=num(counts.pending_work_orders||0)+" Pending";
     $("tile-history-count").textContent=num(counts.history_rows||0)+" Records";
     $("tile-fgi-count").textContent=num(counts.stalled_fgi_put_away||0)+" Stalled";
+    $("tile-imported-count").textContent=num(counts.imported_today||0)+" Today";
+
+    const importedSummary=Array.isArray(dashboard?.imported_today_summary)?dashboard.imported_today_summary:[];
+    const importedRows=Array.isArray(dashboard?.imported_today_rows)?dashboard.imported_today_rows:[];
+    const todayLabel=dashboard?.today ? dateText(dashboard.today) : "Today";
+    $("imported-today-subtitle").textContent="Ready-to-print summary and running import list for "+todayLabel+".";
+
+    $("imported-summary-body").innerHTML=importedSummary.length ? importedSummary.map((row)=>
+      '<tr><td><strong>'+esc(row.work_order_job_type||"Unspecified")+'</strong></td>'+
+      '<td>'+esc(row.work_order_type||"Unspecified")+'</td>'+
+      '<td><strong>'+num(row.job_count||0)+'</strong></td></tr>'
+    ).join("") : '<tr><td colspan="3" class="muted" style="text-align:center">No jobs have been marked Imported today.</td></tr>';
+
+    $("imported-today-body").innerHTML=importedRows.length ? importedRows.map((row)=>
+      '<tr><td>'+esc(dateTime(row.imported_at))+'</td>'+
+      '<td><strong>'+esc(row.item_name||"—")+'</strong></td>'+
+      '<td>'+num(row.quantity)+'</td>'+
+      '<td>'+esc(row.work_order_job_type||"—")+'</td>'+
+      '<td>'+esc(row.work_order_type||"—")+'</td>'+
+      '<td>'+esc(row.imported_by||"—")+'</td></tr>'
+    ).join("") : '<tr><td colspan="6" class="muted" style="text-align:center">No items have been imported today.</td></tr>';
 
     $("add-task").hidden=!viewer.can_manage;
 
