@@ -219,10 +219,20 @@
     return [...$("queue-body").querySelectorAll("[data-select-row]:checked")].map((x)=>x.dataset.selectRow);
   }
 
+  function syncQueueCheckAll(){
+    const master=$("check-all-queue");
+    if(!master) return;
+    const boxes=[...$("queue-body").querySelectorAll("[data-select-row]")];
+    const checked=boxes.filter((box)=>box.checked).length;
+    master.checked=boxes.length>0 && checked===boxes.length;
+    master.indeterminate=checked>0 && checked<boxes.length;
+    master.disabled=!boxes.length;
+  }
+
   function renderQueue(){
     const canImport=Boolean(bootstrap?.viewer?.can_import);
     $("manager-controls").hidden=!canImport;
-    $("select-head").textContent=canImport?"Select":"";
+    $("select-head").innerHTML=canImport?'<input id="check-all-queue" type="checkbox" title="Check all Pending Import rows" aria-label="Check all Pending Import rows">':"";
 
     const totalQty=queue.reduce((sum,row)=>sum+(Number(row.quantity)||0),0);
     $("queue-summary").textContent=queue.length+" pending row(s) · "+num(totalQty)+" units";
@@ -242,6 +252,16 @@
         '<td><span class="pill pending">Pending Import</span></td>'+
       '</tr>'
     ).join(""):'<tr><td colspan="11" class="muted" style="text-align:center">No Work Orders are waiting for import.</td></tr>';
+
+    $("check-all-queue")?.addEventListener("change",(event)=>{
+      const checked=event.target.checked;
+      $("queue-body").querySelectorAll("[data-select-row]").forEach((box)=>{box.checked=checked;});
+      syncQueueCheckAll();
+    });
+    $("queue-body").querySelectorAll("[data-select-row]").forEach((box)=>{
+      box.addEventListener("change",syncQueueCheckAll);
+    });
+    syncQueueCheckAll();
   }
 
   async function loadQueue(){
@@ -330,14 +350,10 @@
   }
 
   $("add-row").addEventListener("click",()=>addRows(1));
+  $("add-row-bottom").addEventListener("click",()=>addRows(1));
   $("add-five").addEventListener("click",()=>addRows(5));
   $("stage-rows").addEventListener("click",()=>stageRows().catch(showError));
   $("default-job-type").addEventListener("change",()=>{});
-  $("select-all").addEventListener("click",()=>{
-    const boxes=[...$("queue-body").querySelectorAll("[data-select-row]")];
-    const shouldCheck=boxes.some((box)=>!box.checked);
-    boxes.forEach((box)=>{box.checked=shouldCheck;});
-  });
   $("export-selected").addEventListener("click",()=>{try{exportSelected();}catch(error){showError(error);}});
   $("mark-imported").addEventListener("click",()=>markImported().catch(showError));
 
