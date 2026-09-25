@@ -159,7 +159,7 @@
     if (token) {
       try { await rpc("logout_employee_session", { p_session_token: token }); } catch {}
     }
-    window.location.replace("index.html");
+    window.location.replace("index.html?manual_signout=1");
   }
 
   function optionPeople(rows, selected = "", includeBlank = false, blankLabel = "Unassigned") {
