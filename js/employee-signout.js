@@ -20,7 +20,7 @@
   );
 
   function neutralLogin() {
-    window.top.location.replace("index.html");
+    window.top.location.replace("index.html?manual_signout=1");
   }
 
   button.addEventListener(
