@@ -224,6 +224,12 @@
   let bomPage = 0;
   let bomPageSize = 50;
   let bomSearchTimer = null;
+  let currentBomRows = [];
+  let editingBom = null;
+  let editingComponents = [];
+  let selectedAddItem = null;
+  let componentSearchTimer = null;
+  let componentSearchSequence = 0;
 
   async function rpc(name,args={}) {
     const {data,error} = await client.rpc(name,args);
@@ -317,20 +323,261 @@
   function renderBoms(rows,total) {
     const host=document.getElementById("bom-browser-table");
     if(!host)return;
-    const body=rows.map((r)=>`<tr>
+    currentBomRows=Array.isArray(rows)?rows:[];
+    const body=currentBomRows.map((r)=>`<tr>
       <td><strong>${esc(r.bill_name)}</strong></td>
       <td>${esc(r.internal_id)}</td>
       <td>${esc(r.revision||"—")}</td>
       <td>${r.parent_item_name?esc(r.parent_item_name):'<span style="color:#92400e;font-weight:800">Not linked</span>'}</td>
       <td>${componentsCell(r)}</td>
       <td>${esc(formatDate(r.updated_at))}</td>
+      ${canEdit?`<td><button class="ghost bom-edit-btn" type="button" data-bom-id="${esc(r.id)}">Edit BOM</button></td>`:""}
     </tr>`).join("");
-    host.innerHTML=`<table class="ops-table" style="min-width:1100px"><thead><tr><th>Bill Name</th><th>Internal ID</th><th>Revision</th><th>Parent Item</th><th>Components</th><th>Last Updated</th></tr></thead><tbody>${body||'<tr><td colspan="6" class="ops-empty">No BOM records found.</td></tr>'}</tbody></table>
+    const columnCount=canEdit?7:6;
+    host.innerHTML=`<table class="ops-table" style="min-width:1100px"><thead><tr><th>Bill Name</th><th>Internal ID</th><th>Revision</th><th>Parent Item</th><th>Components</th><th>Last Updated</th>${canEdit?"<th>Actions</th>":""}</tr></thead><tbody>${body||`<tr><td colspan="${columnCount}" class="ops-empty">No BOM records found.</td></tr>`}</tbody></table>
       <div class="req-pager"><div class="left"><span>Rows per page</span><select id="bom-pagesize"><option>25</option><option>50</option><option>100</option></select><span class="req-muted">Showing ${total?bomPage*bomPageSize+1:0}–${Math.min((bomPage+1)*bomPageSize,total)} of ${total}</span></div><div class="right"><button class="ghost" id="bom-prev" ${bomPage<=0?"disabled":""}>Previous</button><button class="ghost" id="bom-next" ${(bomPage+1)*bomPageSize>=total?"disabled":""}>Next</button></div></div>`;
     const ps=host.querySelector("#bom-pagesize");
     if(ps){ps.value=String(bomPageSize);ps.onchange=(e)=>{bomPageSize=Number(e.target.value);bomPage=0;loadBoms();};}
     host.querySelector("#bom-prev")?.addEventListener("click",()=>{if(bomPage>0){bomPage--;loadBoms();}});
     host.querySelector("#bom-next")?.addEventListener("click",()=>{if((bomPage+1)*bomPageSize<total){bomPage++;loadBoms();}});
+    host.querySelectorAll(".bom-edit-btn").forEach((button)=>button.addEventListener("click",()=>openBomEdit(button.dataset.bomId)));
+  }
+
+  function ensureBomEditModal() {
+    let overlay=document.getElementById("bom-edit-overlay");
+    if(overlay)return overlay;
+
+    overlay=document.createElement("div");
+    overlay.id="bom-edit-overlay";
+    overlay.hidden=true;
+    overlay.style.cssText="position:fixed;inset:0;z-index:6000;background:rgba(15,23,42,.68);display:grid;place-items:center;padding:24px";
+    overlay.innerHTML=`
+      <div role="dialog" aria-modal="true" aria-labelledby="bom-edit-title" style="width:min(980px,96vw);max-height:92vh;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:22px">
+        <div style="display:flex;justify-content:space-between;gap:16px;align-items:start">
+          <div><h2 id="bom-edit-title" style="margin:0 0 5px">Edit BOM</h2><div id="bom-edit-meta" class="req-muted"></div></div>
+          <button id="bom-edit-close" class="ghost" type="button">Close</button>
+        </div>
+        <div id="bom-edit-message" class="msg" hidden style="margin-top:14px"></div>
+        <div id="bom-edit-lines" style="margin-top:16px"></div>
+        <div class="ops-note" style="margin-top:18px">
+          <strong>Add Component</strong>
+          <div class="req-muted" style="margin-top:4px">Search the Item Master, select the component, enter the quantity, then add the line.</div>
+          <div style="display:grid;grid-template-columns:minmax(280px,1fr) 130px auto;gap:10px;align-items:end;margin-top:10px">
+            <div><label style="display:block;font-size:12px;font-weight:800;margin-bottom:5px">Component</label><input id="bom-add-search" placeholder="Search item name or Internal ID" autocomplete="off"></div>
+            <div><label style="display:block;font-size:12px;font-weight:800;margin-bottom:5px">Quantity</label><input id="bom-add-qty" type="number" min="0.000001" step="any" value="1"></div>
+            <button id="bom-add-line" class="ghost" type="button" disabled>Add Line</button>
+          </div>
+          <div id="bom-add-selected" class="req-muted" style="margin-top:7px"></div>
+          <div id="bom-add-results" style="margin-top:8px;display:grid;gap:5px"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:20px">
+          <button id="bom-edit-cancel" class="ghost" type="button">Cancel</button>
+          <button id="bom-edit-save" class="primary" type="button">Save Changes</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#bom-edit-close").addEventListener("click",closeBomEdit);
+    overlay.querySelector("#bom-edit-cancel").addEventListener("click",closeBomEdit);
+    overlay.addEventListener("click",(event)=>{if(event.target===overlay)closeBomEdit();});
+    overlay.querySelector("#bom-edit-save").addEventListener("click",()=>saveBomEdit().catch((err)=>setBomEditMessage(err.message,"error")));
+    overlay.querySelector("#bom-add-line").addEventListener("click",addDraftComponent);
+    overlay.querySelector("#bom-add-search").addEventListener("input",()=>{
+      selectedAddItem=null;
+      updateAddSelection();
+      clearTimeout(componentSearchTimer);
+      componentSearchTimer=setTimeout(()=>searchBomComponentItems().catch((err)=>setBomEditMessage(err.message,"error")),250);
+    });
+
+    return overlay;
+  }
+
+  function setBomEditMessage(text,type="") {
+    const el=document.getElementById("bom-edit-message");
+    if(!el)return;
+    el.hidden=!text;
+    el.textContent=text||"";
+    if(type)el.dataset.type=type;else delete el.dataset.type;
+  }
+
+  function closeBomEdit() {
+    const overlay=document.getElementById("bom-edit-overlay");
+    if(overlay)overlay.hidden=true;
+    editingBom=null;
+    editingComponents=[];
+    selectedAddItem=null;
+    componentSearchSequence++;
+  }
+
+  function renderBomEditRows() {
+    const host=document.getElementById("bom-edit-lines");
+    if(!host)return;
+    if(!editingComponents.length){
+      host.innerHTML='<div class="ops-empty">No component lines remain. Add at least one component before saving.</div>';
+      return;
+    }
+    const body=editingComponents.map((component,index)=>`<tr>
+      <td><strong>${esc(component.component_name)}</strong></td>
+      <td>${component.component_item_id?'<span style="color:#166534;font-weight:800">Linked to Item Master</span>':'<span style="color:#92400e;font-weight:800">Text-only component</span>'}</td>
+      <td><input data-bom-qty="${index}" type="number" min="0.000001" step="any" value="${esc(component.component_quantity)}" style="width:120px"></td>
+      <td><button class="ghost bom-remove-line" type="button" data-index="${index}" style="color:#991b1b">Remove</button></td>
+    </tr>`).join("");
+    host.innerHTML=`<div class="ops-table-wrap"><table class="ops-table" style="min-width:720px"><thead><tr><th>Component</th><th>Item Master Link</th><th>Quantity</th><th></th></tr></thead><tbody>${body}</tbody></table></div>`;
+    host.querySelectorAll("[data-bom-qty]").forEach((input)=>input.addEventListener("input",()=>{
+      const index=Number(input.dataset.bomQty);
+      if(editingComponents[index])editingComponents[index].component_quantity=input.value;
+    }));
+    host.querySelectorAll(".bom-remove-line").forEach((button)=>button.addEventListener("click",()=>{
+      editingComponents.splice(Number(button.dataset.index),1);
+      renderBomEditRows();
+    }));
+  }
+
+  function updateAddSelection() {
+    const selected=document.getElementById("bom-add-selected");
+    const button=document.getElementById("bom-add-line");
+    if(selected){
+      selected.innerHTML=selectedAddItem
+        ? `Selected: <strong>${esc(selectedAddItem.item_name)}</strong>${selectedAddItem.internal_id?` · Internal ID ${esc(selectedAddItem.internal_id)}`:""}`
+        : "No component selected.";
+    }
+    if(button)button.disabled=!selectedAddItem;
+  }
+
+  async function searchBomComponentItems() {
+    const input=document.getElementById("bom-add-search");
+    const host=document.getElementById("bom-add-results");
+    if(!input || !host || !editingBom)return;
+    const query=input.value.trim();
+    const sequence=++componentSearchSequence;
+    if(query.length<2){
+      host.innerHTML=query?'<div class="req-muted">Enter at least 2 characters.</div>':"";
+      return;
+    }
+    host.innerHTML='<div class="req-muted">Searching Item Master…</div>';
+    const data=await rpc("search_operations_items_v2",{
+      p_session_token:token(),
+      p_search_text:query,
+      p_include_inactive:true,
+      p_make:null,
+      p_department:null,
+      p_sort_by:"item_name",
+      p_sort_direction:"asc",
+      p_result_limit:15,
+      p_result_offset:0
+    });
+    if(sequence!==componentSearchSequence)return;
+    const records=Array.isArray(data?.records)?data.records:[];
+    host.innerHTML=records.length
+      ? records.map((item,index)=>`<button class="ghost bom-add-result" type="button" data-index="${index}" style="text-align:left;width:100%">
+          <strong>${esc(item.item_name)}</strong>
+          <span class="req-muted">${item.internal_id?` · ID ${esc(item.internal_id)}`:""}${item.is_active===false?" · Inactive":""}</span>
+        </button>`).join("")
+      : '<div class="req-muted">No Item Master matches found.</div>';
+    host.querySelectorAll(".bom-add-result").forEach((button)=>button.addEventListener("click",()=>{
+      selectedAddItem=records[Number(button.dataset.index)]||null;
+      if(selectedAddItem)input.value=selectedAddItem.item_name;
+      host.innerHTML="";
+      updateAddSelection();
+    }));
+  }
+
+  function addDraftComponent() {
+    if(!selectedAddItem)return;
+    const qtyInput=document.getElementById("bom-add-qty");
+    const quantity=Number(qtyInput?.value);
+    if(!Number.isFinite(quantity) || quantity<=0){
+      setBomEditMessage("Enter a component quantity greater than zero.","error");
+      return;
+    }
+    const duplicate=editingComponents.some((component)=>
+      (component.component_item_id && String(component.component_item_id)===String(selectedAddItem.id))
+      || String(component.component_name||"").trim().toLowerCase()===String(selectedAddItem.item_name||"").trim().toLowerCase()
+    );
+    if(duplicate){
+      setBomEditMessage("That component is already on this BOM. Edit its existing quantity instead.","error");
+      return;
+    }
+    editingComponents.push({
+      component_item_id:selectedAddItem.id,
+      component_name:selectedAddItem.item_name,
+      component_quantity:String(quantity)
+    });
+    selectedAddItem=null;
+    const search=document.getElementById("bom-add-search");
+    const results=document.getElementById("bom-add-results");
+    if(search)search.value="";
+    if(results)results.innerHTML="";
+    if(qtyInput)qtyInput.value="1";
+    setBomEditMessage("");
+    updateAddSelection();
+    renderBomEditRows();
+  }
+
+  function openBomEdit(bomId) {
+    if(!canEdit)return;
+    const row=currentBomRows.find((item)=>String(item.id)===String(bomId));
+    if(!row)return;
+    const overlay=ensureBomEditModal();
+    editingBom=row;
+    editingComponents=(Array.isArray(row.components)?row.components:[]).map((component)=>({
+      component_item_id:component.component_item_id||null,
+      component_name:component.component_name||"",
+      component_quantity:String(component.component_quantity??"")
+    }));
+    selectedAddItem=null;
+    setBomEditMessage("");
+    document.getElementById("bom-edit-title").textContent=`Edit BOM · ${row.bill_name||row.internal_id||""}`;
+    document.getElementById("bom-edit-meta").textContent=`Internal ID: ${row.internal_id||"—"} · Revision: ${row.revision||"—"}`;
+    document.getElementById("bom-add-search").value="";
+    document.getElementById("bom-add-qty").value="1";
+    document.getElementById("bom-add-results").innerHTML="";
+    updateAddSelection();
+    renderBomEditRows();
+    overlay.hidden=false;
+  }
+
+  async function saveBomEdit() {
+    if(!canEdit || !editingBom)return;
+    if(!editingComponents.length){
+      setBomEditMessage("A BOM must contain at least one component. Add a component before saving.","error");
+      return;
+    }
+    const payload=editingComponents.map((component)=>{
+      const quantity=Number(component.component_quantity);
+      if(!Number.isFinite(quantity) || quantity<=0)throw new Error(`Enter a quantity greater than zero for ${component.component_name||"every component"}.`);
+      return {
+        component_item_id:component.component_item_id||null,
+        component_name:component.component_name,
+        component_quantity:String(quantity)
+      };
+    });
+    if(!confirm(`Save manual changes to ${editingBom.bill_name||editingBom.internal_id}? The BOM will contain ${payload.length} component line(s).`))return;
+
+    const button=document.getElementById("bom-edit-save");
+    if(button){button.disabled=true;button.textContent="Saving…";}
+    setBomEditMessage("Saving BOM changes...");
+    try{
+      const result=await rpc("save_operations_bom_manual",{
+        p_session_token:token(),
+        p_bom_id:editingBom.id,
+        p_components:payload
+      });
+      const summary=result?.changed
+        ? `Saved. ${Number(result.added_count||0)} added, ${Number(result.removed_count||0)} removed, ${Number(result.quantity_change_count||0)} quantity change(s).`
+        : (result?.message||"No BOM changes were detected.");
+      closeBomEdit();
+      await loadBoms();
+      const note=document.getElementById("bom-browser-note");
+      if(note){
+        note.textContent=summary;
+        note.style.display="block";
+        note.style.color="#166534";
+        window.setTimeout(()=>{if(note.textContent===summary){note.textContent="";note.style.display="none";note.style.color="";}},5000);
+      }
+    }finally{
+      if(button){button.disabled=false;button.textContent="Save Changes";}
+    }
   }
 
   async function loadBoms() {
@@ -479,7 +726,8 @@
       browser.id="ops-boms";
       browser.hidden=true;
       browser.innerHTML=`
-        <div class="ops-note">Current Bill of Materials records. Use the component count to expand and review the exact component list and quantities stored for each BOM.</div>
+        <div class="ops-note">Current Bill of Materials records. Expand Components to review each BOM. ${canEdit?"Use Edit BOM to add or remove component lines and change quantities. Changes are saved together and audited.":""}</div>
+        <div id="bom-browser-note" class="ops-note" style="display:none"></div>
         <div class="ops-toolbar"><input id="bom-browser-search" class="grow" placeholder="Search Bill Name, Internal ID, Revision, Parent Item, or Component"><button id="bom-browser-refresh" class="ghost" type="button">Refresh</button></div>
         <div id="bom-browser-table" class="ops-table-wrap"></div>`;
       const itemsSection=document.getElementById("ops-items");
