@@ -12,7 +12,7 @@
 .message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
 .card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
 .setup{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{min-width:150px}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #94a3b8;border-radius:7px;padding:7px 8px;background:#fff}.field textarea{resize:vertical}
-.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px}.entry-table,.queue-table{width:100%;border-collapse:collapse;background:#fff;min-width:1200px}.entry-table th,.entry-table td,.queue-table th,.queue-table td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}.entry-table th,.queue-table th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.entry-table input,.entry-table select{width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:5px;background:#fff}.memo-input{min-width:280px}.item-input{min-width:230px}.qty-input{min-width:80px}.job-input{min-width:130px}.dept-input{min-width:120px}
+.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px}.entry-table,.queue-table{width:100%;border-collapse:collapse;background:#fff;min-width:1200px}.entry-table th,.entry-table td,.queue-table th,.queue-table td{padding:7px 8px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}.entry-table th,.queue-table th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.entry-table input,.entry-table select{width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:5px;background:#fff}.memo-input{min-width:280px}.item-input{min-width:230px}.qty-input{min-width:80px}.job-input{min-width:130px}.dept-input{min-width:120px}.qty-fill-wrap{position:relative;min-width:86px;padding-right:8px}.qty-fill-handle{position:absolute;right:0;bottom:-1px;width:14px;height:14px;padding:0;border:0;background:transparent;cursor:pointer}.qty-fill-handle::after{content:"";position:absolute;right:1px;bottom:1px;width:7px;height:7px;background:#111827;border:1px solid #fff;box-shadow:0 0 0 1px #111827}.qty-fill-handle:hover::after,.qty-fill-handle:focus-visible::after{width:9px;height:9px}.entry-bottom-actions{display:flex;gap:8px;justify-content:flex-start;margin-top:10px}
 .queue-controls{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;background:#e2e8f0}.pill.pending{background:#fef3c7;color:#92400e}.pill.imported{background:#dcfce7;color:#166534}.source{font-weight:800}.note{font-size:11px;color:#475569;background:#f8fafc;border:1px solid #dbe3ef;border-radius:8px;padding:9px;margin-top:8px}
 @media(max-width:800px){.topbar,.section-title{flex-direction:column;align-items:flex-start}.shell{padding:14px 8px 35px}}
 </style>
@@ -69,6 +69,7 @@
           <tbody id="entry-body"></tbody>
         </table>
       </div>
+      <div class="entry-bottom-actions"><button id="add-row-bottom" class="secondary" type="button">+ Add Row</button></div>
       <div class="note">Confirmed Item Holds are a hard stop. Manual staging does not use Max Build as a hard limit because Inventory may intentionally prepare future Work Orders.</div>
     </section>
 
@@ -83,7 +84,6 @@
       <div class="queue-controls">
         <div id="queue-summary" class="muted"></div>
         <div id="manager-controls" class="actions" hidden>
-          <button id="select-all" class="secondary" type="button">Select All</button>
           <button id="export-selected" class="secondary" type="button">Export Selected for NetSuite</button>
           <button id="mark-imported" class="primary" type="button">Mark Selected Imported</button>
         </div>
@@ -103,7 +103,7 @@
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=nav-notifications-20260924-2"></script>
 <script src="js/csv-export.js?v=inventory-stage-20260918-1"></script>
-<script src="js/stage-work-orders.js?v=inventory-admin-import-20260918-1"></script>
+<script src="js/stage-work-orders.js?v=stage-entry-upgrades-20260925-1"></script>
 <script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
 <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
