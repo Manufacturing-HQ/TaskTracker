@@ -2,7 +2,7 @@
 
 /**
  * Authoritative Management Item editor and Item Master Import.
- * New Inventory Items are never eligible for Productive Tasks.
+ * Productive Task eligibility and Demand Planning inclusion are managed independently for Assembly Items.
  */
 (() => {
   const config = window.TaskTrackerConfig;
@@ -31,7 +31,8 @@
     usage_classification:"Usage Classification",
     item_status:"Item Status",
     build_notes:"Build Notes",
-    allow_productive_task:"Productive Task Allowed"
+    allow_productive_task:"Productive Task Allowed",
+    include_on_demand_planning:"Demand Planning Included"
   };
 
   const importTemplateHeaders = [
@@ -51,6 +52,7 @@
     "Item Status",
     "Build Notes",
     "Productive Task Allowed",
+    "Demand Planning Included",
     "Status"
   ];
 
@@ -78,6 +80,7 @@
   function openItemModal(row) {
     const existingType = row?.item_type || "";
     const existingAllow = row ? row.allow_productive_task !== false : true;
+    const existingDemand = row ? row.include_on_demand_planning !== false : true;
     const modal = modalShell(row ? "Edit Item" : "New Item", `<form id="ops-item-form" class="ops-form-grid" data-item-editor="1">
       <label>Item Name<input id="oi-name" required value="${esc(row?.item_name || "")}"></label>
       <label>Internal ID<input id="oi-internal" required value="${esc(row?.internal_id || "")}"></label>
@@ -96,21 +99,30 @@
       <label class="full">Build Notes<textarea id="oi-notes" rows="6">${esc(row?.build_notes || "")}</textarea></label>
       <label class="full"><input id="oi-productive" type="checkbox" ${existingAllow ? "checked" : ""}> Allow employees to select for Productive Tasks</label>
       <div id="oi-productive-note" class="full ops-note"></div>
+      <label class="full"><input id="oi-demand-planning" type="checkbox" ${existingDemand ? "checked" : ""}> Include on Demand Planning</label>
+      <div id="oi-demand-note" class="full ops-note">Demand Planning inclusion is independent from Productive Task eligibility for Assembly Items.</div>
       <label class="full"><input id="oi-active" type="checkbox" ${row?.is_active === false ? "" : "checked"}> Active in Task Tracker</label>
       <div class="full ops-actions"><button type="button" class="ghost" id="oi-cancel">Cancel</button><button type="submit" class="primary">Save</button></div>
     </form>`);
 
     const type = modal.querySelector("#oi-type");
     const productive = modal.querySelector("#oi-productive");
+    const demandPlanning = modal.querySelector("#oi-demand-planning");
     const note = modal.querySelector("#oi-productive-note");
+    const demandNote = modal.querySelector("#oi-demand-note");
     const enforceTypeRule = () => {
       if (type.value === "Inventory") {
         productive.checked = false;
         productive.disabled = true;
+        demandPlanning.checked = false;
+        demandPlanning.disabled = true;
         note.textContent = "Inventory Items cannot be selected for Productive Tasks.";
+        demandNote.textContent = "Inventory Items are not included in the Work Order Demand Planning tool.";
       } else {
         productive.disabled = false;
+        demandPlanning.disabled = false;
         note.textContent = type.value === "Assembly" ? "Assembly Items may be enabled or disabled for Productive Task selection." : "Set Item Type when known. Current eligibility is preserved unless changed here.";
+        demandNote.textContent = "Demand Planning inclusion is independent from Productive Task eligibility for Assembly Items.";
       }
     };
     type.addEventListener("change", enforceTypeRule);
@@ -122,7 +134,7 @@
       const save = modal.querySelector('button[type="submit"]');
       save.disabled = true;
       try {
-        await rpc("save_operations_item_v4", {
+        await rpc("save_operations_item_v5", {
           p_session_token:token(),
           p_item_id:row?.id || null,
           p_item_name:modal.querySelector("#oi-name").value,
@@ -141,7 +153,8 @@
           p_build_notes:modal.querySelector("#oi-notes").value || null,
           p_allow_productive_task:productive.checked,
           p_preferred_stock_level:modal.querySelector("#oi-preferred-stock").value === "" ? null : Number(modal.querySelector("#oi-preferred-stock").value),
-          p_usage_classification:modal.querySelector("#oi-usage-classification").value || null
+          p_usage_classification:modal.querySelector("#oi-usage-classification").value || null,
+          p_include_on_demand_planning:demandPlanning.checked
         });
         modal.remove();
         document.getElementById("ops-item-refresh")?.click();
@@ -170,7 +183,9 @@
       "usage classification":"usage_classification", "usage class":"usage_classification",
       "item status":"item_status", "build notes":"build_notes",
       "productive task allowed":"allow_productive_task", "allow productive task":"allow_productive_task",
-      "productive task":"allow_productive_task"
+      "productive task":"allow_productive_task",
+      "demand planning included":"include_on_demand_planning", "include on demand planning":"include_on_demand_planning",
+      "demand planning":"include_on_demand_planning"
     };
     return map[key] || key.replace(/\s+/g, "_");
   }
@@ -204,7 +219,7 @@
 
   function displayValue(value, field) {
     if (value === null || value === undefined || value === "") return "(blank)";
-    if (field === "allow_productive_task") return value === true || value === "true" ? "Yes" : "No";
+    if (field === "allow_productive_task" || field === "include_on_demand_planning") return value === true || value === "true" ? "Yes" : "No";
     if (field === "is_active") return value === true || value === "true" ? "Active" : "Inactive";
     return String(value);
   }
@@ -268,7 +283,7 @@
     const button=document.getElementById("ops-import-preview-btn"), apply=document.getElementById("ops-import-apply");
     button.disabled=true; apply.disabled=true;
     try {
-      previewRows = await rpc("preview_item_master_import_v2", {p_session_token:token(),p_rows:importRows}) || [];
+      previewRows = await rpc("preview_item_master_import_v3", {p_session_token:token(),p_rows:importRows}) || [];
       renderPreview();
     } catch (error) {
       previewRows=[]; renderPreview(); alert(error.message || "Unable to preview Item Master import.");
@@ -282,9 +297,9 @@
     const apply=document.getElementById("ops-import-apply"), preview=document.getElementById("ops-import-preview-btn");
     apply.disabled=true; preview.disabled=true;
     try {
-      const result = await rpc("apply_item_master_import_v2", {p_session_token:token(),p_rows:importRows});
+      const result = await rpc("apply_item_master_import_v3", {p_session_token:token(),p_rows:importRows});
       const created=Number(result?.created_count||0), updated=Number(result?.updated_count||0);
-      previewRows = await rpc("preview_item_master_import_v2", {p_session_token:token(),p_rows:importRows}) || [];
+      previewRows = await rpc("preview_item_master_import_v3", {p_session_token:token(),p_rows:importRows}) || [];
       renderPreview();
       alert(`${created} Item${created===1?"":"s"} created and ${updated} Item${updated===1?"":"s"} updated successfully.`);
       document.getElementById("ops-item-refresh")?.click();
@@ -315,8 +330,8 @@
     const tab=document.querySelector('.ops-tab[data-ops-tab="import"]');
     if (tab) tab.textContent="Item Master Import";
     section.innerHTML=`
-      <div class="ops-note"><strong>Item Master Import.</strong> Internal ID is the permanent matching key. Existing Items are updated. New Items require Item Name and Item Type. New Assembly Items default to Productive Task Allowed; new Inventory Items are always blocked from Productive Tasks. Blank cells leave existing values unchanged. Use <strong>CLEAR</strong> to erase a nullable field.</div>
-      <div class="ops-note">Supported headers: Item, Internal ID, Item Type, Inventory Planning Role, Item Category, Preferred Stock Level, Usage Classification, Make, SKU Group, WO Department, Build Type, Operation, Cycle Time, Item Status, Build Notes, Productive Task Allowed, Status.</div>
+      <div class="ops-note"><strong>Item Master Import.</strong> Internal ID is the permanent matching key. Existing Items are updated. New Items require Item Name and Item Type. New Assembly Items default to Productive Task Allowed and Demand Planning Included; new Inventory Items are blocked from both. Blank cells leave existing values unchanged. Use <strong>CLEAR</strong> to erase a nullable field.</div>
+      <div class="ops-note">Supported headers: Item, Internal ID, Item Type, Inventory Planning Role, Item Category, Preferred Stock Level, Usage Classification, Make, SKU Group, WO Department, Build Type, Operation, Cycle Time, Item Status, Build Notes, Productive Task Allowed, Demand Planning Included, Status.</div>
       <div class="ops-toolbar"><button id="ops-import-template" class="ghost" type="button">Download Import Template</button><input id="ops-import-file" type="file" accept=".csv,text/csv"><button id="ops-import-preview-btn" class="ghost" type="button">Preview Import</button><button id="ops-import-apply" class="primary" type="button" disabled>Apply Ready Rows</button></div>
       <div id="ops-import-summary" class="ops-note">Download the template or choose a CSV file to begin.</div><div id="ops-import-table" class="ops-table-wrap"></div>`;
     document.getElementById("ops-import-template").addEventListener("click",downloadImportTemplate);
