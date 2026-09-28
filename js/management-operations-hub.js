@@ -193,15 +193,13 @@
       // deduplicates in-flight requests and reuses recently loaded data.
       const loaders=window.TaskTrackerManagementLoaders;
       if(loaders){
-        const results=await Promise.allSettled([
-          loaders.loadAttendance(false),
-          loaders.loadAuditSetup(false)
-        ]);
-        results.forEach((result)=>{
-          if(result.status==="rejected"){
-            console.warn("Embedded Operations section did not refresh:",result.reason?.message||result.reason);
+        for(const loadSection of [loaders.loadAttendance,loaders.loadAuditSetup]){
+          try{
+            await loadSection(false);
+          }catch(error){
+            console.warn("Embedded Operations section did not refresh:",error?.message||error);
           }
-        });
+        }
       }
     } finally { preparing=false; }
   }
