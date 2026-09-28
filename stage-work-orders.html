@@ -91,7 +91,7 @@
 
       <div class="table-wrap">
         <table class="queue-table">
-          <thead><tr><th id="select-head"></th><th>External ID</th><th>Date</th><th>Source</th><th>WO Type</th><th>Item</th><th>Qty</th><th>Job Type</th><th>Priority Dept.</th><th>Created By</th><th>Status</th></tr></thead>
+          <thead><tr><th id="select-head"><label id="queue-select-all-wrap" hidden style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap"><input id="check-all-queue" type="checkbox" title="Select all Pending Import rows" aria-label="Select all Pending Import rows"> Select All</label></th><th>External ID</th><th>Date</th><th>Source</th><th>WO Type</th><th>Item</th><th>Qty</th><th>Job Type</th><th>Priority Dept.</th><th>Created By</th><th>Status</th></tr></thead>
           <tbody id="queue-body"></tbody>
         </table>
       </div>
@@ -103,7 +103,7 @@
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=nav-notifications-20260924-2"></script>
 <script src="js/csv-export.js?v=inventory-stage-20260918-1"></script>
-<script src="js/stage-work-orders.js?v=stage-entry-upgrades-20260925-3"></script>
+<script src="js/stage-work-orders.js?v=pending-export-select-all-20260928-1"></script>
 <script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
 <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
