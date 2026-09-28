@@ -15,6 +15,7 @@
   let currentTaskId=null;
   let currentTaskDetail=null;
   let cancelTab="pending";
+  let cancellationExpanded=false;
   const selectedCancellations=new Set();
 
   function esc(value){
@@ -78,6 +79,19 @@
   function syncSelectedCancellations(){
     const valid=new Set(pendingCancellations().map(cancellationKey));
     [...selectedCancellations].forEach((key)=>{if(!valid.has(key))selectedCancellations.delete(key);});
+  }
+
+  function setCancellationExpanded(expanded){
+    cancellationExpanded=Boolean(expanded);
+    const tile=$("cancel-tile");
+    const detail=$("cancellations");
+    const toggle=$("cancel-tile-toggle");
+    const action=$("cancel-tile-action");
+
+    tile?.classList.toggle("expanded",cancellationExpanded);
+    if(detail) detail.hidden=!cancellationExpanded;
+    if(toggle) toggle.setAttribute("aria-expanded",cancellationExpanded?"true":"false");
+    if(action) action.textContent=cancellationExpanded?"Hide Queue ▲":"View Queue ▼";
   }
 
   function renderCancellationTabs(){
@@ -377,6 +391,10 @@
     }
   }
 
+  $("cancel-tile-toggle").addEventListener("click",()=>{
+    setCancellationExpanded(!cancellationExpanded);
+  });
+
   document.querySelectorAll("[data-cancel-tab]").forEach((button)=>{
     button.addEventListener("click",()=>{
       cancelTab=button.dataset.cancelTab;
@@ -413,5 +431,6 @@
     $(id).addEventListener("click",(event)=>{if(event.target===$(id))closeModal(id);});
   });
 
+  setCancellationExpanded(false);
   init();
 })();
