@@ -127,7 +127,9 @@
   }
 
   function protectedDashboardStatus(status){
-    return status==="SCRP"||status==="Cosmetic Rejection";
+    const protectedStatus=status==="SCRP"||status==="Cosmetic Rejection";
+    const isAdmin=payload?.viewer?.employee_role==="Administrator";
+    return protectedStatus && !isAdmin;
   }
 
   function manualOptions(currentStatus=null){
@@ -622,6 +624,8 @@
       $("detail-status-note").textContent="Run Sales Order Review before manually updating Item Status, hiding, or commenting on this line.";
     }else if(protectedStatus){
       $("detail-status-note").textContent=live.calculated_status+" is protected by the current Dashboard Status and cannot be manually overridden.";
+    }else if(["SCRP","Cosmetic Rejection"].includes(live.calculated_status)&&payload?.viewer?.employee_role==="Administrator"){
+      $("detail-status-note").textContent=live.calculated_status+" is protected from normal manual edits. Administrator override is enabled for this line.";
     }else if(itemStatus==="On Hold Review"){
       $("detail-status-note").textContent="On Hold Review will remain locked through future reviews until you manually choose another Item Status.";
     }else{
