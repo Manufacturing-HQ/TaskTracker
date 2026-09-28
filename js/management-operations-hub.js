@@ -203,8 +203,6 @@
           }
         });
       }
-
-      await loadMemos();
     } finally { preparing=false; }
   }
 
