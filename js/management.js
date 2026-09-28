@@ -16,6 +16,14 @@
   let attendanceData = null;
   let auditSetup = null;
   let tasks = [];
+  let activeView = "home";
+  let liveStatusInFlight = null;
+  let attendanceInFlight = null;
+  let auditInFlight = null;
+  let liveStatusLoadedAt = 0;
+  let attendanceLoadedAt = 0;
+  let auditLoadedAt = 0;
+  const AUTO_RELOAD_WINDOW_MS = 45000;
 
   const liveStyle = document.createElement("style");
   liveStyle.textContent = `
@@ -188,20 +196,69 @@
 
   function setView(view) {
     const labels = viewLabels(view);
+    activeView = view;
     document.querySelectorAll("button[data-view]").forEach((b) => b.classList.toggle("active", b.dataset.view === view));
     ["home", "overview", "attendance", "audit", "queue"].forEach((v) => {
       $("view-" + v).hidden = v !== view;
     });
     $("page-title").textContent = labels[view][0];
     $("page-subtitle").textContent = labels[view][1];
-    if (view === "home") loadLiveStatus().catch(showError);
-    if (view === "attendance") loadAttendance().catch(showError);
-    if (view === "audit") loadAuditSetup().catch(showError);
-    if (view === "queue") loadQueue().catch(showError);
+    if (view === "home") ensureLiveStatus(false).catch((error) => showViewError("home", error));
+    if (view === "attendance") ensureAttendance(false).catch((error) => showViewError("attendance", error));
+    if (view === "audit") ensureAuditSetup(false).catch((error) => showViewError("audit", error));
+    if (view === "queue") loadQueue().catch((error) => showViewError("queue", error));
   }
 
   function showError(error) {
     setMessage(error.message || String(error), "error");
+  }
+
+  function showViewError(view, error) {
+    if (activeView !== view) {
+      console.warn("Background management request did not complete:", error?.message || error);
+      return;
+    }
+    showError(error);
+  }
+
+  function recentlyLoaded(timestamp) {
+    return timestamp > 0 && (Date.now() - timestamp) < AUTO_RELOAD_WINDOW_MS;
+  }
+
+  async function ensureLiveStatus(force = false) {
+    if (liveStatusInFlight) return liveStatusInFlight;
+    if (!force && recentlyLoaded(liveStatusLoadedAt)) return;
+    const request = loadLiveStatus()
+      .then(() => { liveStatusLoadedAt = Date.now(); })
+      .finally(() => {
+        if (liveStatusInFlight === request) liveStatusInFlight = null;
+      });
+    liveStatusInFlight = request;
+    return request;
+  }
+
+  async function ensureAttendance(force = false) {
+    if (attendanceInFlight) return attendanceInFlight;
+    if (!force && attendanceData && recentlyLoaded(attendanceLoadedAt)) return;
+    const request = loadAttendance()
+      .then(() => { attendanceLoadedAt = Date.now(); })
+      .finally(() => {
+        if (attendanceInFlight === request) attendanceInFlight = null;
+      });
+    attendanceInFlight = request;
+    return request;
+  }
+
+  async function ensureAuditSetup(force = false) {
+    if (auditInFlight) return auditInFlight;
+    if (!force && auditSetup && recentlyLoaded(auditLoadedAt)) return;
+    const request = loadAuditSetup()
+      .then(() => { auditLoadedAt = Date.now(); })
+      .finally(() => {
+        if (auditInFlight === request) auditInFlight = null;
+      });
+    auditInFlight = request;
+    return request;
   }
 
   async function loadLiveStatus() {
@@ -355,7 +412,7 @@
       p_comments: $("audit-comments").value.trim() || null
     });
     setMessage("Task Tracker Audit saved.");
-    await loadAuditSetup();
+    await ensureAuditSetup(true);
   }
 
   async function loadQueue() {
@@ -421,15 +478,21 @@
   $("login-form").addEventListener("submit", (e) => login(e).catch(showError));
   $("sign-out").addEventListener("click", () => signOut().catch(showError));
   document.querySelectorAll("button[data-view]").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
-  $("performance-period").addEventListener("change", () => loadLiveStatus().catch(showError));
-  $("refresh-status").addEventListener("click", () => loadLiveStatus().catch(showError));
-  $("attendance-date").addEventListener("change", () => loadAttendance().catch(showError));
-  $("audit-date").addEventListener("change", () => loadAuditSetup().catch(showError));
-  $("audit-load").addEventListener("click", () => loadAuditSetup().catch(showError));
+  $("performance-period").addEventListener("change", () => ensureLiveStatus(true).catch(showError));
+  $("refresh-status").addEventListener("click", () => ensureLiveStatus(true).catch(showError));
+  $("attendance-date").addEventListener("change", () => ensureAttendance(true).catch(showError));
+  $("audit-date").addEventListener("change", () => ensureAuditSetup(true).catch(showError));
+  $("audit-load").addEventListener("click", () => ensureAuditSetup(true).catch(showError));
   $("audit-employee").addEventListener("change", renderExistingAudit);
   $("audit-result").addEventListener("change", renderFindings);
   $("audit-submit").addEventListener("click", () => submitAudit().catch(showError));
   $("include-completed").addEventListener("change", () => loadQueue().catch(showError));
+
+  window.TaskTrackerManagementLoaders = {
+    loadLiveStatus: (force = false) => ensureLiveStatus(Boolean(force)),
+    loadAttendance: (force = false) => ensureAttendance(Boolean(force)),
+    loadAuditSetup: (force = false) => ensureAuditSetup(Boolean(force))
+  };
 
   setInterval(updateLiveTimers, 1000);
   init();
