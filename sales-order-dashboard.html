@@ -100,7 +100,7 @@
       <div id="review-info" class="review-banner"></div>
       <details class="info-details">
         <summary>Dashboard status rules / help</summary>
-        <div class="info"><strong>Dashboard Status</strong> is the live master calculation from current NetSuite and production data. <strong>Item Status</strong> is the operational decision you manage. Manual Item Status updates reset Item Status Date. A manual override is preserved while its Dashboard Status is unchanged; when the underlying Dashboard Status changes, the review can move the Item Status again. <strong>On Hold Review</strong> stays locked until you manually change it. <strong>SCRP</strong> and <strong>Cosmetic Rejection</strong> are protected automatic statuses.</div>
+        <div class="info"><strong>Dashboard Status</strong> is the live master calculation from current NetSuite and production data. <strong>Item Status</strong> is the operational decision you manage. Manual Item Status updates reset Item Status Date. A manual override is preserved while its Dashboard Status is unchanged; when the underlying Dashboard Status changes, the review can move the Item Status again. <strong>On Hold Review</strong> stays locked until you manually change it. <strong>SCRP</strong> and <strong>Cosmetic Rejection</strong> are protected from normal manual changes, but Administrators may override them when needed.</div>
       </details>
 
       <div class="table-wrap">
@@ -155,9 +155,9 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
-<script src="js/task-tracker-navigation.js?v=nav-notifications-20260924-2"></script>
+<script src="js/task-tracker-navigation.js?v=shipping-team-dashboard-20260928-1"></script>
 <script src="js/csv-export.js?v=sales-order-dashboard-review-20260918-2"></script>
-<script src="js/sales-order-dashboard.js?v=capability-permissions-20260924-1"></script>
+<script src="js/sales-order-dashboard.js?v=admin-status-override-20260928-1"></script>
 <script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
 <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
