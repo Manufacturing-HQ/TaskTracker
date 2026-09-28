@@ -334,7 +334,7 @@
     const hold=$("modal-hold");
     if (s.is_on_hold) {
       hold.hidden=false;
-      hold.textContent="CONFIRMED ITEM HOLD — Work Order staging is blocked. "+(d.hold?.hold_reason||s.hold_reason||"");
+      hold.textContent="CONFIRMED ITEM HOLD — regular Work Order staging is blocked. Priority Standard Work Orders may still be staged because they represent brand-new purchased items. "+(d.hold?.hold_reason||s.hold_reason||"");
     } else hold.hidden=true;
 
     const metrics=[
@@ -437,19 +437,33 @@
     return stageRows.reduce((sum,r)=>sum+(Number(r.quantity)||0),0);
   }
 
+  function isPriorityStandardJobType(value) {
+    return String(value||"").trim().toUpperCase()==="PRIORITY STANDARD";
+  }
+
   function renderStageWarning() {
     const s=currentDetail?.summary||{};
     const total=stageTotal();
     const warning=$("stage-warning");
     const submit=$("stage-submit");
-    if (s.is_on_hold) {
+    const allPriorityStandard=stageRows.length>0 && stageRows.every((row)=>isPriorityStandardJobType(row.work_order_job_type));
+    if (s.is_on_hold && !allPriorityStandard) {
       warning.hidden=false;
-      warning.textContent="This Item is on a confirmed hold. Work Orders cannot be staged.";
+      warning.textContent="This Item is on a confirmed hold. Only Work Orders with Job Type = Priority Standard may bypass the hold.";
       submit.disabled=true;
       return;
     }
+
     submit.disabled=!stageRows.length || total<=0;
-    if (s.max_build_quantity!==null && s.max_build_quantity!==undefined && total>Number(s.max_build_quantity)) {
+
+    const overMax=s.max_build_quantity!==null && s.max_build_quantity!==undefined && total>Number(s.max_build_quantity);
+    if (s.is_on_hold && allPriorityStandard && overMax) {
+      warning.hidden=false;
+      warning.textContent="Hold bypass active: all rows are Priority Standard. These rows also total "+num(total,2)+" units, above the current Max Build of "+num(s.max_build_quantity,2)+". You can still proceed after confirmation.";
+    } else if (s.is_on_hold && allPriorityStandard) {
+      warning.hidden=false;
+      warning.textContent="Hold bypass active: all staged rows are Priority Standard, so this confirmed Item Hold does not block staging.";
+    } else if (overMax) {
       warning.hidden=false;
       warning.textContent="Warning: these rows total "+num(total,2)+" units, which is above the current Max Build of "+num(s.max_build_quantity,2)+". You can still proceed after confirmation.";
     } else {
