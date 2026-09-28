@@ -182,15 +182,29 @@
       ensureHub();
       const attendanceNav=document.querySelector('button[data-view="attendance"]');
       const auditNav=document.querySelector('button[data-view="audit"]');
-      const overviewNav=document.querySelector('button[data-view="overview"]');
       if(attendanceNav) attendanceNav.style.display="none";
       if(auditNav) auditNav.style.display="none";
-      // Prime existing attendance/audit loaders once, then restore the Operations view.
-      if(attendanceNav && auditNav && overviewNav){
-        attendanceNav.click(); auditNav.click(); overviewNav.click();
+
+      moveExistingSections();
+      showHubTab(activeTab);
+
+      // Load the embedded legacy sections directly instead of simulating
+      // Attendance -> Audit -> Overview clicks. The management loader
+      // deduplicates in-flight requests and reuses recently loaded data.
+      const loaders=window.TaskTrackerManagementLoaders;
+      if(loaders){
+        const results=await Promise.allSettled([
+          loaders.loadAttendance(false),
+          loaders.loadAuditSetup(false)
+        ]);
+        results.forEach((result)=>{
+          if(result.status==="rejected"){
+            console.warn("Embedded Operations section did not refresh:",result.reason?.message||result.reason);
+          }
+        });
       }
-      await new Promise(r=>setTimeout(r,120));
-      moveExistingSections(); showHubTab(activeTab); await loadMemos();
+
+      await loadMemos();
     } finally { preparing=false; }
   }
 
