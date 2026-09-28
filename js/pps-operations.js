@@ -413,7 +413,7 @@
     $("batch-history").innerHTML = `<table><thead><tr><th>Batch</th><th>Date</th><th>Picker</th><th>Bin</th><th>Orders</th><th>Discrepancies</th><th>Status</th><th>QA</th><th>Actions</th></tr></thead><tbody>${rows.map((r) => `<tr>
       <td><strong>${esc(r.batch_number)}</strong></td><td>${formatDate(r.business_date)}</td><td>${esc(r.picker_name)}</td><td>${esc(r.pick_bin)}</td>
       <td>${esc(r.order_count)}</td><td>${esc(r.discrepancy_count)}</td><td>${statusLabel(r.status)}</td><td>${esc(r.qa_employee_name || r.qa_lock_employee_name || "—")}</td>
-      <td>${r.editable ? `<button class="secondary" data-edit-batch="${esc(r.batch_id)}" type="button">Edit</button>` : "—"}</td></tr>`).join("") || '<tr><td colspan="9">No Pick Batches match this date range.</td></tr>'}</tbody></table>`;
+      <td>${r.editable ? `<button class="secondary" data-edit-batch="${esc(r.batch_id)}" type="button">${r.status === "DRAFT" ? "Resume" : "Edit"}</button>` : "—"}</td></tr>`).join("") || '<tr><td colspan="9">No Pick Batches match this date range.</td></tr>'}</tbody></table>`;
     $("batch-history").querySelectorAll("[data-edit-batch]").forEach((b) => b.addEventListener("click", () => editBatch(b.dataset.editBatch).catch(showError)));
   }
 
