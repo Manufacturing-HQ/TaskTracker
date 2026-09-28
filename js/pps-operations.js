@@ -14,6 +14,12 @@
   let bootstrap = null;
   let permissionFlags = {};
   let editingBatchId = null;
+  let editingBatchStatus = null;
+  let draftSaveTimer = null;
+  let draftSaveInFlight = false;
+  let draftSaveQueued = false;
+  let draftHydrating = false;
+  let lastDraftFingerprint = null;
   let qaReview = null;
   let lastQaRenewAt = 0;
   let cosmeticRows = [];
@@ -98,6 +104,7 @@
 
   function statusLabel(status) {
     const value = String(status || "");
+    if (value === "DRAFT") return '<span class="status pending">Draft</span>';
     if (value === "SUBMITTED") return '<span class="status submitted">Submitted</span>';
     if (value === "QA_IN_REVIEW") return '<span class="status review">QA In Review</span>';
     if (value === "QA_COMPLETED") return '<span class="status complete">QA Completed</span>';
@@ -140,13 +147,19 @@
         tr.querySelector('[data-role="sales-order"]').value = "";
         tr.querySelector('[data-role="pick-result"]').value = "PICKED";
         tr.querySelector('[data-role="sales-order"]').focus();
+        scheduleDraftSave(0);
         return;
       }
       tr.remove();
       renumberPickRows();
+      scheduleDraftSave(0);
     });
 
     const input = tr.querySelector('[data-role="sales-order"]');
+    input.addEventListener("input", () => scheduleDraftSave());
+    input.addEventListener("change", () => scheduleDraftSave(0));
+    tr.querySelector('[data-role="pick-result"]').addEventListener("change", () => scheduleDraftSave(0));
+
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
@@ -155,6 +168,7 @@
       const index = rows.indexOf(tr);
       if (index === rows.length - 1) addPickRow({}, true);
       else rows[index + 1].querySelector('[data-role="sales-order"]')?.focus();
+      scheduleDraftSave(0);
     });
 
     tbody.appendChild(tr);
@@ -172,8 +186,149 @@
       .filter((row) => row.sales_order_number);
   }
 
+  function draftFingerprint() {
+    return JSON.stringify({
+      pick_bin: $("pick-bin").value || "",
+      comments: $("pick-comments").value.trim(),
+      orders: collectPickOrders()
+    });
+  }
+
+  function setDraftStatus(message, state = "idle") {
+    const el = $("pick-draft-status");
+    if (!el) return;
+    el.textContent = message || "";
+    el.dataset.state = state;
+  }
+
+  function scheduleDraftSave(delay = 650) {
+    if (draftHydrating || editingBatchStatus === "SUBMITTED" || !canTab("pick")) return;
+    if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+    draftSaveTimer = window.setTimeout(() => {
+      draftSaveTimer = null;
+      saveDraftNow().catch(() => {});
+    }, Math.max(0, delay));
+  }
+
+  async function waitForDraftSave() {
+    while (draftSaveInFlight) {
+      await new Promise((resolve) => window.setTimeout(resolve, 40));
+    }
+  }
+
+  async function saveDraftNow() {
+    if (draftHydrating || editingBatchStatus === "SUBMITTED" || !canTab("pick")) return;
+
+    if (draftSaveInFlight) {
+      draftSaveQueued = true;
+      return;
+    }
+
+    const pickBin = $("pick-bin").value;
+    const orders = collectPickOrders();
+
+    if (!pickBin) {
+      setDraftStatus("Select a Pick Bin before autosave can begin.", "idle");
+      return;
+    }
+
+    if (!orders.length && editingBatchStatus !== "DRAFT") {
+      setDraftStatus("Draft will autosave after the first scanned order.", "idle");
+      return;
+    }
+
+    const fingerprint = draftFingerprint();
+    if (editingBatchStatus === "DRAFT" && fingerprint === lastDraftFingerprint) return;
+
+    draftSaveInFlight = true;
+    setDraftStatus("Saving draft...", "saving");
+
+    try {
+      const result = await rpc("save_pps_pick_batch_draft", {
+        p_session_token: sessionToken,
+        p_batch_id: editingBatchStatus === "DRAFT" ? editingBatchId : null,
+        p_pick_bin: pickBin,
+        p_comments: $("pick-comments").value.trim() || null,
+        p_orders: orders
+      });
+
+      editingBatchId = result?.batch?.batch_id || editingBatchId;
+      editingBatchStatus = "DRAFT";
+      lastDraftFingerprint = fingerprint;
+
+      const batchNumber = result?.batch?.batch_number || "Pick Batch";
+      $("pick-form-title").textContent = "Pick Batch Draft";
+      $("edit-banner").textContent = batchNumber + " is saved automatically as you scan. It will remain available after a break, lock, refresh, or sign-in.";
+      $("edit-banner").hidden = false;
+      $("cancel-edit").hidden = true;
+      $("submit-pick-batch").textContent = "Submit Pick Batch";
+      setDraftStatus("Draft saved " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"}) + ".", "saved");
+    } catch (error) {
+      setDraftStatus("Draft not saved: " + (error?.message || String(error)), "error");
+      throw error;
+    } finally {
+      draftSaveInFlight = false;
+      if (draftSaveQueued) {
+        draftSaveQueued = false;
+        scheduleDraftSave(0);
+      }
+    }
+  }
+
+  function applyPickBatchToForm(detail, restored = false) {
+    const batch = detail?.batch;
+    if (!batch) return;
+
+    draftHydrating = true;
+    try {
+      editingBatchId = batch.batch_id;
+      editingBatchStatus = batch.status || null;
+      $("pick-bin").value = batch.pick_bin || "";
+      $("pick-comments").value = batch.comments || "";
+      $("pick-rows").innerHTML = "";
+      (detail.orders || []).forEach((row) => addPickRow(row));
+      if (!(detail.orders || []).length) addPickRow();
+
+      if (batch.status === "DRAFT") {
+        $("pick-form-title").textContent = "Pick Batch Draft";
+        $("edit-banner").textContent = restored
+          ? "Resumed " + batch.batch_number + ". Your previously scanned orders were restored from the server."
+          : batch.batch_number + " is an autosaved draft.";
+        $("cancel-edit").hidden = true;
+        $("submit-pick-batch").textContent = "Submit Pick Batch";
+        lastDraftFingerprint = draftFingerprint();
+        setDraftStatus("Draft is saved. New scans will continue autosaving.", "saved");
+      } else {
+        $("pick-form-title").textContent = "Edit Pick Batch";
+        $("edit-banner").textContent = "Editing " + batch.batch_number + ". Picker edits will lock as soon as QA starts review.";
+        $("cancel-edit").hidden = false;
+        $("submit-pick-batch").textContent = "Save Pick Batch";
+        lastDraftFingerprint = null;
+        setDraftStatus("Autosave is paused while editing an already-submitted batch.", "idle");
+      }
+
+      $("edit-banner").hidden = false;
+    } finally {
+      draftHydrating = false;
+    }
+  }
+
+  async function restoreMyDraft() {
+    const detail = await rpc("get_my_pps_pick_draft", {
+      p_session_token: sessionToken
+    });
+    if (!detail?.batch) return false;
+    applyPickBatchToForm(detail, true);
+    return true;
+  }
+
   function resetPickForm() {
+    if (draftSaveTimer) window.clearTimeout(draftSaveTimer);
+    draftSaveTimer = null;
+    draftSaveQueued = false;
     editingBatchId = null;
+    editingBatchStatus = null;
+    lastDraftFingerprint = null;
     $("pick-form-title").textContent = "Create Pick Batch";
     $("edit-banner").hidden = true;
     $("edit-banner").textContent = "";
@@ -183,6 +338,7 @@
     $("pick-rows").innerHTML = "";
     addPickRow();
     $("submit-pick-batch").textContent = "Submit Pick Batch";
+    setDraftStatus("Draft will autosave after the first scanned order.", "idle");
   }
 
   function confirmDiscrepancies(orders) {
@@ -205,13 +361,22 @@
 
   async function savePickBatch() {
     const button = $("submit-pick-batch");
+
+    if (draftSaveTimer) {
+      window.clearTimeout(draftSaveTimer);
+      draftSaveTimer = null;
+    }
+    await waitForDraftSave();
+
     const orders = collectPickOrders();
     if (!$("pick-bin").value) throw new Error("Select a Pick Bin.");
     if (!orders.length) throw new Error("Scan at least one Sales Order before submitting.");
     if (!(await confirmDiscrepancies(orders))) return;
 
+    const wasSubmittedEdit = editingBatchStatus === "SUBMITTED";
     button.disabled = true;
-    button.textContent = editingBatchId ? "Saving..." : "Submitting...";
+    button.textContent = wasSubmittedEdit ? "Saving..." : "Submitting...";
+
     try {
       const result = await rpc("save_pps_pick_batch", {
         p_session_token: sessionToken,
@@ -220,13 +385,19 @@
         p_comments: $("pick-comments").value.trim() || null,
         p_orders: orders
       });
+
       const batchNumber = result?.batch?.batch_number || "Pick Batch";
-      setMessage(`${batchNumber} saved successfully.`, "success");
+      setMessage(
+        wasSubmittedEdit
+          ? batchNumber + " saved successfully."
+          : batchNumber + " submitted successfully. The draft is now in the QA queue.",
+        "success"
+      );
       resetPickForm();
       await loadAllowedData();
     } finally {
       button.disabled = false;
-      button.textContent = editingBatchId ? "Save Pick Batch" : "Submit Pick Batch";
+      button.textContent = editingBatchStatus === "SUBMITTED" ? "Save Pick Batch" : "Submit Pick Batch";
     }
   }
 
@@ -247,19 +418,20 @@
   }
 
   async function editBatch(batchId) {
-    const detail = await rpc("get_pps_pick_batch_detail", { p_session_token:sessionToken, p_batch_id:batchId });
-    if (!detail?.batch?.editable) throw new Error("This Pick Batch is no longer editable because QA has started or completed review.");
-    editingBatchId = batchId;
-    $("pick-form-title").textContent = "Edit Pick Batch";
-    $("edit-banner").textContent = `Editing ${detail.batch.batch_number}. Picker edits will lock as soon as QA starts review.`;
-    $("edit-banner").hidden = false;
-    $("cancel-edit").hidden = false;
-    $("pick-bin").value = detail.batch.pick_bin;
-    $("pick-comments").value = detail.batch.comments || "";
-    $("pick-rows").innerHTML = "";
-    (detail.orders || []).forEach((row) => addPickRow(row));
-    if (!(detail.orders || []).length) addPickRow();
-    $("submit-pick-batch").textContent = "Save Pick Batch";
+    if (editingBatchStatus === "DRAFT" && editingBatchId && editingBatchId !== batchId) {
+      throw new Error("Finish your current Pick Batch draft before editing another submitted batch.");
+    }
+
+    const detail = await rpc("get_pps_pick_batch_detail", {
+      p_session_token:sessionToken,
+      p_batch_id:batchId
+    });
+
+    if (!detail?.batch?.editable) {
+      throw new Error("This Pick Batch is no longer editable because QA has started or completed review.");
+    }
+
+    applyPickBatchToForm(detail, detail.batch.status === "DRAFT");
     window.scrollTo({ top:0, behavior:"smooth" });
   }
 
@@ -521,6 +693,8 @@
     $("add-pick-row").addEventListener("click", () => addPickRow({}, true));
     $("submit-pick-batch").addEventListener("click", () => savePickBatch().catch(showError));
     $("cancel-edit").addEventListener("click", resetPickForm);
+    $("pick-bin").addEventListener("change", () => scheduleDraftSave(0));
+    $("pick-comments").addEventListener("input", () => scheduleDraftSave());
     $("refresh-batches").addEventListener("click", () => loadBatches().catch(showError));
     $("refresh-qa").addEventListener("click", () => loadQaQueue().catch(showError));
     $("submit-qa-review").addEventListener("click", () => submitQaReview().catch(showError));
@@ -533,7 +707,11 @@
     const reviewCard = $("qa-review-card");
     ["pointerdown","keydown","change"].forEach((eventName) => reviewCard.addEventListener(eventName, noteQaActivity, { passive:true }));
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && qaReview?.batch?.batch_id) {
+      if (document.hidden) {
+        if (canTab("pick")) saveDraftNow().catch(() => {});
+        return;
+      }
+      if (qaReview?.batch?.batch_id) {
         lastQaRenewAt = 0;
         noteQaActivity();
       }
@@ -581,6 +759,7 @@
       wireEvents();
       if (canTab("pick")) resetPickForm();
       $("app").hidden = false;
+      if (canTab("pick")) await restoreMyDraft();
       await loadAllowedData();
 
       const requested = String(location.hash || "").replace(/^#/,"").toLowerCase();
