@@ -12,7 +12,7 @@
 .message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
 .card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
 .shortcuts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:-4px 0 18px}.shortcuts a{min-width:150px}
-.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}.tile{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #94a3b8;border-top:5px solid #2563eb;border-radius:14px;padding:18px;box-shadow:0 5px 16px rgba(15,23,42,.06);transition:.15s}.tile:hover{transform:translateY(-2px);box-shadow:0 9px 22px rgba(15,23,42,.1)}.tile .icon{font-size:30px}.tile h3{margin:9px 0 4px;font-size:18px}.tile p{margin:0;color:var(--muted);font-size:12px}.tile .count{font-size:24px;font-weight:950;margin-top:10px}.tile.links{border-top-color:#7c3aed}.tile.cycle{border-top-color:#0f766e}.tile.cancel{border-top-color:#dc2626}.help-links{display:grid;gap:5px;margin-top:10px}.help-links a{font-size:12px;font-weight:800;color:#1d4ed8;text-decoration:none}.help-links a:hover{text-decoration:underline}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}.tile{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #94a3b8;border-top:5px solid #2563eb;border-radius:14px;padding:18px;box-shadow:0 5px 16px rgba(15,23,42,.06);transition:.15s}.tile:hover{transform:translateY(-2px);box-shadow:0 9px 22px rgba(15,23,42,.1)}.tile .icon{font-size:30px}.tile h3{margin:9px 0 4px;font-size:18px}.tile p{margin:0;color:var(--muted);font-size:12px}.tile .count{font-size:24px;font-weight:950;margin-top:10px}.tile.links{border-top-color:#7c3aed}.tile.cycle{border-top-color:#0f766e}.tile.cancel{border-top-color:#dc2626}.tile.cancel.expanded{grid-column:1/-1;transform:none}.tile.cancel.expanded:hover{transform:none}.cancel-tile-toggle{width:100%;border:0;background:transparent;padding:0;color:inherit;text-align:left;display:block}.cancel-tile-toggle:focus-visible{outline:3px solid #93c5fd;outline-offset:5px;border-radius:8px}.cancel-tile-footer{display:flex;justify-content:space-between;gap:10px;align-items:flex-end}.cancel-tile-action{font-size:11px;font-weight:900;color:#1d4ed8}.cancel-detail{margin-top:16px;padding-top:16px;border-top:1px solid #dbe3ef}.help-links{display:grid;gap:5px;margin-top:10px}.help-links a{font-size:12px;font-weight:800;color:#1d4ed8;text-decoration:none}.help-links a:hover{text-decoration:underline}
 .dual-grid{display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr);gap:15px}.panel{border:1px solid #dbe3ef;border-radius:12px;padding:13px;background:#f8fafc}.panel h3{margin:0 0 9px;font-size:15px}.layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:15px}.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px;max-height:440px}table{width:100%;border-collapse:collapse;background:#fff;min-width:760px}th,td{padding:8px 9px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.age{font-weight:900;color:#991b1b}.status-pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;background:#fef3c7;color:#92400e}
 .tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}.tab{border:1px solid #94a3b8;background:#fff;border-radius:999px;padding:7px 12px;font-weight:850}.tab.active{background:#1e293b;color:#fff;border-color:#1e293b}.cancel-actions{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .task-list{display:grid;gap:9px}.task-card{border:1px solid #cbd5e1;border-left:5px solid #64748b;border-radius:10px;padding:12px;background:#f8fafc;cursor:pointer}.task-card:hover{background:#f1f5f9}.task-card.high{border-left-color:#dc2626}.task-card.normal{border-left-color:#2563eb}.task-card.low{border-left-color:#16a34a}.task-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.task-title{font-weight:900}.task-meta{font-size:10px;color:var(--muted);margin-top:5px}.priority-pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.priority-pill.high{background:#fee2e2;color:#991b1b}.priority-pill.normal{background:#dbeafe;color:#1e40af}.priority-pill.low{background:#dcfce7;color:#166534}
@@ -70,55 +70,55 @@
         <div class="count" style="font-size:13px">Open Tool ↗</div>
       </a>
 
-      <a class="tile cancel" href="#cancellations">
-        <div class="icon">❌</div>
-        <h3>Cancellations</h3>
-        <p>Orders waiting to be cancelled in the internal database.</p>
-        <div id="tile-cancel-count" class="count">0 Pending</div>
-      </a>
-    </section>
+      <div class="tile cancel" id="cancel-tile">
+        <button id="cancel-tile-toggle" class="cancel-tile-toggle" type="button" aria-expanded="false" aria-controls="cancellations">
+          <div class="icon">❌</div>
+          <h3>Cancellations</h3>
+          <p>Orders waiting to be cancelled in the internal database.</p>
+          <div class="cancel-tile-footer">
+            <div id="tile-cancel-count" class="count">0 Pending</div>
+            <div id="cancel-tile-action" class="cancel-tile-action">View Queue ▼</div>
+          </div>
+        </button>
 
-    <section id="cancellations" class="card">
-      <div class="section-title">
-        <div>
-          <h2>Cancellations</h2>
-          <div class="muted">Sales Order lines manually changed to Item Status = Cancel appear here until Shipping confirms the cancellation is complete.</div>
-        </div>
-      </div>
-      <div class="tabs" role="tablist">
-        <button class="tab active" type="button" data-cancel-tab="pending">Pending</button>
-        <button class="tab" type="button" data-cancel-tab="history">History</button>
-        <button class="tab" type="button" data-cancel-tab="employee">By Employee</button>
-      </div>
+        <div id="cancellations" class="cancel-detail" hidden>
+          <div class="muted" style="margin-bottom:12px">Sales Order lines manually changed to Item Status = Cancel appear here until Shipping confirms the cancellation is complete.</div>
+          <div class="tabs" role="tablist">
+            <button class="tab active" type="button" data-cancel-tab="pending">Pending</button>
+            <button class="tab" type="button" data-cancel-tab="history">History</button>
+            <button class="tab" type="button" data-cancel-tab="employee">By Employee</button>
+          </div>
 
-      <div id="cancel-pending-panel">
-        <div class="cancel-actions">
-          <div id="cancel-selection-count" class="muted">0 selected</div>
-          <button id="mark-cancelled" class="primary" type="button" disabled>Mark Selected Cancelled</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th><input id="cancel-select-all" type="checkbox" aria-label="Select all pending cancellations"></th><th>Order Date</th><th>Ship Date</th><th>Document Number</th><th>Sales Order Type</th><th>Item</th><th>Requested By</th><th>Requested</th></tr></thead>
-            <tbody id="cancel-pending-body"></tbody>
-          </table>
-        </div>
-      </div>
+          <div id="cancel-pending-panel">
+            <div class="cancel-actions">
+              <div id="cancel-selection-count" class="muted">0 selected</div>
+              <button id="mark-cancelled" class="primary" type="button" disabled>Mark Selected Cancelled</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th><input id="cancel-select-all" type="checkbox" aria-label="Select all pending cancellations"></th><th>Order Date</th><th>Ship Date</th><th>Document Number</th><th>Sales Order Type</th><th>Item</th><th>Requested By</th><th>Requested</th></tr></thead>
+                <tbody id="cancel-pending-body"></tbody>
+              </table>
+            </div>
+          </div>
 
-      <div id="cancel-history-panel" hidden>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Completed</th><th>Order Date</th><th>Ship Date</th><th>Document Number</th><th>Sales Order Type</th><th>Item</th><th>Requested By</th><th>Cancelled By</th></tr></thead>
-            <tbody id="cancel-history-body"></tbody>
-          </table>
-        </div>
-      </div>
+          <div id="cancel-history-panel" hidden>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Completed</th><th>Order Date</th><th>Ship Date</th><th>Document Number</th><th>Sales Order Type</th><th>Item</th><th>Requested By</th><th>Cancelled By</th></tr></thead>
+                <tbody id="cancel-history-body"></tbody>
+              </table>
+            </div>
+          </div>
 
-      <div id="cancel-employee-panel" hidden>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Employee</th><th>Pending Requests</th><th>Completed Cancellations</th></tr></thead>
-            <tbody id="cancel-employee-body"></tbody>
-          </table>
+          <div id="cancel-employee-panel" hidden>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Employee</th><th>Pending Requests</th><th>Completed Cancellations</th></tr></thead>
+                <tbody id="cancel-employee-body"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -224,7 +224,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=shipping-team-main-route-20260928-2"></script>
-<script src="js/shipping-team.js?v=shipping-team-dashboard-20260928-2"></script>
+<script src="js/shipping-team.js?v=cancel-tile-embed-20260928-1"></script>
 <script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
 <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
