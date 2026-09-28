@@ -92,8 +92,8 @@
     },
     shipping_team: {
       label: "Shipping Team",
-      href: "sales-order-dashboard.html",
-      pages: ["sales-order-dashboard.html","pps-operations.html"],
+      href: "shipping-team.html",
+      pages: ["shipping-team.html","sales-order-dashboard.html","pps-operations.html"],
       children: [
         ["Sales Order Dashboard","sales-order-dashboard.html",{permission:"sales_order_dashboard.view"}],
         ["Pick Batches","pps-operations.html#pick",{permission:"pps.pick_batch.create"}],
