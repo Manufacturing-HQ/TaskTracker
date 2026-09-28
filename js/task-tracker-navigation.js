@@ -581,11 +581,13 @@
         });
         wrapper.appendChild(sub);
 
-        main.addEventListener("click", (event) => {
-          event.preventDefault();
-          sub.hidden = !sub.hidden;
-          refreshNavigationBadges(shared).catch(() => {});
-        });
+        if (key !== "shipping_team") {
+          main.addEventListener("click", (event) => {
+            event.preventDefault();
+            sub.hidden = !sub.hidden;
+            refreshNavigationBadges(shared).catch(() => {});
+          });
+        }
       }
 
       shared.appendChild(wrapper);
