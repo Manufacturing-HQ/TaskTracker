@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Tracker - Shipping Team</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--blue:#2563eb;--bg:#eef3f8;--border:#cbd5e1;--text:#172033;--muted:#64748b;--green:#166534;--amber:#92400e;--red:#991b1b}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}button{cursor:pointer}
+.shell{max-width:1650px;margin:0 auto;padding:22px 18px 50px}.topbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:16px}.brand h1{margin:0;font-size:30px}.brand p{margin:5px 0 0;color:var(--muted)}.top-actions,.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.primary,.secondary,.danger{border-radius:9px;padding:9px 13px;font-weight:800;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.primary{border:0;background:var(--blue);color:#fff}.secondary{border:1px solid #94a3b8;background:#fff;color:var(--text)}.danger{border:1px solid #fecaca;background:#fff1f2;color:#9f1239}.primary:disabled,.secondary:disabled,.danger:disabled{opacity:.5;cursor:not-allowed}
+.message{padding:11px 13px;border-radius:10px;background:#e2e8f0;margin-bottom:14px}.message[data-type=error]{background:#fee2e2;color:#991b1b}.message[data-type=success]{background:#dcfce7;color:#166534}
+.card{background:#fff;border:1px solid var(--border);border-radius:15px;padding:17px;margin-bottom:15px;box-shadow:0 6px 18px rgba(15,23,42,.05)}.section-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:12px}.section-title h2{margin:0;font-size:19px}.muted{color:var(--muted)}
+.shortcuts{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:-4px 0 18px}.shortcuts a{min-width:150px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}.tile{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid #94a3b8;border-top:5px solid #2563eb;border-radius:14px;padding:18px;box-shadow:0 5px 16px rgba(15,23,42,.06);transition:.15s}.tile:hover{transform:translateY(-2px);box-shadow:0 9px 22px rgba(15,23,42,.1)}.tile .icon{font-size:30px}.tile h3{margin:9px 0 4px;font-size:18px}.tile p{margin:0;color:var(--muted);font-size:12px}.tile .count{font-size:24px;font-weight:950;margin-top:10px}.tile.links{border-top-color:#7c3aed}.tile.cycle{border-top-color:#0f766e}.tile.cancel{border-top-color:#dc2626}.help-links{display:grid;gap:5px;margin-top:10px}.help-links a{font-size:12px;font-weight:800;color:#1d4ed8;text-decoration:none}.help-links a:hover{text-decoration:underline}
+.dual-grid{display:grid;grid-template-columns:minmax(300px,.72fr) minmax(0,1.28fr);gap:15px}.panel{border:1px solid #dbe3ef;border-radius:12px;padding:13px;background:#f8fafc}.panel h3{margin:0 0 9px;font-size:15px}.layout{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:15px}.table-wrap{overflow:auto;border:1px solid #cbd5e1;border-radius:10px;max-height:440px}table{width:100%;border-collapse:collapse;background:#fff;min-width:760px}th,td{padding:8px 9px;border-bottom:1px solid #dbe3ef;text-align:left;font-size:11px;vertical-align:top;white-space:nowrap}th{background:#1e293b;color:#fff;position:sticky;top:0;z-index:2}.age{font-weight:900;color:#991b1b}.status-pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;background:#fef3c7;color:#92400e}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}.tab{border:1px solid #94a3b8;background:#fff;border-radius:999px;padding:7px 12px;font-weight:850}.tab.active{background:#1e293b;color:#fff;border-color:#1e293b}.cancel-actions{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.task-list{display:grid;gap:9px}.task-card{border:1px solid #cbd5e1;border-left:5px solid #64748b;border-radius:10px;padding:12px;background:#f8fafc;cursor:pointer}.task-card:hover{background:#f1f5f9}.task-card.high{border-left-color:#dc2626}.task-card.normal{border-left-color:#2563eb}.task-card.low{border-left-color:#16a34a}.task-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.task-title{font-weight:900}.task-meta{font-size:10px;color:var(--muted);margin-top:5px}.priority-pill{display:inline-flex;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900}.priority-pill.high{background:#fee2e2;color:#991b1b}.priority-pill.normal{background:#dbeafe;color:#1e40af}.priority-pill.low{background:#dcfce7;color:#166534}
+.modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.66);z-index:5000;display:flex;justify-content:center;align-items:flex-start;padding:24px;overflow:auto}.modal{width:min(760px,96vw);background:#fff;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.35);padding:18px}.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:12px;border-bottom:1px solid #e2e8f0}.modal-head h2{margin:0;font-size:22px}.close-btn{border:1px solid #94a3b8;background:#fff;border-radius:8px;padding:7px 11px;font-weight:900}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.field label{display:block;font-size:10px;font-weight:900;margin-bottom:5px}.field input,.field select,.field textarea{width:100%;border:1px solid #94a3b8;border-radius:8px;padding:8px;background:#fff}.field textarea{min-height:105px;resize:vertical}.field.full{grid-column:1/-1}.comments{display:grid;gap:8px;margin:12px 0;max-height:320px;overflow:auto}.comment{border:1px solid #dbe3ef;border-radius:9px;padding:9px;background:#f8fafc}.comment strong{font-size:11px}.comment p{margin:5px 0 0;white-space:pre-wrap;font-size:12px}.comment time{font-size:9px;color:var(--muted);margin-left:5px}
+@media(max-width:1100px){.tiles{grid-template-columns:1fr}.layout,.dual-grid{grid-template-columns:1fr}}@media(max-width:700px){.topbar,.section-title{flex-direction:column;align-items:flex-start}.shell{padding:14px 8px 35px}.form-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <h1>Shipping Team Dashboard</h1>
+      <p id="viewer-meta">Shipping operations workspace</p>
+    </div>
+    <div class="top-actions">
+      <a class="secondary" href="index.html">Home</a>
+      <button id="refresh" class="secondary" type="button">Refresh</button>
+      <button id="sign-out" class="secondary" type="button">Sign Out</button>
+    </div>
+  </div>
+
+  <nav class="shortcuts" aria-label="Shipping shortcuts">
+    <a class="secondary" href="https://internal.ikeyless.com/route.php/home" target="_blank" rel="noopener noreferrer">Internal Home ↗</a>
+    <a class="secondary" href="https://4525056.app.netsuite.com/app/accounting/transactions/salesordermanager.nl?type=fulfill&whence=&siaT=1790609742684&siaWhc=%2Fapp%2Fcommon%2Fsearch%2Fsearchresults.nl&siaNv=ct2" target="_blank" rel="noopener noreferrer">Fulfill Orders ↗</a>
+    <a class="secondary" href="https://4525056.app.netsuite.com/app/accounting/transactions/itemshipmanager.nl?type=pack&whence=&siaT=1790609742684&siaWhc=%2Fapp%2Fcommon%2Fsearch%2Fsearchresults.nl&siaNv=ct2" target="_blank" rel="noopener noreferrer">Mark Orders Packed ↗</a>
+    <a class="secondary" href="https://ship2.shipstation.com/settings" target="_blank" rel="noopener noreferrer">ShipStation ↗</a>
+  </nav>
+
+  <div id="message" class="message" hidden></div>
+  <section id="access-denied" class="card" hidden>
+    <h2>Shipping Dashboard Access Required</h2>
+    <p>You do not have access to this workspace.</p>
+  </section>
+
+  <main id="app" hidden>
+    <section class="tiles">
+      <div class="tile links">
+        <div class="icon">🔗</div>
+        <h3>Helpful Links</h3>
+        <div class="help-links">
+          <a href="https://4525056.app.netsuite.com/app/common/search/searchresults.nl?searchid=2918&whence=&siaT=1790609108597&siaWhc=%2Fapp%2Fcommon%2Fsearch%2Fsearchresults.nl&siaNv=sc" target="_blank" rel="noopener noreferrer">On Hand by Bin ↗</a>
+          <a href="https://4525056.app.netsuite.com/app/accounting/transactions/reallocitems.nl" target="_blank" rel="noopener noreferrer">Reallocate Items ↗</a>
+          <a href="https://4525056.app.netsuite.com/app/accounting/transactions/invadjst.nl?whence=" target="_blank" rel="noopener noreferrer">Inventory Adjustment ↗</a>
+          <a href="https://4525056.app.netsuite.com/app/common/search/searchresults.nl?searchid=2572&whence=&siaT=1790613327914&siaWhc=%2Fapp%2Fcenter%2Fcard.nl&siaNv=ps&siaPs=0&siaPfx=&siaQ=orders+picked" target="_blank" rel="noopener noreferrer">Open Sales Orders Picked/Packed ↗</a>
+          <a href="https://4525056.app.netsuite.com/app/common/search/searchresults.nl?searchid=1466&whence=&siaT=1790613337159&siaWhc=%2Fapp%2Fcommon%2Fsearch%2Fsearchresults.nl&siaNv=sc" target="_blank" rel="noopener noreferrer">Preferred BIN ↗</a>
+          <a href="https://internal.ikeyless.com/route.php/reports/image-processor/KeyProcessQueue" target="_blank" rel="noopener noreferrer">Key Process Queue ↗</a>
+          <a href="https://internal.ikeyless.com/route.php/reports/image-processor/KeyCuttingActivity" target="_blank" rel="noopener noreferrer">Key Cutting Activity ↗</a>
+        </div>
+      </div>
+
+      <a class="tile cycle" href="https://script.google.com/a/macros/ikeyless.com/s/AKfycbxymq_mn2o8VGIFPIfNToJO7ETaK07w-ajHX8rKbOJ74XoPZXsE9jqOHG-r2Mvyu4i0uA/exec" target="_blank" rel="noopener noreferrer">
+        <div class="icon">🔄</div>
+        <h3>Cycle Counts</h3>
+        <p>Open the current Cycle Count tool.</p>
+        <div class="count" style="font-size:13px">Open Tool ↗</div>
+      </a>
+
+      <a class="tile cancel" href="#cancellations">
+        <div class="icon">❌</div>
+        <h3>Cancellations</h3>
+        <p>Orders waiting to be cancelled in the internal database.</p>
+        <div id="tile-cancel-count" class="count">0 Pending</div>
+      </a>
+    </section>
+
+    <section id="cancellations" class="card">
+      <div class="section-title">
+        <div>
+          <h2>Cancellations</h2>
+          <div class="muted">Sales Order lines manually changed to Item Status = Cancel appear here until Shipping confirms the cancellation is complete.</div>
+        </div>
+      </div>
+      <div class="tabs" role="tablist">
+        <button class="tab active" type="button" data-cancel-tab="pending">Pending</button>
+        <button class="tab" type="button" data-cancel-tab="history">History</button>
+        <button class="tab" type="button" data-cancel-tab="employee">By Employee</button>
+      </div>
+
+      <div id="cancel-pending-panel">
+        <div class="cancel-actions">
+          <div id="cancel-selection-count" class="muted">0 selected</div>
+          <button id="mark-cancelled" class="primary" type="button" disabled>Mark Selected Cancelled</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th><input id="cancel-select-all" type="checkbox" aria-label="Select all pending cancellations"></th><th>Order Date</th><th>Ship Date</th><th>Document Number</th><th>Sales Order Type</th><th>Item</th><th>Requested By</th><th>Requested</th></tr></thead>
+            <tbody id="cancel-pending-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="cancel-history-panel" hidden>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Completed</th><th>Order Date</th><th>Ship Date</th><th>Document Number</th><th>Sales Order Type</th><th>Item</th><th>Requested By</th><th>Cancelled By</th></tr></thead>
+            <tbody id="cancel-history-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="cancel-employee-panel" hidden>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Employee</th><th>Pending Requests</th><th>Completed Cancellations</th></tr></thead>
+            <tbody id="cancel-employee-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2>Shipping Activity</h2>
+          <div id="activity-subtitle" class="muted">Today's picks and the current PPS QA queue.</div>
+        </div>
+      </div>
+      <div class="dual-grid">
+        <div class="panel">
+          <h3>Picked Today by Employee</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Employee</th><th>Picked Orders</th><th>Batches</th></tr></thead>
+              <tbody id="picked-today-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Pending QA Batches</h3>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Batch</th><th>Picker</th><th>Orders</th><th>Discrepancies</th><th>Status</th><th>Submitted</th></tr></thead>
+              <tbody id="qa-batches-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h2>Shipping Team Tasks</h2>
+            <div class="muted">Team priorities and to-do items.</div>
+          </div>
+          <button id="add-task" class="primary" type="button" hidden>+ Add Task</button>
+        </div>
+        <div id="task-list" class="task-list"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <div>
+            <h2>Stalled Sales Orders</h2>
+            <div class="muted">Sales Order Dashboard lines currently flagged Printed - Stalled or Ready to Pick - Stalled.</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ship Date</th><th>Document</th><th>Type</th><th>Item</th><th>Status</th><th>Days</th></tr></thead>
+            <tbody id="stalled-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div id="task-editor" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="task-editor-title">Add Shipping Task</h2><div class="muted">Supervisors, Managers, and Administrators can create and edit tasks.</div></div>
+      <button class="close-btn" type="button" data-close="task-editor">Close</button>
+    </div>
+    <div class="form-grid">
+      <div class="field full"><label>Task Title</label><input id="task-title" maxlength="180"></div>
+      <div class="field"><label>Priority</label><select id="task-priority"><option value="HIGH">High</option><option value="NORMAL" selected>Normal</option><option value="LOW">Low</option></select></div>
+      <div class="field"><label>Due Date</label><input id="task-due" type="date"></div>
+      <div class="field full"><label>Description</label><textarea id="task-description"></textarea></div>
+    </div>
+    <div class="actions" style="margin-top:12px">
+      <button id="task-save" class="primary" type="button">Save Task</button>
+      <button class="secondary" type="button" data-close="task-editor">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="task-detail" class="modal-backdrop" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div><h2 id="detail-title">Task</h2><div id="detail-meta" class="muted"></div></div>
+      <button class="close-btn" type="button" data-close="task-detail">Close</button>
+    </div>
+    <div id="detail-description" style="white-space:pre-wrap;margin:14px 0"></div>
+    <div class="actions" id="detail-manager-actions" hidden>
+      <button id="detail-edit" class="secondary" type="button">Edit Task</button>
+      <button id="detail-complete" class="primary" type="button">Complete Task</button>
+    </div>
+    <h3 style="margin:18px 0 8px">Comments</h3>
+    <div id="comment-list" class="comments"></div>
+    <div class="field full"><label>Add Comment</label><textarea id="comment-text" placeholder="Add an update for the team..."></textarea></div>
+    <div class="actions" style="margin-top:10px">
+      <button id="comment-add" class="primary" type="button">Add Comment</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/task-tracker-navigation.js?v=shipping-team-dashboard-20260928-1"></script>
+<script src="js/shipping-team.js?v=shipping-team-dashboard-20260928-1"></script>
+<script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
+<script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
+</body>
+</html>
