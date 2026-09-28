@@ -294,7 +294,8 @@
         $("edit-banner").textContent = restored
           ? "Resumed " + batch.batch_number + ". Your previously scanned orders were restored from the server."
           : batch.batch_number + " is an autosaved draft.";
-        $("cancel-edit").hidden = true;
+        $("cancel-edit").hidden = false;
+        $("cancel-edit").textContent = "Discard Draft";
         $("submit-pick-batch").textContent = "Submit Pick Batch";
         lastDraftFingerprint = draftFingerprint();
         setDraftStatus("Draft is saved. New scans will continue autosaving.", "saved");
@@ -302,6 +303,7 @@
         $("pick-form-title").textContent = "Edit Pick Batch";
         $("edit-banner").textContent = "Editing " + batch.batch_number + ". Picker edits will lock as soon as QA starts review.";
         $("cancel-edit").hidden = false;
+        $("cancel-edit").textContent = "Cancel Edit";
         $("submit-pick-batch").textContent = "Save Pick Batch";
         lastDraftFingerprint = null;
         setDraftStatus("Autosave is paused while editing an already-submitted batch.", "idle");
@@ -333,12 +335,35 @@
     $("edit-banner").hidden = true;
     $("edit-banner").textContent = "";
     $("cancel-edit").hidden = true;
+    $("cancel-edit").textContent = "Cancel Edit";
     $("pick-bin").value = "";
     $("pick-comments").value = "";
     $("pick-rows").innerHTML = "";
     addPickRow();
     $("submit-pick-batch").textContent = "Submit Pick Batch";
     setDraftStatus("Draft will autosave after the first scanned order.", "idle");
+  }
+
+  async function cancelPickEdit() {
+    if (editingBatchStatus !== "DRAFT" || !editingBatchId) {
+      resetPickForm();
+      return;
+    }
+
+    const batchLabel = $("edit-banner").textContent.split(".")[0] || "this draft";
+    if (!window.confirm("Discard " + batchLabel + "?\n\nAll autosaved scans in this draft will be permanently removed.")) {
+      return;
+    }
+
+    const result = await rpc("discard_pps_pick_draft", {
+      p_session_token: sessionToken,
+      p_batch_id: editingBatchId
+    });
+
+    const batchNumber = result?.batch_number || "Pick Batch draft";
+    resetPickForm();
+    setMessage(batchNumber + " discarded.", "success");
+    await loadBatches();
   }
 
   function confirmDiscrepancies(orders) {
@@ -692,7 +717,7 @@
     document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
     $("add-pick-row").addEventListener("click", () => addPickRow({}, true));
     $("submit-pick-batch").addEventListener("click", () => savePickBatch().catch(showError));
-    $("cancel-edit").addEventListener("click", resetPickForm);
+    $("cancel-edit").addEventListener("click", () => cancelPickEdit().catch(showError));
     $("pick-bin").addEventListener("change", () => scheduleDraftSave(0));
     $("pick-comments").addEventListener("input", () => scheduleDraftSave());
     $("refresh-batches").addEventListener("click", () => loadBatches().catch(showError));
