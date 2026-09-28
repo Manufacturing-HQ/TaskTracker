@@ -193,8 +193,8 @@
 
     const picked=Array.isArray(dashboard?.picked_today_by_employee)?dashboard.picked_today_by_employee:[];
     $("picked-today-body").innerHTML=picked.length?picked.map((row)=>
-      '<tr><td><strong>'+esc(row.picker_name||"—")+'</strong></td><td>'+num(row.picked_orders)+'</td><td>'+num(row.batch_count)+'</td></tr>'
-    ).join(""):'<tr><td colspan="3" class="muted" style="text-align:center">No picked orders recorded today.</td></tr>';
+      '<tr><td><strong>'+esc(row.picker_name||"—")+'</strong></td><td><strong>'+num(row.picked_orders)+'</strong></td></tr>'
+    ).join(""):'<tr><td colspan="2" class="muted" style="text-align:center">No picked orders recorded today.</td></tr>';
 
     const qa=Array.isArray(dashboard?.pending_qa_batches)?dashboard.pending_qa_batches:[];
     $("qa-batches-body").innerHTML=qa.length?qa.map((row)=>
