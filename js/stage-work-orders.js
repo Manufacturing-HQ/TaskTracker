@@ -232,7 +232,8 @@
   function renderQueue(){
     const canImport=Boolean(bootstrap?.viewer?.can_import);
     $("manager-controls").hidden=!canImport;
-    $("select-head").innerHTML=canImport?'<label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input id="check-all-queue" type="checkbox" title="Check all Pending Import rows" aria-label="Check all Pending Import rows"> All</label>':"";
+    const selectAllWrap=$("queue-select-all-wrap");
+    if(selectAllWrap) selectAllWrap.hidden=!canImport;
 
     const totalQty=queue.reduce((sum,row)=>sum+(Number(row.quantity)||0),0);
     $("queue-summary").textContent=queue.length+" pending row(s) · "+num(totalQty)+" units";
@@ -253,11 +254,14 @@
       '</tr>'
     ).join(""):'<tr><td colspan="11" class="muted" style="text-align:center">No Work Orders are waiting for import.</td></tr>';
 
-    $("check-all-queue")?.addEventListener("change",(event)=>{
-      const checked=event.target.checked;
-      $("queue-body").querySelectorAll("[data-select-row]").forEach((box)=>{box.checked=checked;});
-      syncQueueCheckAll();
-    });
+    const master=$("check-all-queue");
+    if(master){
+      master.onchange=(event)=>{
+        const checked=event.target.checked;
+        $("queue-body").querySelectorAll("[data-select-row]").forEach((box)=>{box.checked=checked;});
+        syncQueueCheckAll();
+      };
+    }
     $("queue-body").querySelectorAll("[data-select-row]").forEach((box)=>{
       box.addEventListener("change",syncQueueCheckAll);
     });
@@ -281,7 +285,8 @@
     const selected=queue.filter((row)=>ids.has(String(row.id)));
     const headers=[
       "External ID","Date Created","Work Order Type","Item","Quantity",
-      "Work Order Job Type","Priority Department","Work Order Memo"
+      "Work Order Job Type","Priority Department","Work Order Memo",
+      "Created By","Import Date"
     ];
     const values=selected.map((row)=>[
       row.external_id,
@@ -291,7 +296,9 @@
       row.quantity,
       row.work_order_job_type,
       row.priority_department,
-      row.work_order_memo
+      row.work_order_memo,
+      row.created_by,
+      row.import_date ? dateText(row.import_date) : ""
     ]);
     csv.download("work-orders-pending-import.csv",headers,values);
   }
