@@ -23,6 +23,8 @@
   let qaReview = null;
   let lastQaRenewAt = 0;
   let cosmeticRows = [];
+  let orderHistorySearchTimer = null;
+  let orderHistoryRequestId = 0;
 
   function esc(value) {
     return String(value ?? "")
@@ -77,17 +79,20 @@
     cosmetic:"pps.cosmetic.manage",
     reporting:"pps.reporting.view"
   };
-  const canTab = (tab) => !!tabPermission[tab] && can(tabPermission[tab]);
+  const canTab = (tab) => {
+    if (tab === "history") return can("pps.qa.process") || can("pps.reporting.view");
+    return !!tabPermission[tab] && can(tabPermission[tab]);
+  };
 
   function firstAllowedTab() {
-    return ["pick","qa","cosmetic","reporting"].find(canTab) || null;
+    return ["pick","qa","cosmetic","reporting","history"].find(canTab) || null;
   }
 
   function configurePermissionUi() {
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.hidden = !canTab(button.dataset.tab);
     });
-    ["pick","qa","cosmetic","reporting"].forEach((name) => {
+    ["pick","qa","cosmetic","reporting","history"].forEach((name) => {
       const section = $("tab-" + name);
       if (section) section.hidden = true;
     });
@@ -117,12 +122,16 @@
     if (!canTab(tab)) tab = firstAllowedTab();
     if (!tab) return;
     document.querySelectorAll("[data-tab]").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    ["pick","qa","cosmetic","reporting"].forEach((name) => {
+    ["pick","qa","cosmetic","reporting","history"].forEach((name) => {
       $("tab-" + name).hidden = name !== tab;
     });
     if (tab === "qa") loadQaQueue().catch(showError);
     if (tab === "cosmetic") loadCosmetics().catch(showError);
     if (tab === "reporting") loadReporting().catch(showError);
+    if (tab === "history") {
+      $("order-history-search")?.focus();
+      if ($("order-history-search")?.value.trim()) searchOrderHistory().catch(showError);
+    }
   }
 
   function renumberPickRows() {
@@ -691,6 +700,97 @@
     await loadCosmetics();
   }
 
+  function renderOrderHistory(result, searchText) {
+    const host = $("order-history-results");
+    const rows = result?.rows || [];
+    const term = String(searchText || "").trim();
+
+    if (!term) {
+      host.innerHTML = '<div class="muted" style="padding:16px">Type a Sales Order number to search Pick Batch history.</div>';
+      return;
+    }
+
+    if (!rows.length) {
+      host.innerHTML = '<div class="muted" style="padding:16px">No Pick Batch history found for <strong>'+esc(term)+'</strong>.</div>';
+      return;
+    }
+
+    host.innerHTML = `<table><thead><tr><th>Sales Order</th><th>Pick Date</th><th>Pick Batch</th><th>Picker</th><th>Bin</th><th>Pick Result</th><th>Batch Status</th><th>Pick Error</th><th>Cosmetic Rejection</th><th>QA Employee</th></tr></thead><tbody>${rows.map((row) => {
+      const reviewed = !!row.qa_reviewed_at;
+      const discrepancy = row.pick_result === "INVENTORY_DISCREPANCY";
+      const pickResult = discrepancy ? "Inventory Discrepancy" : "Picked";
+      const pickError = discrepancy
+        ? "N/A"
+        : !reviewed
+          ? "Not Reviewed"
+          : row.pick_error
+            ? `<strong>Yes</strong>${row.pick_error_comment ? `<div class="muted">${esc(row.pick_error_comment)}</div>` : ""}`
+            : "No";
+      const cosmeticItems = Array.isArray(row.cosmetic_items) ? row.cosmetic_items : [];
+      const cosmetic = discrepancy
+        ? "N/A"
+        : row.cosmetic_rejection
+          ? `<strong>Yes</strong>${cosmeticItems.length ? `<div class="muted">${cosmeticItems.map(esc).join(", ")}</div>` : ""}`
+          : reviewed
+            ? "No"
+            : "Not Reviewed";
+
+      return `<tr>
+        <td><strong>${esc(row.sales_order_number)}</strong></td>
+        <td>${formatDate(row.business_date)}</td>
+        <td><strong>${esc(row.batch_number)}</strong></td>
+        <td>${esc(row.picker_name || "—")}</td>
+        <td>${esc(row.pick_bin || "—")}</td>
+        <td>${esc(pickResult)}</td>
+        <td>${statusLabel(row.batch_status)}</td>
+        <td>${pickError}</td>
+        <td>${cosmetic}</td>
+        <td>${esc(row.qa_employee_name || "—")}</td>
+      </tr>`;
+    }).join("")}</tbody></table>`;
+  }
+
+  async function searchOrderHistory() {
+    if (!canTab("history")) return;
+    const input = $("order-history-search");
+    const term = input?.value.trim() || "";
+    const host = $("order-history-results");
+    const requestId = ++orderHistoryRequestId;
+
+    if (!term) {
+      renderOrderHistory({ rows:[] }, "");
+      return;
+    }
+
+    if (term.replace(/[-\s]/g,"").length < 3) {
+      host.innerHTML = '<div class="muted" style="padding:16px">Keep typing the Sales Order number...</div>';
+      return;
+    }
+
+    host.innerHTML = '<div class="muted" style="padding:16px">Searching Pick Batch history...</div>';
+
+    try {
+      const result = await rpc("get_pps_order_history", {
+        p_session_token: sessionToken,
+        p_search_text: term,
+        p_result_limit: 50
+      });
+      if (requestId !== orderHistoryRequestId) return;
+      renderOrderHistory(result, term);
+    } catch (error) {
+      if (requestId !== orderHistoryRequestId) return;
+      throw error;
+    }
+  }
+
+  function scheduleOrderHistorySearch() {
+    if (orderHistorySearchTimer) window.clearTimeout(orderHistorySearchTimer);
+    orderHistorySearchTimer = window.setTimeout(() => {
+      orderHistorySearchTimer = null;
+      searchOrderHistory().catch(showError);
+    }, 250);
+  }
+
   async function loadReporting() {
     const report = await rpc("get_pps_reporting", {
       p_session_token: sessionToken,
@@ -728,6 +828,14 @@
     $("refresh-cosmetic").addEventListener("click", () => loadCosmetics().catch(showError));
     $("export-cosmetic").addEventListener("click", () => exportPendingCosmetics().catch(showError));
     $("load-report").addEventListener("click", () => loadReporting().catch(showError));
+    $("order-history-search").addEventListener("input", scheduleOrderHistorySearch);
+    $("order-history-search").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (orderHistorySearchTimer) window.clearTimeout(orderHistorySearchTimer);
+      orderHistorySearchTimer = null;
+      searchOrderHistory().catch(showError);
+    });
 
     const reviewCard = $("qa-review-card");
     ["pointerdown","keydown","change"].forEach((eventName) => reviewCard.addEventListener(eventName, noteQaActivity, { passive:true }));
