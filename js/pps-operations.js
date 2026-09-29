@@ -22,6 +22,11 @@
   let lastDraftFingerprint = null;
   let qaReview = null;
   let lastQaRenewAt = 0;
+  let qaDraftSaveTimer = null;
+  let qaDraftSaveInFlight = false;
+  let qaDraftSaveQueued = false;
+  let qaDraftHydrating = false;
+  let lastQaDraftFingerprint = null;
   let cosmeticRows = [];
   let orderHistorySearchTimer = null;
   let orderHistoryRequestId = 0;
@@ -473,10 +478,11 @@
     const rows = await rpc("get_pps_qa_queue", { p_session_token:sessionToken });
     const wrap = $("qa-queue");
     wrap.innerHTML = (rows || []).map((r) => {
-      const lockedByOther = r.status === "QA_IN_REVIEW" && r.qa_lock_employee_id !== bootstrap.viewer.employee_id;
+      const lockedByOther = r.status === "QA_IN_REVIEW" && !!r.qa_lock_employee_id && r.qa_lock_employee_id !== bootstrap.viewer.employee_id;
       const buttonText = r.status === "QA_IN_REVIEW" ? "Resume Review" : "Start QA Review";
-      return `<div class="qa-card"><div class="qa-order-header"><div><h3>${esc(r.batch_number)}</h3><div class="muted">${esc(r.picker_name)} · ${esc(r.pick_bin)} · ${esc(r.order_count)} orders · ${esc(r.discrepancy_count)} discrepancies</div></div>${statusLabel(r.status)}</div>
-        ${lockedByOther ? `<div class="warning-box">Currently being reviewed by ${esc(r.qa_lock_employee_name || "another Administrator")}.</div>` : ""}
+      const draftNote = Number(r.draft_saved_count || 0) > 0 ? ` · ${esc(r.draft_saved_count)} QA rows saved` : "";
+      return `<div class="qa-card"><div class="qa-order-header"><div><h3>${esc(r.batch_number)}</h3><div class="muted">${esc(r.picker_name)} · ${esc(r.pick_bin)} · ${esc(r.order_count)} orders · ${esc(r.discrepancy_count)} discrepancies${draftNote}</div></div>${statusLabel(r.status)}</div>
+        ${lockedByOther ? `<div class="warning-box">Currently being reviewed by ${esc(r.qa_lock_employee_name || "another QA user")}.</div>` : ""}
         ${r.comments ? `<div style="margin:8px 0">${esc(r.comments)}</div>` : ""}
         <button class="primary" data-start-qa="${esc(r.batch_id)}" type="button" ${lockedByOther ? "disabled" : ""}>${buttonText}</button></div>`;
     }).join("") || '<div class="muted">No Pick Batches are waiting for QA.</div>';
@@ -487,79 +493,245 @@
     const row = document.createElement("div");
     row.className = "cosmetic-item-row";
     row.innerHTML = `<input type="text" data-role="cosmetic-item" placeholder="Cosmetic Rejection Item" value="${esc(value)}"><button class="secondary" type="button">Remove</button>`;
+    const input = row.querySelector("input");
+    input.addEventListener("input", () => {
+      noteQaActivity();
+      scheduleQaDraftSave();
+    });
+    input.addEventListener("change", () => scheduleQaDraftSave(0));
     row.querySelector("button").addEventListener("click", () => {
       const rows = host.querySelectorAll(".cosmetic-item-row");
-      if (rows.length === 1) row.querySelector("input").value = "";
+      if (rows.length === 1) input.value = "";
       else row.remove();
       noteQaActivity();
+      scheduleQaDraftSave(0);
     });
     host.appendChild(row);
     return row;
   }
 
+  function normalizeSalesOrderSearch(value) {
+    return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  }
+
+  function applyQaGoodVisual(card) {
+    const good = card?.querySelector('[data-role="good"]');
+    card?.classList.toggle("good-confirmed", !!good?.checked);
+  }
+
+  function setQaDraftStatus(message, state = "idle") {
+    const el = $("qa-draft-status");
+    if (!el) return;
+    el.textContent = message || "";
+    el.dataset.state = state;
+  }
+
+  function qaDraftFingerprint() {
+    return JSON.stringify(collectQaReviews());
+  }
+
+  function scheduleQaDraftSave(delay = 500) {
+    if (qaDraftHydrating || !qaReview?.batch?.batch_id) return;
+    if (qaDraftSaveTimer) window.clearTimeout(qaDraftSaveTimer);
+    qaDraftSaveTimer = window.setTimeout(() => {
+      qaDraftSaveTimer = null;
+      saveQaDraftNow().catch((error) => {
+        setQaDraftStatus("QA progress not saved: " + (error?.message || String(error)), "error");
+      });
+    }, Math.max(0, delay));
+  }
+
+  async function waitForQaDraftSave() {
+    while (qaDraftSaveInFlight) {
+      await new Promise((resolve) => window.setTimeout(resolve, 40));
+    }
+  }
+
+  async function saveQaDraftNow() {
+    if (qaDraftHydrating || !qaReview?.batch?.batch_id) return;
+    if (qaDraftSaveInFlight) {
+      qaDraftSaveQueued = true;
+      return;
+    }
+
+    const fingerprint = qaDraftFingerprint();
+    if (fingerprint === lastQaDraftFingerprint) return;
+
+    qaDraftSaveInFlight = true;
+    setQaDraftStatus("Saving QA progress...", "saving");
+
+    try {
+      const result = await rpc("save_pps_qa_draft", {
+        p_session_token: sessionToken,
+        p_batch_id: qaReview.batch.batch_id,
+        p_reviews: collectQaReviews()
+      });
+      lastQaDraftFingerprint = fingerprint;
+      lastQaRenewAt = Date.now();
+      if (result?.qa_lock_expires_at) qaReview.batch.qa_lock_expires_at = result.qa_lock_expires_at;
+      setQaDraftStatus("QA progress saved " + new Date().toLocaleTimeString([], {hour:"numeric",minute:"2-digit",second:"2-digit"}) + ".", "saved");
+    } finally {
+      qaDraftSaveInFlight = false;
+      if (qaDraftSaveQueued) {
+        qaDraftSaveQueued = false;
+        scheduleQaDraftSave(0);
+      }
+    }
+  }
+
+  function applyQaOrderFilter(focusMatch = false) {
+    const input = $("qa-order-search");
+    const status = $("qa-search-status");
+    const term = normalizeSalesOrderSearch(input?.value);
+    const cards = [...$("qa-review-orders").querySelectorAll(".qa-order")];
+
+    if (!term) {
+      cards.forEach((card) => { card.hidden = false; });
+      if (status) status.textContent = "Showing all " + cards.length + " orders in this Pick Batch.";
+      return;
+    }
+
+    const matches = cards.filter((card) => String(card.dataset.salesOrderNormalized || "").includes(term));
+    cards.forEach((card) => { card.hidden = !matches.includes(card); });
+
+    if (status) {
+      status.textContent = matches.length
+        ? "Showing " + matches.length + " matching order" + (matches.length === 1 ? "." : "s.")
+        : "No Sales Order in this Pick Batch matches " + String(input?.value || "").trim() + ".";
+    }
+
+    if (focusMatch && matches.length === 1) {
+      matches[0].scrollIntoView({behavior:"smooth",block:"center"});
+      const target = matches[0].querySelector('[data-role="good"],[data-role="absent"],select,input,textarea');
+      target?.focus();
+    }
+  }
+
   function renderQaReview(detail) {
     qaReview = detail;
     lastQaRenewAt = Date.now();
+    qaDraftHydrating = true;
     const batch = detail.batch;
-    $("qa-review-summary").textContent = `${batch.batch_number} · Picker ${batch.picker_name} · ${batch.pick_bin} Bin · ${detail.orders.length} orders`;
-    const host = $("qa-review-orders");
-    host.innerHTML = "";
+    const drafts = new Map((detail.qa_drafts || []).map((row) => [row.batch_order_id,row]));
 
-    (detail.orders || []).forEach((order) => {
-      const card = document.createElement("div");
-      card.className = `qa-order ${order.pick_result === "INVENTORY_DISCREPANCY" ? "discrepancy" : ""}`;
-      card.dataset.orderId = order.batch_order_id;
-      card.dataset.pickResult = order.pick_result;
-      if (order.pick_result === "INVENTORY_DISCREPANCY") {
-        card.innerHTML = `<div class="qa-order-header"><div><strong>${esc(order.sales_order_number)}</strong><div class="muted">Picker marked Inventory Discrepancy - Fulfillment Deleted</div></div><span class="status review">Inventory Discrepancy</span></div>
-          <label class="checkline"><input type="checkbox" data-role="absent"> Confirmed this Sales Order is NOT in the bin</label>`;
-      } else {
-        card.innerHTML = `<div class="qa-order-header"><div><strong>${esc(order.sales_order_number)}</strong><div class="muted">Picker Result: Picked</div></div></div>
-          <div class="qa-controls">
-            <label class="checkline"><input type="checkbox" data-role="good"> Order Good</label>
-            <div class="field"><label>Pick Error</label><select data-role="pick-error"><option value="NO">No</option><option value="YES">Yes</option></select></div>
-            <div class="field"><label>Cosmetic Rejection</label><select data-role="cosmetic"><option value="NO">No</option><option value="YES">Yes</option></select></div>
-          </div>
-          <div class="field" data-role="pick-error-comment-wrap" hidden style="margin-top:10px"><label>Pick Error Comment</label><textarea data-role="pick-error-comment" placeholder="Required when Pick Error is selected"></textarea></div>
-          <div data-role="cosmetic-wrap" hidden style="margin-top:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><strong>Cosmetic Rejection Items</strong><button class="secondary" data-role="add-cosmetic-item" type="button">Add Item</button></div><div class="cosmetic-items" data-role="cosmetic-items"></div></div>`;
-        const good = card.querySelector('[data-role="good"]');
-        const errorSelect = card.querySelector('[data-role="pick-error"]');
-        const errorWrap = card.querySelector('[data-role="pick-error-comment-wrap"]');
-        const cosmeticSelect = card.querySelector('[data-role="cosmetic"]');
-        const cosmeticWrap = card.querySelector('[data-role="cosmetic-wrap"]');
-        const cosmeticHost = card.querySelector('[data-role="cosmetic-items"]');
+    try {
+      $("qa-review-summary").textContent = `${batch.batch_number} · Picker ${batch.picker_name} · ${batch.pick_bin} Bin · ${detail.orders.length} orders`;
+      const host = $("qa-review-orders");
+      host.innerHTML = "";
 
-        errorSelect.addEventListener("change", () => {
-          const yes = errorSelect.value === "YES";
-          errorWrap.hidden = !yes;
-          if (yes) good.checked = false;
-          noteQaActivity();
-        });
-        good.addEventListener("change", () => {
-          if (good.checked) {
-            errorSelect.value = "NO";
-            errorWrap.hidden = true;
-            card.querySelector('[data-role="pick-error-comment"]').value = "";
+      (detail.orders || []).forEach((order) => {
+        const saved = drafts.get(order.batch_order_id) || {};
+        const card = document.createElement("div");
+        card.className = `qa-order ${order.pick_result === "INVENTORY_DISCREPANCY" ? "discrepancy" : ""}`;
+        card.dataset.orderId = order.batch_order_id;
+        card.dataset.pickResult = order.pick_result;
+        card.dataset.salesOrder = order.sales_order_number;
+        card.dataset.salesOrderNormalized = normalizeSalesOrderSearch(order.sales_order_number);
+
+        if (order.pick_result === "INVENTORY_DISCREPANCY") {
+          card.innerHTML = `<div class="qa-order-header"><div><strong>${esc(order.sales_order_number)}</strong><div class="muted">Picker marked Inventory Discrepancy - Fulfillment Deleted</div></div><span class="status review">Inventory Discrepancy</span></div>
+            <label class="checkline"><input type="checkbox" data-role="absent"> Confirmed this Sales Order is NOT in the bin</label>`;
+          const absent = card.querySelector('[data-role="absent"]');
+          absent.checked = !!saved.inventory_discrepancy_absence_confirmed;
+          absent.addEventListener("change", () => {
+            noteQaActivity();
+            scheduleQaDraftSave(0);
+          });
+        } else {
+          card.innerHTML = `<div class="qa-order-header"><div><strong>${esc(order.sales_order_number)}</strong><div class="muted">Picker Result: Picked</div></div></div>
+            <div class="qa-controls">
+              <label class="checkline"><input type="checkbox" data-role="good"> Order Good</label>
+              <div class="field"><label>Pick Error</label><select data-role="pick-error"><option value="NO">No</option><option value="YES">Yes</option></select></div>
+              <div class="field"><label>Cosmetic Rejection</label><select data-role="cosmetic"><option value="NO">No</option><option value="YES">Yes</option></select></div>
+            </div>
+            <div class="field" data-role="pick-error-comment-wrap" hidden style="margin-top:10px"><label>Pick Error Comment</label><textarea data-role="pick-error-comment" placeholder="Required when Pick Error is selected"></textarea></div>
+            <div data-role="cosmetic-wrap" hidden style="margin-top:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><strong>Cosmetic Rejection Items</strong><button class="secondary" data-role="add-cosmetic-item" type="button">Add Item</button></div><div class="cosmetic-items" data-role="cosmetic-items"></div></div>`;
+
+          const good = card.querySelector('[data-role="good"]');
+          const errorSelect = card.querySelector('[data-role="pick-error"]');
+          const errorWrap = card.querySelector('[data-role="pick-error-comment-wrap"]');
+          const errorComment = card.querySelector('[data-role="pick-error-comment"]');
+          const cosmeticSelect = card.querySelector('[data-role="cosmetic"]');
+          const cosmeticWrap = card.querySelector('[data-role="cosmetic-wrap"]');
+          const cosmeticHost = card.querySelector('[data-role="cosmetic-items"]');
+
+          good.checked = !!saved.good_confirmed;
+          errorSelect.value = saved.pick_error ? "YES" : "NO";
+          errorComment.value = saved.pick_error_comment || "";
+          errorWrap.hidden = !saved.pick_error;
+          cosmeticSelect.value = saved.cosmetic_rejection ? "YES" : "NO";
+          cosmeticWrap.hidden = !saved.cosmetic_rejection;
+
+          const savedItems = Array.isArray(saved.cosmetic_items) ? saved.cosmetic_items : [];
+          if (saved.cosmetic_rejection) {
+            if (savedItems.length) savedItems.forEach((value) => addCosmeticItemRow(cosmeticHost,value));
+            else addCosmeticItemRow(cosmeticHost);
           }
-          noteQaActivity();
-        });
-        cosmeticSelect.addEventListener("change", () => {
-          const yes = cosmeticSelect.value === "YES";
-          cosmeticWrap.hidden = !yes;
-          if (yes && !cosmeticHost.querySelector(".cosmetic-item-row")) addCosmeticItemRow(cosmeticHost);
-          noteQaActivity();
-        });
-        card.querySelector('[data-role="add-cosmetic-item"]').addEventListener("click", () => {
-          const row = addCosmeticItemRow(cosmeticHost);
-          row.querySelector("input")?.focus();
-          noteQaActivity();
-        });
-      }
-      host.appendChild(card);
-    });
 
-    $("qa-review-card").hidden = false;
-    $("qa-review-card").scrollIntoView({ behavior:"smooth", block:"start" });
+          errorSelect.addEventListener("change", () => {
+            const yes = errorSelect.value === "YES";
+            errorWrap.hidden = !yes;
+            if (yes) {
+              good.checked = false;
+              applyQaGoodVisual(card);
+            }
+            noteQaActivity();
+            scheduleQaDraftSave(0);
+          });
+
+          good.addEventListener("change", () => {
+            if (good.checked) {
+              errorSelect.value = "NO";
+              errorWrap.hidden = true;
+              errorComment.value = "";
+            }
+            applyQaGoodVisual(card);
+            noteQaActivity();
+            scheduleQaDraftSave(0);
+          });
+
+          errorComment.addEventListener("input", () => {
+            noteQaActivity();
+            scheduleQaDraftSave();
+          });
+          errorComment.addEventListener("change", () => scheduleQaDraftSave(0));
+
+          cosmeticSelect.addEventListener("change", () => {
+            const yes = cosmeticSelect.value === "YES";
+            cosmeticWrap.hidden = !yes;
+            if (yes && !cosmeticHost.querySelector(".cosmetic-item-row")) addCosmeticItemRow(cosmeticHost);
+            noteQaActivity();
+            scheduleQaDraftSave(0);
+          });
+
+          card.querySelector('[data-role="add-cosmetic-item"]').addEventListener("click", () => {
+            const row = addCosmeticItemRow(cosmeticHost);
+            row.querySelector("input")?.focus();
+            noteQaActivity();
+            scheduleQaDraftSave(0);
+          });
+
+          applyQaGoodVisual(card);
+        }
+
+        host.appendChild(card);
+      });
+
+      $("qa-order-search").value = "";
+      applyQaOrderFilter(false);
+      lastQaDraftFingerprint = qaDraftFingerprint();
+      setQaDraftStatus(
+        drafts.size
+          ? "Restored saved QA progress for " + drafts.size + " order" + (drafts.size === 1 ? "." : "s.")
+          : "QA progress will autosave as you review orders.",
+        drafts.size ? "saved" : "idle"
+      );
+      $("qa-review-card").hidden = false;
+      $("qa-review-card").scrollIntoView({ behavior:"smooth", block:"start" });
+      window.setTimeout(() => $("qa-order-search")?.focus(), 150);
+    } finally {
+      qaDraftHydrating = false;
+    }
   }
 
   async function startQaReview(batchId) {
@@ -599,24 +771,32 @@
           inventory_discrepancy_absence_confirmed: card.querySelector('[data-role="absent"]').checked,
           pick_error: false,
           pick_error_comment: null,
+          cosmetic_rejection: false,
           cosmetic_items: []
         };
       }
       const cosmetic = card.querySelector('[data-role="cosmetic"]').value === "YES";
-      const items = cosmetic ? [...card.querySelectorAll('[data-role="cosmetic-item"]')].map((x) => x.value.trim()).filter(Boolean) : [];
+      const items = cosmetic ? [...card.querySelectorAll('[data-role="cosmetic-item"]')].map((x) => x.value.trim()) : [];
       return {
         batch_order_id: card.dataset.orderId,
         good_confirmed: card.querySelector('[data-role="good"]').checked,
         inventory_discrepancy_absence_confirmed: false,
         pick_error: card.querySelector('[data-role="pick-error"]').value === "YES",
         pick_error_comment: card.querySelector('[data-role="pick-error-comment"]').value.trim() || null,
-        cosmetic_items: items
+        cosmetic_rejection: cosmetic,
+        cosmetic_items: cosmetic ? items.filter(Boolean) : []
       };
     });
   }
 
   async function submitQaReview() {
     if (!qaReview?.batch?.batch_id) throw new Error("Open a Pick Batch before submitting QA Review.");
+    if (qaDraftSaveTimer) {
+      window.clearTimeout(qaDraftSaveTimer);
+      qaDraftSaveTimer = null;
+    }
+    await saveQaDraftNow();
+    await waitForQaDraftSave();
     const button = $("submit-qa-review");
     button.disabled = true;
     button.textContent = "Submitting...";
@@ -628,6 +808,8 @@
       });
       setMessage(`${result.batch_number} QA review completed.`, "success");
       qaReview = null;
+      lastQaDraftFingerprint = null;
+      qaDraftSaveQueued = false;
       $("qa-review-card").hidden = true;
       await loadAllowedData();
       window.scrollTo({ top:0, behavior:"smooth" });
@@ -640,10 +822,18 @@
   async function exitQaReview() {
     if (!qaReview?.batch?.batch_id) return;
     const batchId = qaReview.batch.batch_id;
+    if (qaDraftSaveTimer) {
+      window.clearTimeout(qaDraftSaveTimer);
+      qaDraftSaveTimer = null;
+    }
+    await saveQaDraftNow();
+    await waitForQaDraftSave();
     await rpc("release_pps_qa_lock", { p_session_token:sessionToken, p_batch_id:batchId });
     qaReview = null;
+    lastQaDraftFingerprint = null;
+    qaDraftSaveQueued = false;
     $("qa-review-card").hidden = true;
-    setMessage("QA review exited. The Pick Batch is unlocked for picker edits.", "success");
+    setMessage("QA progress saved. The batch remains locked from picker edits and can be resumed from the QA queue.", "success");
     await loadQaQueue();
   }
 
@@ -824,6 +1014,17 @@
     $("refresh-qa").addEventListener("click", () => loadQaQueue().catch(showError));
     $("submit-qa-review").addEventListener("click", () => submitQaReview().catch(showError));
     $("exit-qa-review").addEventListener("click", () => exitQaReview().catch(showError));
+    $("qa-order-search").addEventListener("input", () => applyQaOrderFilter(false));
+    $("qa-order-search").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      applyQaOrderFilter(true);
+    });
+    $("qa-show-all").addEventListener("click", () => {
+      $("qa-order-search").value = "";
+      applyQaOrderFilter(false);
+      $("qa-order-search").focus();
+    });
     $("cosmetic-status").addEventListener("change", () => loadCosmetics().catch(showError));
     $("refresh-cosmetic").addEventListener("click", () => loadCosmetics().catch(showError));
     $("export-cosmetic").addEventListener("click", () => exportPendingCosmetics().catch(showError));
@@ -839,6 +1040,13 @@
 
     const reviewCard = $("qa-review-card");
     ["pointerdown","keydown","change"].forEach((eventName) => reviewCard.addEventListener(eventName, noteQaActivity, { passive:true }));
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden" && qaReview?.batch?.batch_id) {
+        if (qaDraftSaveTimer) window.clearTimeout(qaDraftSaveTimer);
+        qaDraftSaveTimer = null;
+        saveQaDraftNow().catch(() => {});
+      }
+    });
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         if (canTab("pick")) saveDraftNow().catch(() => {});
