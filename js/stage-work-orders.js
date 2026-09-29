@@ -56,14 +56,14 @@
   function memoForJobType(jobType){
     switch(String(jobType||"").trim()){
       case "Aftermarket":
-        return "Work Order Job Type = Aftermarket. The item cycle time for this job is 16.5 minutes for 50 items.";
+        return "Job Type = Aftermarket";
       case "Priority Standard":
       case "NIB":
-        return "Work Order Job Type = NIB - Save one Bag/Box or sticker to turn into QA. Each item should take approximately 34.8 seconds to complete";
+        return "Job Type = New In Bag";
       case "Build Line":
-        return "Work Order Job Type = Build Line";
+        return "Job Type = Build Line";
       case "Solid Keys":
-        return "Work Order Job Type = Solid Keys";
+        return "Job Type = Solid Keys";
       default:
         return String(jobType||"").trim();
     }
