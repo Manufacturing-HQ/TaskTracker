@@ -5,7 +5,7 @@
   if(!config||!supabaseLib)throw new Error("Task Tracker configuration failed to load.");
   const client=supabaseLib.createClient(config.supabaseUrl,config.supabasePublishableKey,{auth:{autoRefreshToken:false,persistSession:false,detectSessionInUrl:false}});
   const $=id=>document.getElementById(id),sessionKey=config.sessionStorageKey;
-  let sessionToken=sessionStorage.getItem(sessionKey),sessionEmployee=null,setup=null,productiveOptions=null,activeView="EMPLOYEE",employeeOffset=0,productiveOffset=0,qaOffset=0;
+  let sessionToken=sessionStorage.getItem(sessionKey),sessionEmployee=null,setup=null,productiveOptions=null,activeView="EMPLOYEE",employeeOffset=0,productiveOffset=0,qaOffset=0,productiveSearchTimer=null,productiveRequestId=0;
   const pageSize=50;
   const esc=v=>String(v??"").replace(/[&<>'"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch]));
   const min=v=>v===null||v===undefined?"—":`${Number(v).toFixed(2)} min`;
@@ -70,9 +70,10 @@
 
   async function loadProductive(){
     if(!setup.viewer?.has_productive_history)return;
+    const requestId=++productiveRequestId;
     $("productive-table").innerHTML='<div class="empty">Loading Productive history...</div>';
     try{
-      renderProductive(await rpc("get_productive_history_page",{
+      const data=await rpc("get_productive_history_page",{
         p_session_token:sessionToken,
         p_employee_id:$("productive-employee-filter").value||null,
         p_item_id:$("productive-item-filter").value||null,
@@ -81,10 +82,21 @@
         p_search_text:$("productive-search").value.trim()||null,
         p_page_size:pageSize,
         p_page_offset:productiveOffset
-      }));
+      });
+      if(requestId!==productiveRequestId)return;
+      renderProductive(data);
     }catch(e){
+      if(requestId!==productiveRequestId)return;
       $("productive-table").innerHTML=`<div class="msg" data-type="error">${esc(e.message)}</div>`;
     }
+  }
+
+  function scheduleProductiveQuickSearch(){
+    window.clearTimeout(productiveSearchTimer);
+    productiveSearchTimer=window.setTimeout(()=>{
+      productiveOffset=0;
+      loadProductive();
+    },250);
   }
 
 
@@ -99,6 +111,6 @@
   }
 
   function renderPager(prefix,total,offset){const from=total?offset+1:0,to=Math.min(offset+pageSize,total);$(`${prefix}-page-info`).textContent=`Showing ${from}–${to} of ${total}`;$(`${prefix}-prev`).disabled=offset<=0;$(`${prefix}-next`).disabled=offset+pageSize>=total;}
-  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>logout().catch(()=>{}));$("employee-view-btn").addEventListener("click",()=>showView("EMPLOYEE",true));$("productive-view-btn").addEventListener("click",()=>showView("PRODUCTIVE",true));$("qa-view-btn").addEventListener("click",()=>showView("QA",true));$("employee-load").addEventListener("click",()=>{employeeOffset=0;qaOffset=0;if($("qa-start"))$("qa-start").value=$("employee-start").value;if($("qa-end"))$("qa-end").value=$("employee-end").value;if(setup.viewer?.is_management&&$("builder-filter"))$("builder-filter").value=$("employee-filter").value||"";Promise.all([loadEmployee(),loadQa()]);});$("productive-load").addEventListener("click",()=>{productiveOffset=0;loadProductive();});$("productive-search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();productiveOffset=0;loadProductive();}});$("qa-load").addEventListener("click",()=>{qaOffset=0;loadQa();});$("employee-prev").addEventListener("click",()=>{employeeOffset=Math.max(0,employeeOffset-pageSize);loadEmployee();});$("employee-next").addEventListener("click",()=>{employeeOffset+=pageSize;loadEmployee();});$("productive-prev").addEventListener("click",()=>{productiveOffset=Math.max(0,productiveOffset-pageSize);loadProductive();});$("productive-next").addEventListener("click",()=>{productiveOffset+=pageSize;loadProductive();});$("qa-prev").addEventListener("click",()=>{qaOffset=Math.max(0,qaOffset-pageSize);loadQa();});$("qa-next").addEventListener("click",()=>{qaOffset+=pageSize;loadQa();});
+  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>logout().catch(()=>{}));$("employee-view-btn").addEventListener("click",()=>showView("EMPLOYEE",true));$("productive-view-btn").addEventListener("click",()=>showView("PRODUCTIVE",true));$("qa-view-btn").addEventListener("click",()=>showView("QA",true));$("employee-load").addEventListener("click",()=>{employeeOffset=0;qaOffset=0;if($("qa-start"))$("qa-start").value=$("employee-start").value;if($("qa-end"))$("qa-end").value=$("employee-end").value;if(setup.viewer?.is_management&&$("builder-filter"))$("builder-filter").value=$("employee-filter").value||"";Promise.all([loadEmployee(),loadQa()]);});$("productive-load").addEventListener("click",()=>{productiveOffset=0;loadProductive();});$("productive-search").addEventListener("input",scheduleProductiveQuickSearch);$("productive-search").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();window.clearTimeout(productiveSearchTimer);productiveOffset=0;loadProductive();}});$("qa-load").addEventListener("click",()=>{qaOffset=0;loadQa();});$("employee-prev").addEventListener("click",()=>{employeeOffset=Math.max(0,employeeOffset-pageSize);loadEmployee();});$("employee-next").addEventListener("click",()=>{employeeOffset+=pageSize;loadEmployee();});$("productive-prev").addEventListener("click",()=>{productiveOffset=Math.max(0,productiveOffset-pageSize);loadProductive();});$("productive-next").addEventListener("click",()=>{productiveOffset+=pageSize;loadProductive();});$("qa-prev").addEventListener("click",()=>{qaOffset=Math.max(0,qaOffset-pageSize);loadQa();});$("qa-next").addEventListener("click",()=>{qaOffset+=pageSize;loadQa();});
   async function init(){try{await listEmployees();if(await restore())await enter();}catch(e){msg(e.message,"error");}}init();
 })();
