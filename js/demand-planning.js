@@ -24,9 +24,10 @@
   let sortKey = "target_demand";
   let sortDir = "desc";
   const optionalColumns = new Set();
+  const hiddenDemandItems = new Set();
 
   const columns = [
-    {key:"copy",label:"Copy",sort:false,width:58},
+    {key:"copy",label:"Actions",sort:false,width:112},
     {key:"item_name",label:"Item",width:190},
     {key:"sku_group",label:"SKU Group",width:155},
     {key:"usage_classification",label:"Usage",width:72},
@@ -89,6 +90,11 @@
       box.disabled = !canImport;
       box.closest("td")?.toggleAttribute("hidden",!canImport);
     });
+    const checkAll=$("queue-check-all");
+    if (checkAll) {
+      checkAll.disabled=!canImport;
+      checkAll.closest("th")?.toggleAttribute("hidden",!canImport);
+    }
   }
 
   function setMessage(text,type="info") {
@@ -197,6 +203,7 @@
     const hideHolds=$("hide-holds").checked;
 
     const rows=demandRows.filter((r)=>{
+      if (hiddenDemandItems.has(String(r.item_id))) return false;
       if (status && String(r.demand_status||"")!==status) return false;
       if (dept && String(r.work_order_department||"")!==dept) return false;
       if (usage && String(r.usage_classification||"")!==usage) return false;
@@ -233,7 +240,7 @@
   }
 
   function cellHtml(row,col) {
-    if (col.key==="copy") return '<button class="copy-btn" type="button" data-copy="'+esc(row.item_name)+'">Copy</button>';
+    if (col.key==="copy") return '<div style="display:flex;gap:4px"><button class="copy-btn" type="button" data-copy="'+esc(row.item_name)+'">Copy</button><button class="hide-btn" type="button" data-hide-item="'+esc(row.item_id)+'">Hide</button></div>';
     if (col.key==="item_name") return '<button class="item-button" type="button" data-open-item="'+esc(row.item_id)+'">'+esc(row.item_name)+'</button><div class="click-hint">Click for detail</div>';
     if (col.key==="demand_status") {
       const cls=row.is_on_hold ? "hold" : (row.demand_status==="Demand" ? "demand" : "good");
@@ -297,6 +304,14 @@
 
     $("demand-body").querySelectorAll("[data-copy]").forEach((button)=>{
       button.addEventListener("click",(event)=>{event.stopPropagation();copyText(button.dataset.copy);});
+    });
+    $("demand-body").querySelectorAll("[data-hide-item]").forEach((button)=>{
+      button.addEventListener("click",(event)=>{
+        event.stopPropagation();
+        hiddenDemandItems.add(String(button.dataset.hideItem));
+        demandPage=1;
+        renderDemand();
+      });
     });
     $("demand-body").querySelectorAll("[data-open-item]").forEach((button)=>{
       button.addEventListener("click",(event)=>{event.stopPropagation();openItemModal(button.dataset.openItem);});
@@ -414,6 +429,15 @@
     stageRows=[];
   }
 
+  function workOrderMemoForJobType(value) {
+    const key=String(value||"").trim().toUpperCase();
+    if (key==="AFTERMARKET") return "Job Type = Aftermarket";
+    if (key==="BUILD LINE") return "Job Type = Build Line";
+    if (key==="SOLID KEYS") return "Job Type = Solid Keys";
+    if (key==="PRIORITY STANDARD") return "Job Type = New In Bag";
+    return "";
+  }
+
   function defaultStageRow() {
     const dept=String(currentDetail?.summary?.work_order_department||"").trim();
     return {
@@ -421,7 +445,7 @@
       work_order_type:"Production",
       work_order_job_type:dept,
       priority_department:"",
-      work_order_memo:dept ? ("Work Order Job Type = "+dept) : ""
+      work_order_memo:workOrderMemoForJobType(dept)
     };
   }
 
@@ -489,6 +513,14 @@
         const idx=Number(input.dataset.stageIndex);
         const field=input.dataset.stageField;
         stageRows[idx][field]=input.value;
+        if (field==="work_order_job_type") {
+          const memo=workOrderMemoForJobType(input.value);
+          if (memo) {
+            stageRows[idx].work_order_memo=memo;
+            const memoInput=$("stage-grid").querySelector('[data-stage-index="'+idx+'"][data-stage-field="work_order_memo"]');
+            if (memoInput) memoInput.value=memo;
+          }
+        }
         $("stage-total").textContent="Total staged in this batch: "+num(stageTotal(),2);
         renderStageWarning();
       });
@@ -570,13 +602,42 @@
       applyQueuePermissions();
       return;
     }
-    host.innerHTML='<table><thead><tr><th>Select</th><th>External ID</th><th>Date</th><th>Item</th><th>Qty</th><th>WO Type</th><th>Job Type</th><th>Priority Dept.</th><th>Memo</th><th>Created By</th><th>Actions</th></tr></thead><tbody>'+
+    host.innerHTML='<table><thead><tr><th><label style="display:flex;gap:5px;align-items:center"><input id="queue-check-all" type="checkbox"> All</label></th><th>External ID</th><th>Date</th><th>Item</th><th>Qty</th><th>WO Type</th><th>Job Type</th><th>Priority Dept.</th><th>Memo</th><th>Created By</th><th>Actions</th></tr></thead><tbody>'+
       queueRows.map((r)=>'<tr data-queue-row="'+esc(r.id)+'"><td><input type="checkbox" data-queue-select="'+esc(r.id)+'"></td><td>'+esc(r.external_id||"—")+'</td><td>'+dateText(r.date_created)+'</td><td><strong>'+esc(r.item_name)+'</strong></td><td><input type="number" min="1" step="1" data-q-field="quantity" value="'+esc(r.quantity)+'"></td><td><input type="text" data-q-field="work_order_type" value="'+esc(r.work_order_type||"")+'"></td><td><input type="text" data-q-field="work_order_job_type" value="'+esc(r.work_order_job_type||"")+'"></td><td><input type="text" data-q-field="priority_department" value="'+esc(r.priority_department||"")+'"></td><td><input class="memo-input" type="text" data-q-field="work_order_memo" value="'+esc(r.work_order_memo||"")+'"></td><td>'+esc(r.created_by||"—")+'</td><td><button class="secondary" type="button" data-q-save="'+esc(r.id)+'">Save</button> <button class="danger" type="button" data-q-delete="'+esc(r.id)+'">Delete</button></td></tr>').join("")+
       '</tbody></table>';
 
     host.querySelectorAll("[data-q-save]").forEach((button)=>button.addEventListener("click",()=>saveQueueRow(button.dataset.qSave).catch(showError)));
     host.querySelectorAll("[data-q-delete]").forEach((button)=>button.addEventListener("click",()=>deleteQueueRow(button.dataset.qDelete).catch(showError)));
+
+    const checkAll=$("queue-check-all");
+    if (checkAll) {
+      checkAll.addEventListener("change",()=>{
+        host.querySelectorAll("[data-queue-select]:not(:disabled)").forEach((box)=>{box.checked=checkAll.checked;});
+        syncQueueCheckAll();
+      });
+    }
+    host.querySelectorAll("[data-queue-select]").forEach((box)=>box.addEventListener("change",syncQueueCheckAll));
+    host.querySelectorAll('[data-q-field="work_order_job_type"]').forEach((input)=>{
+      input.addEventListener("input",()=>{
+        const memo=workOrderMemoForJobType(input.value);
+        if (!memo) return;
+        const tr=input.closest("[data-queue-row]");
+        const memoInput=tr?.querySelector('[data-q-field="work_order_memo"]');
+        if (memoInput) memoInput.value=memo;
+      });
+    });
+
     applyQueuePermissions();
+    syncQueueCheckAll();
+  }
+
+  function syncQueueCheckAll() {
+    const checkAll=$("queue-check-all");
+    if (!checkAll) return;
+    const boxes=[...$("queue-table").querySelectorAll("[data-queue-select]:not(:disabled)")];
+    const checked=boxes.filter((box)=>box.checked).length;
+    checkAll.checked=boxes.length>0 && checked===boxes.length;
+    checkAll.indeterminate=checked>0 && checked<boxes.length;
   }
 
   function queueFormValues(id) {
@@ -637,10 +698,10 @@
   function exportQueue() {
     if (!queueRows.length) throw new Error("There are no pending Work Orders to export.");
     if (!csv) throw new Error("CSV export is unavailable.");
-    const headers=["External ID","Date Created","Work Order Type","Item","Quantity","Work Order Job Type","Priority Department","Work Order Memo","Created By","Status","Import Date","Usage Classification"];
+    const headers=["External ID","Date Created","Work Order Type","Item","Quantity","Work Order Job Type","Priority Department","Work Order Memo","Created By","Import Date"];
     const rows=queueRows.map((r)=>[
       r.external_id,r.date_created,r.work_order_type,r.item_name,r.quantity,r.work_order_job_type,
-      r.priority_department,r.work_order_memo,r.created_by,"Pending Import","",r.usage_classification
+      r.priority_department,r.work_order_memo,r.created_by,""
     ]);
     csv.download("work-order-staging-pending.csv",headers,rows);
   }
@@ -699,7 +760,11 @@
 
   $("demand-prev").addEventListener("click",()=>{if(demandPage>1){demandPage--;renderDemand();}});
   $("demand-next").addEventListener("click",()=>{const pages=Math.ceil(filteredRows().length/pageSize);if(demandPage<pages){demandPage++;renderDemand();}});
-  $("refresh-all").addEventListener("click",()=>loadData().then(()=>setMessage("Demand Planning refreshed.","success")).catch(showError));
+  $("refresh-all").addEventListener("click",()=>{
+    hiddenDemandItems.clear();
+    demandPage=1;
+    loadData().then(()=>setMessage("Demand Planning refreshed. Hidden rows were restored.","success")).catch(showError);
+  });
   $("queue-refresh").addEventListener("click",()=>loadData().catch(showError));
   $("queue-export").addEventListener("click",()=>{try{exportQueue();}catch(error){showError(error);}});
   $("queue-mark-imported").addEventListener("click",()=>markSelectedImported().catch(showError));
