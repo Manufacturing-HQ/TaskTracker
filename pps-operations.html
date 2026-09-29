@@ -11,7 +11,7 @@
 <body>
 <div class="shell">
   <div class="topbar">
-    <div class="brand"><h1>PPS Operations</h1><p>Pick Batches → QA → Cosmetic Rejections → Reporting</p></div>
+    <div class="brand"><h1>PPS Operations</h1><p>Pick Batches → QA → Cosmetic Rejections → Reporting → Order History</p></div>
     <div class="top-actions"><a class="secondary" href="management.html">Management</a><a class="secondary" href="index.html">Home</a><button id="sign-out" class="secondary" type="button">Sign Out</button></div>
   </div>
 
@@ -26,6 +26,7 @@
       <button class="tab" type="button" data-tab="qa">PPS QA Queue</button>
       <button class="tab" type="button" data-tab="cosmetic">Cosmetic Rejections</button>
       <button class="tab" type="button" data-tab="reporting">PPS Reporting</button>
+      <button class="tab" type="button" data-tab="history">Order History</button>
     </div>
 
     <section id="tab-pick">
@@ -83,6 +84,23 @@
       </div>
       <div class="card"><div class="section-title"><h2>Batch Reporting Detail</h2></div><div id="report-history" class="table-wrap"></div></div>
     </section>
+
+    <section id="tab-history" hidden>
+      <div class="card">
+        <div class="section-title">
+          <div>
+            <h2>Pick Order History</h2>
+            <div class="muted">Search across all PPS Pick Batches to confirm whether a Sales Order was included, who picked it, and the QA outcome.</div>
+          </div>
+        </div>
+        <div class="field" style="max-width:520px">
+          <label for="order-history-search">Quick Search</label>
+          <input id="order-history-search" type="search" autocomplete="off" placeholder="Type Sales Order number, e.g. SO-1349305">
+        </div>
+        <div class="muted" style="margin:8px 0 14px">Search updates automatically as you type. All matching Pick Batch occurrences are shown.</div>
+        <div id="order-history-results" class="table-wrap"><div class="muted" style="padding:16px">Type a Sales Order number to search Pick Batch history.</div></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -91,7 +109,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=shipping-team-main-route-20260928-2"></script>
-<script src="js/pps-operations.js?v=pick-draft-autosave-20260928-3"></script>
+<script src="js/pps-operations.js?v=order-history-search-20260929-1"></script>
 <script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
 <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
