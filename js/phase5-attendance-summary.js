@@ -33,7 +33,8 @@
         : '<span class="attendance-clear">No threshold reached</span>';
       const tr=document.createElement("tr");
       if(r.is_probationary) tr.classList.add("attendance-probationary");
-      tr.innerHTML=`<td><strong>${esc(r.employee_name)}</strong>${r.is_probationary?'<span class="probationary-label">Probationary</span>':""}</td><td>${esc(r.supervisor_name||"")}</td><td>${r.unplanned_absence||0}</td><td>${r.unplanned_leave_early||0}</td><td>${r.tardies||0}</td><td>${r.no_call_no_show||0}</td><td class="attendance-action-cell">${actionHtml}</td>`;
+      const historyCount=(value,metric,label)=>`<button type="button" class="attendance-history-jump" data-attendance-history-employee="${esc(r.employee_id)}" data-attendance-history-metric="${esc(metric)}" title="View ${esc(label)} history">${value||0}</button>`;
+      tr.innerHTML=`<td><strong>${esc(r.employee_name)}</strong>${r.is_probationary?'<span class="probationary-label">Probationary</span>':""}</td><td>${esc(r.supervisor_name||"")}</td><td>${historyCount(r.unplanned_absence,"UNPLANNED_ABSENCE_UNAPPROVED","unplanned absence")}</td><td>${historyCount(r.unplanned_leave_early,"UNPLANNED_LEFT_EARLY_UNAPPROVED","unplanned leave early")}</td><td>${historyCount(r.tardies,"TARDY","tardy")}</td><td>${historyCount(r.no_call_no_show,"NCNS","no call / no show")}</td><td class="attendance-action-cell">${actionHtml}</td>`;
       body.appendChild(tr);
     });
   }
