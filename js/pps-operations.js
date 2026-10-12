@@ -811,7 +811,7 @@
       const result = await rpc("submit_pps_qa_review", {
         p_session_token: sessionToken,
         p_batch_id: qaReview.batch.batch_id,
-        p_reviews: collectQaReviews()
+        p_reviews: reviews
       });
       setMessage(`${result.batch_number} QA review completed.`, "success");
       qaReview = null;
