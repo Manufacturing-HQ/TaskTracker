@@ -258,7 +258,13 @@
         }))
       });
       selectedCancellations.clear();
-      setMessage(num(result?.completed_count||0)+" cancellation"+(Number(result?.completed_count)===1?"":"s")+" marked complete.","success");
+      const completed=Number(result?.completed_count||0);
+      const skipped=Number(result?.skipped_count||0);
+      let message=num(completed)+" cancellation"+(completed===1?"":"s")+" marked complete.";
+      if(skipped>0){
+        message+=" "+num(skipped)+" stale selection"+(skipped===1?" was":"s were")+" skipped and removed from the queue.";
+      }
+      setMessage(message,"success");
       await loadDashboard();
     }finally{
       $("mark-cancelled").disabled=false;
