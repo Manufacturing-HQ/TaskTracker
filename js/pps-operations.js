@@ -489,25 +489,28 @@
     wrap.querySelectorAll("[data-start-qa]").forEach((b) => b.addEventListener("click", () => startQaReview(b.dataset.startQa).catch(showError)));
   }
 
-  function addCosmeticItemRow(host, value = "") {
-    const row = document.createElement("div");
-    row.className = "cosmetic-item-row";
-    row.innerHTML = `<input type="text" data-role="cosmetic-item" placeholder="Cosmetic Rejection Item" value="${esc(value)}"><button class="secondary" type="button">Remove</button>`;
-    const input = row.querySelector("input");
-    input.addEventListener("input", () => {
-      noteQaActivity();
-      scheduleQaDraftSave();
+  function renderCosmeticItemOptions(host, items = [], savedItems = []) {
+    const options = [...new Set((items || []).map((value) => String(value || "").trim()).filter(Boolean))];
+    const selected = new Set((savedItems || []).map((value) => String(value || "").trim().toLowerCase()).filter(Boolean));
+    host.innerHTML = "";
+
+    if (!options.length) {
+      host.innerHTML = '<div class="warning-box">No current NetSuite item lines were found for this Sales Order. Refresh the data before submitting a Cosmetic Rejection.</div>';
+      return;
+    }
+
+    options.forEach((item) => {
+      const label = document.createElement("label");
+      label.className = "cosmetic-item-option";
+      label.innerHTML = `<input type="checkbox" data-role="cosmetic-item" value="${esc(item)}"><span>${esc(item)}</span>`;
+      const input = label.querySelector("input");
+      input.checked = selected.has(item.toLowerCase());
+      input.addEventListener("change", () => {
+        noteQaActivity();
+        scheduleQaDraftSave(0);
+      });
+      host.appendChild(label);
     });
-    input.addEventListener("change", () => scheduleQaDraftSave(0));
-    row.querySelector("button").addEventListener("click", () => {
-      const rows = host.querySelectorAll(".cosmetic-item-row");
-      if (rows.length === 1) input.value = "";
-      else row.remove();
-      noteQaActivity();
-      scheduleQaDraftSave(0);
-    });
-    host.appendChild(row);
-    return row;
   }
 
   function normalizeSalesOrderSearch(value) {
@@ -564,7 +567,7 @@
       const result = await rpc("save_pps_qa_draft", {
         p_session_token: sessionToken,
         p_batch_id: qaReview.batch.batch_id,
-        p_reviews: collectQaReviews()
+        p_reviews: reviews
       });
       lastQaDraftFingerprint = fingerprint;
       lastQaRenewAt = Date.now();
@@ -645,7 +648,7 @@
               <div class="field"><label>Cosmetic Rejection</label><select data-role="cosmetic"><option value="NO">No</option><option value="YES">Yes</option></select></div>
             </div>
             <div class="field" data-role="pick-error-comment-wrap" hidden style="margin-top:10px"><label>Pick Error Comment</label><textarea data-role="pick-error-comment" placeholder="Required when Pick Error is selected"></textarea></div>
-            <div data-role="cosmetic-wrap" hidden style="margin-top:12px"><div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><strong>Cosmetic Rejection Items</strong><button class="secondary" data-role="add-cosmetic-item" type="button">Add Item</button></div><div class="cosmetic-items" data-role="cosmetic-items"></div></div>`;
+            <div data-role="cosmetic-wrap" hidden style="margin-top:12px"><div><strong>Cosmetic Rejection Items</strong><div class="muted" style="margin-top:4px">Select the rejected item or items listed on this Sales Order.</div></div><div class="cosmetic-items" data-role="cosmetic-items"></div></div>`;
 
           const good = card.querySelector('[data-role="good"]');
           const errorSelect = card.querySelector('[data-role="pick-error"]');
@@ -663,10 +666,7 @@
           cosmeticWrap.hidden = !saved.cosmetic_rejection;
 
           const savedItems = Array.isArray(saved.cosmetic_items) ? saved.cosmetic_items : [];
-          if (saved.cosmetic_rejection) {
-            if (savedItems.length) savedItems.forEach((value) => addCosmeticItemRow(cosmeticHost,value));
-            else addCosmeticItemRow(cosmeticHost);
-          }
+          renderCosmeticItemOptions(cosmeticHost, order.potential_items || [], savedItems);
 
           errorSelect.addEventListener("change", () => {
             const yes = errorSelect.value === "YES";
@@ -699,14 +699,11 @@
           cosmeticSelect.addEventListener("change", () => {
             const yes = cosmeticSelect.value === "YES";
             cosmeticWrap.hidden = !yes;
-            if (yes && !cosmeticHost.querySelector(".cosmetic-item-row")) addCosmeticItemRow(cosmeticHost);
-            noteQaActivity();
-            scheduleQaDraftSave(0);
-          });
-
-          card.querySelector('[data-role="add-cosmetic-item"]').addEventListener("click", () => {
-            const row = addCosmeticItemRow(cosmeticHost);
-            row.querySelector("input")?.focus();
+            if (!yes) {
+              cosmeticHost.querySelectorAll('[data-role="cosmetic-item"]').forEach((input) => {
+                input.checked = false;
+              });
+            }
             noteQaActivity();
             scheduleQaDraftSave(0);
           });
@@ -776,7 +773,9 @@
         };
       }
       const cosmetic = card.querySelector('[data-role="cosmetic"]').value === "YES";
-      const items = cosmetic ? [...card.querySelectorAll('[data-role="cosmetic-item"]')].map((x) => x.value.trim()) : [];
+      const items = cosmetic
+        ? [...card.querySelectorAll('[data-role="cosmetic-item"]:checked')].map((x) => x.value.trim()).filter(Boolean)
+        : [];
       return {
         batch_order_id: card.dataset.orderId,
         good_confirmed: card.querySelector('[data-role="good"]').checked,
@@ -791,6 +790,14 @@
 
   async function submitQaReview() {
     if (!qaReview?.batch?.batch_id) throw new Error("Open a Pick Batch before submitting QA Review.");
+
+    const reviews = collectQaReviews();
+    const missingCosmeticItem = reviews.find((row) => row.cosmetic_rejection && !(row.cosmetic_items || []).length);
+    if (missingCosmeticItem) {
+      const card = $("qa-review-orders").querySelector('[data-order-id="' + missingCosmeticItem.batch_order_id + '"]');
+      throw new Error("Select at least one Cosmetic Rejection Item for Sales Order " + (card?.dataset.salesOrder || "") + ".");
+    }
+
     if (qaDraftSaveTimer) {
       window.clearTimeout(qaDraftSaveTimer);
       qaDraftSaveTimer = null;
