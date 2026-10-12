@@ -567,7 +567,7 @@
       const result = await rpc("save_pps_qa_draft", {
         p_session_token: sessionToken,
         p_batch_id: qaReview.batch.batch_id,
-        p_reviews: reviews
+        p_reviews: collectQaReviews()
       });
       lastQaDraftFingerprint = fingerprint;
       lastQaRenewAt = Date.now();
