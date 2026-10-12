@@ -309,10 +309,8 @@
   }
 
   function init(){
-    const today=new Date();
-    $("history-end").value=dateValue(today);
-    today.setDate(today.getDate()-6);
-    $("history-start").value=dateValue(today);
+    // Leave dates blank until the first load so Supabase supplies the
+    // reporting-timezone "last 7 days" window consistently.
 
     $("attendance-tab-summary").addEventListener("click",()=>setTab("summary"));
     $("attendance-tab-history").addEventListener("click",()=>setTab("history"));
