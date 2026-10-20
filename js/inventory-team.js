@@ -113,6 +113,7 @@
     });
 
     const stalled=Array.isArray(dashboard?.stalled_work_orders)?dashboard.stalled_work_orders:[];
+    $("export-stalled").disabled=!stalled.length;
     $("stalled-body").innerHTML=stalled.length ? stalled.map((row)=>
       '<tr><td><strong>'+esc(row.document_number||"—")+'</strong></td>'+
       '<td>'+esc(row.item_name||"—")+'</td>'+
@@ -122,6 +123,37 @@
       '<td class="age">'+num(row.days_in_operation)+'</td>'+
       '<td>'+esc(row.work_order_job_type||"—")+'</td></tr>'
     ).join("") : '<tr><td colspan="7" class="muted" style="text-align:center">No stalled Material Pull or FGI Put Away Work Orders.</td></tr>';
+  }
+
+  function exportStalledWorkOrders() {
+    const stalled=Array.isArray(dashboard?.stalled_work_orders)?dashboard.stalled_work_orders:[];
+    if (!stalled.length) {
+      setMessage("There are no stalled Work Orders to export.");
+      return;
+    }
+
+    const csv=window.TaskTrackerCsv;
+    if (!csv?.download) throw new Error("CSV export helper failed to load.");
+
+    const valueOrBlank=(value)=>{
+      if (value===null || value===undefined || value==="") return "";
+      const n=Number(value);
+      return Number.isFinite(n) ? n : value;
+    };
+
+    const headers=["WO #","Item","Qty","Operation","Started","Days","Job Type"];
+    const rows=stalled.map((row)=>[
+      row.document_number||"",
+      row.item_name||"",
+      valueOrBlank(row.quantity),
+      row.operation_in_progress||"",
+      row.operation_started_date||"",
+      valueOrBlank(row.days_in_operation),
+      row.work_order_job_type||""
+    ]);
+
+    const exportDate=String(dashboard?.today||new Date().toISOString().slice(0,10)).slice(0,10);
+    csv.download("stalled-work-orders-"+exportDate+".csv",headers,rows);
   }
 
   async function loadDashboard() {
@@ -256,6 +288,13 @@
   }
 
   $("refresh").addEventListener("click",()=>loadDashboard().then(()=>setMessage("Inventory Dashboard refreshed.","success")).catch(showError));
+  $("export-stalled").addEventListener("click",()=>{
+    try {
+      exportStalledWorkOrders();
+    } catch (error) {
+      showError(error);
+    }
+  });
   $("add-task").addEventListener("click",()=>openTaskEditor());
   $("task-save").addEventListener("click",()=>saveTask().catch(showError));
   $("comment-add").addEventListener("click",()=>addComment().catch(showError));
