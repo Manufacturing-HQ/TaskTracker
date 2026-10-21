@@ -110,7 +110,7 @@
   }
 
   async function init(){
-    if(!token){window.location.replace("index.html");return;}
+    if(!token){window.location.replace("index.html?return_to="+encodeURIComponent((window.location.pathname.split("/").pop()||"")+window.location.search+window.location.hash));return;}
     try{
       $("app").hidden=false;
       await load();
