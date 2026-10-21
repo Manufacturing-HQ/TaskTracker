@@ -14,7 +14,7 @@
 
   async function init(){
     if(!token){
-      window.location.replace("index.html");
+      window.location.replace("index.html?return_to="+encodeURIComponent((window.location.pathname.split("/").pop()||"")+window.location.search+window.location.hash));
       return;
     }
     const {data,error}=await client.rpc("get_inventory_team_access",{p_session_token:token});
