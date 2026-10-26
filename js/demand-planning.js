@@ -438,14 +438,22 @@
     return "";
   }
 
+  function defaultWorkOrderJobTypeForDepartment(value) {
+    const dept=String(value||"").trim();
+    const key=dept.toUpperCase();
+    if (key.startsWith("BUILD LINE")) return "Build Line";
+    return dept;
+  }
+
   function defaultStageRow() {
     const dept=String(currentDetail?.summary?.work_order_department||"").trim();
+    const jobType=defaultWorkOrderJobTypeForDepartment(dept);
     return {
       quantity:"",
       work_order_type:"Production",
-      work_order_job_type:dept,
+      work_order_job_type:jobType,
       priority_department:"",
-      work_order_memo:workOrderMemoForJobType(dept)
+      work_order_memo:workOrderMemoForJobType(jobType)
     };
   }
 
