@@ -83,6 +83,7 @@
       exportButton.className = "secondary";
       exportButton.textContent = "Export CSV";
       exportButton.style.width = "100%";
+      exportButton.disabled = !!window.TaskTrackerReportingState?.loading;
       exportButton.addEventListener("click", () => exportCsv().catch((error) => alert(error.message)));
       runButton.parentElement?.insertAdjacentElement("afterend", (() => {
         const wrap = document.createElement("div");
