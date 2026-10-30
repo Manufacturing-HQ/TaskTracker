@@ -40,21 +40,19 @@
     try {
       const employeeId = $("report-employee")?.value || null;
       const mode = activeMode();
-      const rows = mode === "daily"
-        ? await rpc("get_reporting_daily", {
-            p_session_token: token,
-            p_start_date: start,
-            p_end_date: end,
-            p_employee_id: employeeId
-          })
-        : await rpc("get_reporting_weekly", {
-            p_session_token: token,
-            p_week_ending_start: start,
-            p_week_ending_end: end,
-            p_employee_id: employeeId
-          });
+      const state = window.TaskTrackerReportingState;
+      if (
+        !state?.loaded ||
+        state.loading ||
+        state.mode !== mode ||
+        state.start !== start ||
+        state.end !== end ||
+        (state.employeeId || null) !== employeeId
+      ) {
+        throw new Error("Run the report for the current filters before exporting.");
+      }
 
-      const data = Array.isArray(rows) ? rows : [];
+      const data = Array.isArray(state.rows) ? state.rows : [];
       const headers = mode === "daily"
         ? ["Date","Employee","Department","Supervisor","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"]
         : ["Week Ending","Employee","Department","Supervisor","First Activity","Last Activity","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"];
@@ -85,6 +83,7 @@
       exportButton.className = "secondary";
       exportButton.textContent = "Export CSV";
       exportButton.style.width = "100%";
+      exportButton.disabled = !!window.TaskTrackerReportingState?.loading;
       exportButton.addEventListener("click", () => exportCsv().catch((error) => alert(error.message)));
       runButton.parentElement?.insertAdjacentElement("afterend", (() => {
         const wrap = document.createElement("div");
@@ -95,6 +94,13 @@
       })());
     } catch {}
   }
+
+  window.addEventListener("tasktracker:report-loading", () => {
+    if (exportButton) exportButton.disabled = true;
+  });
+  window.addEventListener("tasktracker:report-loaded", () => {
+    if (exportButton) exportButton.disabled = false;
+  });
 
   new MutationObserver(() => install()).observe($("app"), { attributes: true, attributeFilter: ["hidden"] });
   setTimeout(install, 700);

@@ -16,6 +16,42 @@
   let setup = null;
   let mode = "daily";
 
+  const reportState = window.TaskTrackerReportingState = window.TaskTrackerReportingState || {
+    loaded: false,
+    loading: false,
+    mode: null,
+    start: null,
+    end: null,
+    employeeId: null,
+    rows: []
+  };
+
+  function beginReportState(start, end, employeeId) {
+    reportState.loaded = false;
+    reportState.loading = true;
+    reportState.mode = mode;
+    reportState.start = start;
+    reportState.end = end;
+    reportState.employeeId = employeeId || null;
+    reportState.rows = [];
+    window.dispatchEvent(new CustomEvent("tasktracker:report-loading", {
+      detail: { mode, start, end, employeeId: employeeId || null }
+    }));
+  }
+
+  function publishReportState(rows, start, end, employeeId) {
+    reportState.loaded = true;
+    reportState.loading = false;
+    reportState.mode = mode;
+    reportState.start = start;
+    reportState.end = end;
+    reportState.employeeId = employeeId || null;
+    reportState.rows = rows;
+    window.dispatchEvent(new CustomEvent("tasktracker:report-loaded", {
+      detail: reportState
+    }));
+  }
+
   function setMessage(message, type = "info") {
     const el = $("message");
     el.textContent = message || "";
@@ -214,9 +250,10 @@
       return;
     }
 
+    const employeeId = $("report-employee").value || null;
+    beginReportState(start, end, employeeId);
     setMessage(`Loading ${mode} reporting...`);
     try {
-      const employeeId = $("report-employee").value || null;
       const rows = mode === "daily"
         ? await rpc("get_reporting_daily", {
             p_session_token: sessionToken,
@@ -230,9 +267,14 @@
             p_week_ending_end: end,
             p_employee_id: employeeId
           });
-      renderTable(Array.isArray(rows) ? rows : []);
+      const normalizedRows = Array.isArray(rows) ? rows : [];
+      renderTable(normalizedRows);
+      publishReportState(normalizedRows, start, end, employeeId);
       setMessage("Reporting loaded.", "success");
     } catch (error) {
+      reportState.loading = false;
+      reportState.loaded = false;
+      reportState.rows = [];
       setMessage(error.message, "error");
     }
   }
