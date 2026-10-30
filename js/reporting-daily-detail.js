@@ -47,18 +47,20 @@
     return data;
   }
 
-  async function fetchRows() {
-    const token = sessionStorage.getItem(config.sessionStorageKey);
-    if (!token || !isDailyMode() || !startDate.value || !endDate.value) {
+  function syncRowsFromSharedState() {
+    const state = window.TaskTrackerReportingState;
+    const employeeId = reportEmployee?.value || null;
+    if (
+      !state?.loaded ||
+      state.mode !== "daily" ||
+      state.start !== startDate.value ||
+      state.end !== endDate.value ||
+      (state.employeeId || null) !== employeeId
+    ) {
       latestRows = [];
       return;
     }
-    latestRows = await rpc("get_reporting_daily", {
-      p_session_token: token,
-      p_start_date: startDate.value,
-      p_end_date: endDate.value,
-      p_employee_id: reportEmployee?.value || null
-    }) || [];
+    latestRows = Array.isArray(state.rows) ? state.rows : [];
   }
 
   function decorateRows() {
@@ -136,23 +138,23 @@
     wrap.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  async function syncAfterRender() {
-    try {
-      await fetchRows();
-      decorateRows();
-    } catch {
-      decorateRows();
-    }
+  function syncAfterRender() {
+    syncRowsFromSharedState();
+    decorateRows();
   }
 
   new MutationObserver(() => decorateRows()).observe(tableWrap, { childList: true, subtree: true });
-  runButton.addEventListener("click", () => setTimeout(syncAfterRender, 100));
-  dailyTab.addEventListener("click", () => setTimeout(syncAfterRender, 100));
-  document.getElementById("weekly-tab")?.addEventListener("click", () => {
+  window.addEventListener("tasktracker:report-loaded", () => syncAfterRender());
+  window.addEventListener("tasktracker:report-loading", () => {
+    latestRows = [];
     if (detailWrap) detailWrap.hidden = true;
-    setTimeout(decorateRows, 100);
+  });
+  dailyTab.addEventListener("click", () => setTimeout(syncAfterRender, 0));
+  document.getElementById("weekly-tab")?.addEventListener("click", () => {
+    latestRows = [];
+    if (detailWrap) detailWrap.hidden = true;
   });
 
-  window.addEventListener("pageshow", () => setTimeout(syncAfterRender, 300));
-  setTimeout(syncAfterRender, 500);
+  window.addEventListener("pageshow", () => setTimeout(syncAfterRender, 100));
+  setTimeout(syncAfterRender, 100);
 })();
