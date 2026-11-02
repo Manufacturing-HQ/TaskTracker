@@ -23,6 +23,18 @@
     .project-section .section-title{margin-bottom:12px}
     .project-description{white-space:pre-wrap;font-weight:850;line-height:1.45}
     .project-task-list .task-item{border:2px solid #94a3b8}
+    .project-task-list .task-item.done{opacity:1;background:#f8fafc;border-color:#cbd5e1}
+    .project-task-list .task-item.done>.card-title{color:#64748b}
+    .project-task-header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .completed-task-group{margin-top:16px;padding-top:14px;border-top:2px solid #e2e8f0}
+    .completed-task-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
+    .task-comments-panel{margin-top:12px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc}
+    .task-comments-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+    .task-comment-feed .feed-item{margin-bottom:8px;background:#fff}
+    .task-comment-empty{padding:12px}
+    .task-comment-composer{margin-top:10px;padding-top:10px;border-top:1px solid #dbe3ef}
+    .task-comment-composer textarea{width:100%;min-height:82px;border:1px solid #94a3b8;border-radius:9px;padding:9px;resize:vertical;background:#fff}
+    .task-comment-actions{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:8px;font-size:11px}
     .project-comments-toolbar{display:flex;justify-content:space-between;gap:14px;align-items:end;margin-bottom:12px}
     .project-comments-toolbar h2{margin:0;font-size:20px}
     .project-comments-toolbar .field{margin:0;min-width:150px}
@@ -123,8 +135,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/config.js"></script>
   <script src="js/task-tracker-navigation.js?v=shipping-team-main-route-20260928-2"></script>
-  <script src="js/work-hub.js?v=routine-delete-20260925-2"></script>
-  <script src="js/work-hub-attachments.js?v=work-hub-inline-20260904-1"></script>
+  <script src="js/work-hub.js?v=task-comments-completed-20261102-1"></script>
+  <script src="js/work-hub-attachments.js?v=task-comments-completed-20261102-1"></script>
   <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
 </html>

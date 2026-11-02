@@ -20,9 +20,11 @@
   let projects = [];
   let activeProject = null;
   let activeProjectDetail = null;
-  let queuedMentionIds = new Set();
+  const queuedMentionIdsByInput = new WeakMap();
   let projectCommentSort = "NEWEST";
   const projectSystemNotesVisibility = new Map();
+  const projectCompletedTasksVisibility = new Map();
+  const expandedTaskComments = new Set();
   let queueAssignmentSetup = null;
 
   const esc = (value) => String(value ?? "")
@@ -705,18 +707,92 @@
     $("mention-menu").hidden = true;
   }
 
+  function taskCommentsFor(taskId, updates) {
+    return updates
+      .filter((update) => update.update_type === "COMMENT" && String(update.project_task_id || "") === String(taskId))
+      .sort((a, b) => {
+        const aTime = new Date(a.created_at).getTime() || 0;
+        const bTime = new Date(b.created_at).getTime() || 0;
+        return aTime - bTime;
+      });
+  }
+
+  function renderProjectTask(task, updates, access) {
+    const taskId = String(task.project_task_id);
+    const comments = taskCommentsFor(taskId, updates);
+    const expanded = expandedTaskComments.has(taskId);
+    const completedMeta = task.status === "COMPLETE" && task.completed_at
+      ? ` · Completed ${esc(new Date(task.completed_at).toLocaleDateString())}`
+      : "";
+    const taskActions = [
+      `<button class="ghost small toggle-task-comments" data-id="${esc(taskId)}" type="button">${expanded ? "Hide Comments" : "Comments"} (${comments.length})</button>`,
+      task.can_edit ? `<button class="ghost small edit-project-task" data-id="${esc(taskId)}" type="button">Edit</button>` : "",
+      task.can_toggle
+        ? (task.status === "OPEN"
+          ? `<button class="success small complete-project-task" data-id="${esc(taskId)}" type="button">Complete</button>`
+          : `<button class="ghost small reopen-project-task" data-id="${esc(taskId)}" type="button">Reopen</button>`)
+        : ""
+    ].filter(Boolean).join("");
+
+    const commentsHtml = expanded ? `
+      <div class="task-comments-panel">
+        <div class="task-comments-head"><strong>Task Comments</strong><span class="muted">${comments.length} comment${comments.length === 1 ? "" : "s"}</span></div>
+        <div class="task-comment-feed">
+          ${comments.length
+            ? comments.map((update) => renderUpdate(update, !!access.can_pin_updates, false)).join("")
+            : '<div class="empty task-comment-empty">No comments on this task yet.</div>'}
+        </div>
+        ${access.can_comment ? `
+          <div class="task-comment-composer">
+            <div style="position:relative"><textarea data-task-comment-input="${esc(taskId)}" placeholder="Comment on this task. Type @ to mention someone."></textarea></div>
+            <div class="task-comment-actions"><span class="muted">This comment stays with this task.</span><button class="primary small post-task-comment" data-id="${esc(taskId)}" type="button">Post Comment</button></div>
+          </div>` : ""}
+      </div>` : "";
+
+    return `<div class="task-item ${task.status === "COMPLETE" ? "done" : ""}" data-project-task-id="${esc(taskId)}">
+      <div class="card-title">${esc(task.description)}</div>
+      <div class="muted" style="font-size:12px;margin-top:5px">${esc(task.assigned_employee_name)}${task.due_date ? ` · Due ${esc(task.due_date)}` : ""}${completedMeta}</div>
+      ${task.link_url ? `<div class="links"><a href="${esc(task.link_url)}" target="_blank" rel="noopener noreferrer">${esc(task.link_text || "Task Link")}</a></div>` : ""}
+      <div class="project-actions">${taskActions}</div>
+      ${commentsHtml}
+    </div>`;
+  }
+
   function renderProjectDrawer() {
     const project = activeProjectDetail.project;
     const access = activeProjectDetail.viewer_access || {};
     const tasks = activeProjectDetail.tasks || [];
     const updates = activeProjectDetail.updates || [];
-    const showSystemNotes = projectSystemNotesVisibility.get(String(project.project_id)) === true;
-    const visibleUpdates = updates.filter((update) => showSystemNotes || update.update_type !== "SYSTEM");
+    const projectId = String(project.project_id);
+    const showSystemNotes = projectSystemNotesVisibility.get(projectId) === true;
+    const showCompletedTasks = projectCompletedTasksVisibility.get(projectId) === true;
+    const activeTasks = tasks.filter((task) => task.status !== "COMPLETE");
+    const completedTasks = tasks.filter((task) => task.status === "COMPLETE");
+
+    const visibleUpdates = updates.filter((update) => {
+      if (update.update_type === "SYSTEM") return showSystemNotes;
+      return update.update_type === "COMMENT" && !update.project_task_id;
+    });
     const sortedUpdates = [...visibleUpdates].sort((a, b) => {
       const aTime = new Date(a.created_at).getTime() || 0;
       const bTime = new Date(b.created_at).getTime() || 0;
       return projectCommentSort === "OLDEST" ? aTime - bTime : bTime - aTime;
     });
+    const hiddenSystemCount = updates.filter((update) => update.update_type === "SYSTEM").length;
+    const projectCommentEmpty = showSystemNotes
+      ? '<div class="empty">No project comments or system notes yet.</div>'
+      : `<div class="empty">No project comments yet. Task-specific comments appear under Project Tasks.${hiddenSystemCount ? " Check Show System Notes to view automated project activity." : ""}</div>`;
+
+    const activeTaskHtml = activeTasks.length
+      ? activeTasks.map((task) => renderProjectTask(task, updates, access)).join("")
+      : `<div class="empty">No active project tasks.${completedTasks.length ? ` ${completedTasks.length} completed task${completedTasks.length === 1 ? " is" : "s are"} hidden below.` : ""}</div>`;
+
+    const completedTaskHtml = showCompletedTasks && completedTasks.length
+      ? `<div class="completed-task-group">
+          <div class="completed-task-heading"><strong>Completed Tasks (${completedTasks.length})</strong><span class="muted">Historical tasks and their comments remain available.</span></div>
+          ${completedTasks.map((task) => renderProjectTask(task, updates, access)).join("")}
+        </div>`
+      : "";
 
     $("drawer-content").innerHTML = `
       <section class="project-section project-summary-section">
@@ -727,31 +803,34 @@
 
       <section class="project-section project-comments-section">
         <div class="project-comments-toolbar">
-          <div><h2>Comments</h2><div class="muted">Project conversation. Automated task activity is hidden by default.</div></div>
+          <div><h2>Comments</h2><div class="muted">Overall project conversation. Task-specific comments live with each task.</div></div>
           <div style="display:flex;gap:14px;align-items:end;flex-wrap:wrap">
             <label style="display:flex;align-items:center;gap:7px;min-height:38px;font-size:12px;font-weight:850;white-space:nowrap"><input id="show-system-notes" type="checkbox" ${showSystemNotes ? "checked" : ""}> Show System Notes</label>
             <div class="field"><label>Sort Comments</label><select id="comment-sort"><option value="NEWEST" ${projectCommentSort === "NEWEST" ? "selected" : ""}>Newest to Oldest</option><option value="OLDEST" ${projectCommentSort === "OLDEST" ? "selected" : ""}>Oldest to Newest</option></select></div>
           </div>
         </div>
-        <div id="project-feed">${sortedUpdates.map((update) => renderUpdate(update, !!access.can_pin_updates)).join("") || (updates.length && !showSystemNotes ? '<div class="empty">No user comments yet. Check Show System Notes to view automated project activity.</div>' : '<div class="empty">No comments yet.</div>')}</div>
+        <div id="project-feed">${sortedUpdates.map((update) => renderUpdate(update, !!access.can_pin_updates)).join("") || projectCommentEmpty}</div>
       </section>
 
       <section class="project-section project-tasks-section">
-        <div class="section-title"><h2>Project Tasks</h2>${access.can_add_task ? '<button id="drawer-add-task" class="success small" type="button">+ Add Task</button>' : ""}</div>
-        <div id="drawer-task-list" class="project-task-list">${tasks.map((task) => `<div class="task-item ${task.status === "COMPLETE" ? "done" : ""}">
-          <div class="card-title">${esc(task.description)}</div>
-          <div class="muted" style="font-size:12px;margin-top:5px">${esc(task.assigned_employee_name)}${task.due_date ? ` · Due ${esc(task.due_date)}` : ""}</div>
-          ${task.link_url ? `<div class="links"><a href="${esc(task.link_url)}" target="_blank" rel="noopener noreferrer">${esc(task.link_text || "Task Link")}</a></div>` : ""}
-          ${(task.can_edit || task.can_toggle) ? `<div class="project-actions">${task.can_edit ? `<button class="ghost small edit-project-task" data-id="${esc(task.project_task_id)}" type="button">Edit</button>` : ""}${task.can_toggle ? (task.status === "OPEN" ? `<button class="success small complete-project-task" data-id="${esc(task.project_task_id)}" type="button">Complete</button>` : `<button class="ghost small reopen-project-task" data-id="${esc(task.project_task_id)}" type="button">Reopen</button>`) : ""}</div>` : ""}
-        </div>`).join("") || '<div class="empty">No project tasks yet.</div>'}</div>
+        <div class="section-title">
+          <div><h2>Project Tasks</h2><div class="muted">Completed tasks are hidden by default.</div></div>
+          <div class="project-task-header-actions">
+            ${completedTasks.length ? `<button id="toggle-completed-project-tasks" class="ghost small" type="button">${showCompletedTasks ? "Hide Completed" : `Show Completed (${completedTasks.length})`}</button>` : ""}
+            ${access.can_add_task ? '<button id="drawer-add-task" class="success small" type="button">+ Add Task</button>' : ""}
+          </div>
+        </div>
+        <div id="drawer-task-list" class="project-task-list">
+          <div class="active-task-group">${activeTaskHtml}</div>
+          ${completedTaskHtml}
+        </div>
       </section>
 
       <section class="project-section project-update-section">
-        <div class="section-title"><div><h2>Add Update</h2><div class="muted">General updates are the default. Choose a task only when the update is specifically about that task.</div></div></div>
+        <div class="section-title"><div><h2>Add Project Comment</h2><div class="muted">Use this for the overall project. Comment directly under a task when the conversation belongs to that task.</div></div></div>
         <div class="composer">
-          <div class="field" style="margin:0 0 10px"><label>Update Type</label><select id="comment-task"><option value="">General Update</option>${tasks.map((task) => `<option value="${esc(task.project_task_id)}">Task: ${esc(task.description)}</option>`).join("")}</select></div>
-          <div style="position:relative"><textarea id="project-comment" placeholder="Post an update. Type @ to mention someone."></textarea></div>
-          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px"><span class="muted" style="font-size:11px">Paste screenshots directly into this update, or attach a file.</span><button id="post-project-comment" class="primary small" type="button">Post Update</button></div>
+          <div style="position:relative"><textarea id="project-comment" placeholder="Post a project comment. Type @ to mention someone."></textarea></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px"><span class="muted" style="font-size:11px">Paste screenshots directly into this comment, or attach a file.</span><button id="post-project-comment" class="primary small" type="button">Post Comment</button></div>
         </div>
       </section>`;
 
@@ -759,6 +838,18 @@
       openProjectModal(projects.find((x) => x.project_id === project.project_id) || { ...project, can_edit_project: true });
     });
     $("drawer-add-task")?.addEventListener("click", () => openProjectTaskModal());
+    $("toggle-completed-project-tasks")?.addEventListener("click", () => {
+      projectCompletedTasksVisibility.set(projectId, !showCompletedTasks);
+      renderProjectDrawer();
+    });
+    $("drawer-content").querySelectorAll(".toggle-task-comments").forEach((el) => {
+      el.addEventListener("click", () => {
+        const taskId = String(el.dataset.id || "");
+        if (expandedTaskComments.has(taskId)) expandedTaskComments.delete(taskId);
+        else expandedTaskComments.add(taskId);
+        renderProjectDrawer();
+      });
+    });
     $("drawer-content").querySelectorAll(".edit-project-task").forEach((el) => {
       el.addEventListener("click", () => openProjectTaskModal(tasks.find((task) => task.project_task_id === el.dataset.id)));
     });
@@ -768,11 +859,17 @@
     $("drawer-content").querySelectorAll(".reopen-project-task").forEach((el) => {
       el.addEventListener("click", () => toggleProjectTask(el.dataset.id, false));
     });
+    $("drawer-content").querySelectorAll(".post-task-comment").forEach((el) => {
+      el.addEventListener("click", () => postTaskComment(el.dataset.id));
+    });
+    $("drawer-content").querySelectorAll("[data-task-comment-input]").forEach((el) => {
+      el.addEventListener("input", handleMentionInput);
+    });
     $("drawer-content").querySelectorAll(".pin-update").forEach((el) => {
       el.addEventListener("click", () => togglePin(el.dataset.id, el.dataset.pinned !== "true"));
     });
     $("show-system-notes")?.addEventListener("change", (event) => {
-      projectSystemNotesVisibility.set(String(project.project_id), !!event.target.checked);
+      projectSystemNotesVisibility.set(projectId, !!event.target.checked);
       renderProjectDrawer();
     });
     $("comment-sort")?.addEventListener("change", (event) => {
@@ -781,17 +878,19 @@
     });
     $("post-project-comment")?.addEventListener("click", postProjectUpdate);
     $("project-comment")?.addEventListener("input", handleMentionInput);
-    queuedMentionIds = new Set();
   }
 
-  function renderUpdate(update, canPin) {
-    const taskLabel = update.project_task_description ? `Task: ${update.project_task_description}` : "General Update";
+  function renderUpdate(update, canPin, showTaskContext = true) {
+    const taskLabel = showTaskContext
+      ? (update.project_task_description ? `Task: ${update.project_task_description}` : "Project Comment")
+      : "";
     const pin = update.is_pinned ? " 📌" : "";
     const attachments = (update.attachments || []).length
       ? `<div class="links">${update.attachments.map((attachment) => `<span>📎 ${esc(attachment.file_name)}</span>`).join("")}</div>`
       : "";
-    return `<article class="feed-item ${update.update_type === "SYSTEM" ? "system" : ""} ${update.is_pinned ? "pinned" : ""}">
-      <div class="feed-meta"><strong>${esc(update.update_type === "SYSTEM" ? "System" : update.author_name || "Unknown")}</strong> · ${esc(taskLabel)} · ${esc(new Date(update.created_at).toLocaleString())}${pin}</div>
+    const context = taskLabel ? ` · ${esc(taskLabel)}` : "";
+    return `<article class="feed-item ${update.update_type === "SYSTEM" ? "system" : ""} ${update.is_pinned ? "pinned" : ""}" data-update-id="${esc(update.update_id)}">
+      <div class="feed-meta"><strong>${esc(update.update_type === "SYSTEM" ? "System" : update.author_name || "Unknown")}</strong>${context} · ${esc(new Date(update.created_at).toLocaleString())}${pin}</div>
       <div style="white-space:pre-wrap">${esc(update.body)}</div>
       ${attachments}
       ${canPin && update.update_type === "COMMENT" ? `<div style="margin-top:8px"><button class="ghost small pin-update" type="button" data-id="${esc(update.update_id)}" data-pinned="${update.is_pinned ? "true" : "false"}">${update.is_pinned ? "Unpin" : "Pin Update"}</button></div>` : ""}
@@ -900,14 +999,19 @@
       const pos = start + insert.length;
       event.target.focus();
       event.target.setSelectionRange(pos, pos);
-      queuedMentionIds.add(button.dataset.id);
+      let ids = queuedMentionIdsByInput.get(event.target);
+      if (!ids) {
+        ids = new Set();
+        queuedMentionIdsByInput.set(event.target, ids);
+      }
+      ids.add(button.dataset.id);
       menu.hidden = true;
     }));
   }
 
-  function detectedMentionIds(text) {
+  function detectedMentionIds(text, input = null) {
     const lower = text.toLowerCase();
-    const ids = new Set([...queuedMentionIds]);
+    const ids = new Set(input ? [...(queuedMentionIdsByInput.get(input) || [])] : []);
     mentionPeople().forEach((person) => {
       if (lower.includes(`@${person.employee_name.toLowerCase()}`)) ids.add(person.employee_id);
     });
@@ -915,19 +1019,44 @@
   }
 
   async function postProjectUpdate() {
-    const body = $("project-comment").value.trim();
+    const input = $("project-comment");
+    const body = input.value.trim();
     if (!body) return;
     try {
       await rpc("add_work_hub_project_update", {
         p_session_token: sessionToken,
         p_project_id: activeProject.project_id,
-        p_project_task_id: $("comment-task").value || null,
+        p_project_task_id: null,
         p_body: body,
-        p_mention_employee_ids: detectedMentionIds(body)
+        p_mention_employee_ids: detectedMentionIds(body, input)
       });
-      $("project-comment").value = "";
-      queuedMentionIds = new Set();
+      input.value = "";
+      queuedMentionIdsByInput.delete(input);
       await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
+      setMessage("Project comment posted.", "success");
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function postTaskComment(taskId) {
+    const input = Array.from($("drawer-content").querySelectorAll("[data-task-comment-input]"))
+      .find((el) => String(el.dataset.taskCommentInput || "") === String(taskId));
+    const body = input?.value.trim() || "";
+    if (!body) return;
+
+    try {
+      await rpc("add_work_hub_project_update", {
+        p_session_token: sessionToken,
+        p_project_id: activeProject.project_id,
+        p_project_task_id: taskId,
+        p_body: body,
+        p_mention_employee_ids: detectedMentionIds(body, input)
+      });
+      queuedMentionIdsByInput.delete(input);
+      expandedTaskComments.add(String(taskId));
+      await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
+      setMessage("Task comment posted.", "success");
     } catch (error) {
       showError(error);
     }
