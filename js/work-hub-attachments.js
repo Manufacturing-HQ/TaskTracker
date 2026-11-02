@@ -473,7 +473,6 @@
   async function postWithAttachments(button) {
     const sessionToken = token();
     const textarea = document.getElementById("project-comment");
-    const taskSelect = document.getElementById("comment-task");
     if (!sessionToken || !activeProjectId || !textarea) {
       setMessage("Open the project again before posting this attachment.", "error");
       return;
@@ -490,7 +489,7 @@
       const result = await rpc("add_work_hub_project_update", {
         p_session_token: sessionToken,
         p_project_id: activeProjectId,
-        p_project_task_id: taskSelect?.value || null,
+        p_project_task_id: null,
         p_body: body,
         p_mention_employee_ids: await detectedMentionIds(body)
       });
