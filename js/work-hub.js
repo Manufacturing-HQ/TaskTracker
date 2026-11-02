@@ -999,14 +999,19 @@
       const pos = start + insert.length;
       event.target.focus();
       event.target.setSelectionRange(pos, pos);
-      queuedMentionIds.add(button.dataset.id);
+      let ids = queuedMentionIdsByInput.get(event.target);
+      if (!ids) {
+        ids = new Set();
+        queuedMentionIdsByInput.set(event.target, ids);
+      }
+      ids.add(button.dataset.id);
       menu.hidden = true;
     }));
   }
 
-  function detectedMentionIds(text) {
+  function detectedMentionIds(text, input = null) {
     const lower = text.toLowerCase();
-    const ids = new Set([...queuedMentionIds]);
+    const ids = new Set(input ? [...(queuedMentionIdsByInput.get(input) || [])] : []);
     mentionPeople().forEach((person) => {
       if (lower.includes(`@${person.employee_name.toLowerCase()}`)) ids.add(person.employee_id);
     });
@@ -1014,19 +1019,44 @@
   }
 
   async function postProjectUpdate() {
-    const body = $("project-comment").value.trim();
+    const input = $("project-comment");
+    const body = input.value.trim();
     if (!body) return;
     try {
       await rpc("add_work_hub_project_update", {
         p_session_token: sessionToken,
         p_project_id: activeProject.project_id,
-        p_project_task_id: $("comment-task").value || null,
+        p_project_task_id: null,
         p_body: body,
-        p_mention_employee_ids: detectedMentionIds(body)
+        p_mention_employee_ids: detectedMentionIds(body, input)
       });
-      $("project-comment").value = "";
-      queuedMentionIds = new Set();
+      input.value = "";
+      queuedMentionIdsByInput.delete(input);
       await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
+      setMessage("Project comment posted.", "success");
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function postTaskComment(taskId) {
+    const input = Array.from($("drawer-content").querySelectorAll("[data-task-comment-input]"))
+      .find((el) => String(el.dataset.taskCommentInput || "") === String(taskId));
+    const body = input?.value.trim() || "";
+    if (!body) return;
+
+    try {
+      await rpc("add_work_hub_project_update", {
+        p_session_token: sessionToken,
+        p_project_id: activeProject.project_id,
+        p_project_task_id: taskId,
+        p_body: body,
+        p_mention_employee_ids: detectedMentionIds(body, input)
+      });
+      queuedMentionIdsByInput.delete(input);
+      expandedTaskComments.add(String(taskId));
+      await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
+      setMessage("Task comment posted.", "success");
     } catch (error) {
       showError(error);
     }
