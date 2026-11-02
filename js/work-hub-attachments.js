@@ -384,7 +384,7 @@
 
   function enhanceExistingAttachments() {
     document.querySelectorAll(".feed-item").forEach((article) => {
-      const updateId = article.querySelector(".pin-update")?.dataset.id;
+      const updateId = article.dataset.updateId || article.querySelector(".pin-update")?.dataset.id;
       if (!updateId) return;
       const spans = Array.from(article.querySelectorAll(".links span"));
       spans.forEach((span, attachmentIndex) => {
