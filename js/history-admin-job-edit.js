@@ -168,7 +168,11 @@
     const canReassignEmployee = j.entry_source === "QA_MANUAL" && j.can_reassign_employee === true;
     currentItem = j.item_id ? { item_id: j.item_id, item_name: j.item_name } : null;
     const nonProductiveOptions = (options?.non_productive_tasks || []).map((x) => `<option value="${esc(x.non_productive_task_id)}" ${x.non_productive_task_id === j.non_productive_task_id ? "selected" : ""}>${esc(x.task_name)}</option>`).join("");
-    const builderOptions = (workspace?.builder_options || []).map((x) => `<option value="${esc(x.employee_id)}" ${x.employee_id === j.employee_id ? "selected" : ""}>${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
+    const builderRows = [...(workspace?.builder_options || [])];
+    if (j.employee_id && !builderRows.some((x) => x.employee_id === j.employee_id)) {
+      builderRows.unshift({ employee_id: j.employee_id, employee_name: j.employee_name, department: j.department });
+    }
+    const builderOptions = builderRows.map((x) => `<option value="${esc(x.employee_id)}" ${x.employee_id === j.employee_id ? "selected" : ""}>${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
     const employeeField = canReassignEmployee
       ? `<div class="full"><label>Employee / Builder</label><select id="history-edit-employee">${builderOptions}</select><div class="history-manual-note" style="margin-top:7px">Manual QA Entry: Employee/Builder can be corrected here because this record does not carry Task Tracker transaction time.</div></div>`
       : `<div class="full"><label>Employee / Builder</label><input class="history-readonly" value="${esc(j.employee_name || "—")}" readonly><div class="history-edit-note" style="margin:5px 0 0">Employee assignment is locked for standard Task Tracker jobs. Transaction times are corrected separately.</div></div>`;
