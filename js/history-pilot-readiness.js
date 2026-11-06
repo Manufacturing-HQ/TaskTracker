@@ -216,14 +216,6 @@
 })();
 
 (() => {
-  if (document.querySelector('script[data-pilot-helper="history-admin-edit"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/history-admin-job-edit.js";
-  script.dataset.pilotHelper = "history-admin-edit";
-  document.body.appendChild(script);
-})();
-
-(() => {
   if (document.querySelector('script[data-pilot-helper="history-job-reopen"]')) return;
   const script = document.createElement("script");
   script.src = "js/history-job-reopen.js";
