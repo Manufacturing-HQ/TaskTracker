@@ -37,6 +37,7 @@
     return {date:`${map.year}-${map.month}-${map.day}`,hour:String(Number(map.hour)),minute:map.minute,period:(map.dayPeriod||"AM").toUpperCase()};
   }
 
+  function formatTransactionDateTime(iso){if(!iso)return"—";const d=new Date(iso);if(Number.isNaN(d.getTime()))return String(iso);return new Intl.DateTimeFormat("en-US",{timeZone:REPORTING_TIME_ZONE,month:"numeric",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit",hour12:true}).format(d);}
   function hourOptions(selected){return '<option value="">Hour</option>'+Array.from({length:12},(_,i)=>i+1).map(h=>`<option value="${h}" ${String(h)===String(selected)?"selected":""}>${h}</option>`).join("");}
   function periodOptions(selected){return `<option value="">AM/PM</option><option value="AM" ${selected==="AM"?"selected":""}>AM</option><option value="PM" ${selected==="PM"?"selected":""}>PM</option>`;}
   function dateTimeFields(prefix,label,parts){
@@ -82,8 +83,8 @@
         return;
       }
       const data=await rpc("get_history_session_corrections",{p_session_token:token(),p_employee_id:employeeId,p_start_date:startDate,p_end_date:endDate});
-      records=data?.records||[];
-      const rows=records.map((r,i)=>`<tr><td>${esc(r.start_local||"—")}</td><td>${r.is_open?'<span class="tx-open">OPEN</span>':esc(r.end_local||"—")}</td><td>${esc(r.task_type||"—")}</td><td><strong>${esc(r.item_name||"—")}</strong><div class="subtle">${r.work_order_number?`WO ${esc(r.work_order_number)}`:""}</div></td><td>${r.duration_minutes==null?"—":esc(r.duration_minutes)}</td><td>${esc(r.stop_reason||"—")}</td><td><div class="tx-action-group"><button class="ghost" data-tx-index="${i}" data-tx-action="${r.is_open?"force":"edit"}" type="button">${r.is_open?"Force Stop":"Edit Times"}</button>${r.is_open?"":`<button class="ghost" data-tx-index="${i}" data-tx-action="split" type="button">Insert Stop / Resume</button>`}</div></td></tr>`).join("");
+      records=[...(data?.records||[])].sort((a,b)=>(new Date(a.started_at).getTime()||0)-(new Date(b.started_at).getTime()||0));
+      const rows=records.map((r,i)=>`<tr><td>${esc(formatTransactionDateTime(r.started_at))}</td><td>${r.is_open?'<span class="tx-open">OPEN</span>':esc(formatTransactionDateTime(r.ended_at))}</td><td>${esc(r.task_type||"—")}</td><td><strong>${esc(r.item_name||"—")}</strong><div class="subtle">${r.work_order_number?`WO ${esc(r.work_order_number)}`:""}</div></td><td>${r.duration_minutes==null?"—":esc(r.duration_minutes)}</td><td>${esc(r.stop_reason||"—")}</td><td><div class="tx-action-group"><button class="ghost" data-tx-index="${i}" data-tx-action="${r.is_open?"force":"edit"}" type="button">${r.is_open?"Force Stop":"Edit Times"}</button>${r.is_open?"":`<button class="ghost" data-tx-index="${i}" data-tx-action="split" type="button">Insert Stop / Resume</button>`}</div></td></tr>`).join("");
       host.innerHTML=`<table class="tx-table"><thead><tr><th>Start</th><th>Stop</th><th>Task Type</th><th>Item / WO</th><th>Minutes</th><th>Stop Reason</th><th>Action</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="empty">No transactions found.</td></tr>'}</tbody></table>`;
       host.querySelectorAll("[data-tx-index]").forEach(b=>b.addEventListener("click",()=>{
         const r=records[Number(b.dataset.txIndex)];
@@ -98,7 +99,7 @@
     bg.className="tx-modal-bg";
     if(r.is_open){
       const start=zonedParts(r.started_at);
-      bg.innerHTML=`<div class="tx-modal"><h2 style="margin-top:0">Force Stop Transaction</h2><div class="tx-note">Started ${esc(r.start_local)} · ${esc(r.item_name||r.task_type||"Task")}</div>${dateTimeFields("tx-force-end","Correct Stop",{date:start?.date})}<label>Correction Reason</label><textarea id="tx-reason" rows="3" required placeholder="Why is this time being corrected?"></textarea><label>Comments (optional)</label><textarea id="tx-comments" rows="2"></textarea><div id="tx-modal-msg" class="tx-note"></div><div class="tx-actions"><button class="ghost" id="tx-cancel" type="button">Cancel</button><button class="primary" id="tx-save" type="button">Force Stop</button></div></div>`;
+      bg.innerHTML=`<div class="tx-modal"><h2 style="margin-top:0">Force Stop Transaction</h2><div class="tx-note">Started ${esc(formatTransactionDateTime(r.started_at))} · ${esc(r.item_name||r.task_type||"Task")}</div>${dateTimeFields("tx-force-end","Correct Stop",{date:start?.date})}<label>Correction Reason</label><textarea id="tx-reason" rows="3" required placeholder="Why is this time being corrected?"></textarea><label>Comments (optional)</label><textarea id="tx-comments" rows="2"></textarea><div id="tx-modal-msg" class="tx-note"></div><div class="tx-actions"><button class="ghost" id="tx-cancel" type="button">Cancel</button><button class="primary" id="tx-save" type="button">Force Stop</button></div></div>`;
       document.body.appendChild(bg);
       bg.querySelector("#tx-cancel").onclick=()=>bg.remove();
       bg.querySelector("#tx-save").onclick=async()=>{
@@ -212,14 +213,6 @@
   const historyList=document.getElementById("employee-list");
   if(historyList) new MutationObserver(scheduleHistoryDecoration).observe(historyList,{childList:true,subtree:true});
   setTimeout(init,800);
-})();
-
-(() => {
-  if (document.querySelector('script[data-pilot-helper="history-admin-edit"]')) return;
-  const script = document.createElement("script");
-  script.src = "js/history-admin-job-edit.js";
-  script.dataset.pilotHelper = "history-admin-edit";
-  document.body.appendChild(script);
 })();
 
 (() => {

@@ -4,7 +4,8 @@
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
   const list = document.getElementById("employee-list");
-  if (!config || !supabaseLib || !list) return;
+  const productiveTable = document.getElementById("productive-table");
+  if (!config || !supabaseLib || (!list && !productiveTable)) return;
 
   const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
@@ -18,7 +19,7 @@
 
   const style = document.createElement("style");
   style.textContent = `
-    .history-admin-edit-row{display:flex;justify-content:flex-end;margin-bottom:10px}.history-admin-edit{font-size:12px}
+    .history-admin-edit-row{display:flex;justify-content:flex-end;margin-bottom:10px}.history-admin-edit{font-size:12px}.history-productive-edit-cell{white-space:nowrap}.history-manual-note{padding:9px 10px;border:1px solid #c4b5fd;border-radius:9px;background:#f5f3ff;color:#5b21b6;font-size:12px;font-weight:800}
     .history-edit-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.65);display:grid;place-items:center;padding:20px;z-index:1000}.history-edit-modal{width:min(780px,96vw);max-height:92vh;overflow:auto;background:#fff;border:2px solid #64748b;border-radius:16px;padding:20px}.history-edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.history-edit-grid .full{grid-column:1/-1}.history-edit-grid label{display:block;font-size:12px;font-weight:800;margin-bottom:5px}.history-edit-grid input,.history-edit-grid select,.history-edit-grid textarea{width:100%;border:1px solid #94a3b8;border-radius:9px;padding:9px 10px;background:#fff}.history-edit-grid textarea{min-height:100px;resize:vertical}.history-item-results{max-height:180px;overflow:auto;border:1px solid #cbd5e1;border-radius:9px;margin-top:6px}.history-item-result{display:block;width:100%;border:0;border-bottom:1px solid #e2e8f0;background:#fff;padding:9px;text-align:left;cursor:pointer}.history-item-result:hover{background:#f8fafc}.history-edit-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}.history-edit-note{font-size:12px;color:#64748b;margin:-6px 0 14px}.history-readonly{background:#f1f5f9!important;color:#475569}
     @media(max-width:700px){.history-edit-grid{grid-template-columns:1fr}.history-edit-grid .full{grid-column:auto}}
   `;
@@ -94,6 +95,43 @@
     }
   }
 
+  function decorateProductive() {
+    if (!canEditHistory || !productiveTable || !token()) return;
+    const table = productiveTable.querySelector("table");
+    if (!table) return;
+
+    const headerRow = table.querySelector("thead tr");
+    if (headerRow && !headerRow.querySelector("[data-history-edit-head]")) {
+      const th = document.createElement("th");
+      th.dataset.historyEditHead = "1";
+      th.textContent = "Correction";
+      headerRow.appendChild(th);
+    }
+
+    const rows = [...table.querySelectorAll("tbody tr[data-productive-job-id]")];
+    rows.forEach((row) => {
+      if (row.dataset.adminEditDecorated === "1") return;
+      row.dataset.adminEditDecorated = "1";
+      const td = document.createElement("td");
+      td.className = "history-productive-edit-cell";
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "ghost history-admin-edit";
+      button.textContent = "Edit Job Details";
+      button.onclick = () => openEditor({ job_id: row.dataset.productiveJobId }).catch((e) => showPageMessage(e.message, "error"));
+      td.appendChild(button);
+      row.appendChild(td);
+    });
+
+    const emptyRow = table.querySelector("tbody tr:not([data-productive-job-id]) td[colspan]");
+    if (emptyRow) emptyRow.colSpan = Math.max(Number(emptyRow.colSpan) || 12, 13);
+  }
+
+  function decorateAll() {
+    decorate();
+    decorateProductive();
+  }
+
   async function searchItems(modal) {
     const q = modal.querySelector("#history-edit-item-search")?.value.trim();
     if (!q) return;
@@ -116,9 +154,10 @@
   }
 
   async function openEditor(job) {
-    const [j, options] = await Promise.all([
+    const [j, options, workspace] = await Promise.all([
       rpc("get_history_job_edit_context", { p_session_token: token(), p_job_id: job.job_id }),
-      rpc("get_start_task_options_v2", { p_session_token: token(), p_department: null, p_make: null })
+      rpc("get_start_task_options_v2", { p_session_token: token(), p_department: null, p_make: null }),
+      rpc("get_history_workspace_options", { p_session_token: token() })
     ]);
     if (!j?.job_id) throw new Error("Unable to load the selected Job details.");
 
@@ -126,8 +165,17 @@
     if (!fixedTask?.task_type_id) throw new Error("The existing Task Type could not be resolved.");
 
     const isProductive = j.task_type_name === "Productive";
+    const canReassignEmployee = j.entry_source === "QA_MANUAL" && j.can_reassign_employee === true;
     currentItem = j.item_id ? { item_id: j.item_id, item_name: j.item_name } : null;
     const nonProductiveOptions = (options?.non_productive_tasks || []).map((x) => `<option value="${esc(x.non_productive_task_id)}" ${x.non_productive_task_id === j.non_productive_task_id ? "selected" : ""}>${esc(x.task_name)}</option>`).join("");
+    const builderRows = [...(workspace?.builder_options || [])];
+    if (j.employee_id && !builderRows.some((x) => x.employee_id === j.employee_id)) {
+      builderRows.unshift({ employee_id: j.employee_id, employee_name: j.employee_name, department: j.department });
+    }
+    const builderOptions = builderRows.map((x) => `<option value="${esc(x.employee_id)}" ${x.employee_id === j.employee_id ? "selected" : ""}>${esc([x.employee_name,x.department].filter(Boolean).join(" · "))}</option>`).join("");
+    const employeeField = canReassignEmployee
+      ? `<div class="full"><label>Employee / Builder</label><select id="history-edit-employee">${builderOptions}</select><div class="history-manual-note" style="margin-top:7px">Manual QA Entry: Employee/Builder can be corrected here because this record does not carry Task Tracker transaction time.</div></div>`
+      : `<div class="full"><label>Employee / Builder</label><input class="history-readonly" value="${esc(j.employee_name || "—")}" readonly><div class="history-edit-note" style="margin:5px 0 0">Employee assignment is locked for standard Task Tracker jobs. Transaction times are corrected separately.</div></div>`;
 
     const productiveFields = isProductive ? `
       <div class="full"><label>Item Search</label><input id="history-edit-item-search" value="${esc(j.item_name || "")}" placeholder="Search item or Internal ID"><div id="history-edit-item-results" class="history-item-results"></div><div id="history-edit-selected-item" style="font-size:12px;color:#64748b;margin-top:5px">Selected: ${esc(j.item_name || "—")}</div></div>
@@ -141,6 +189,7 @@
     backdrop.className = "history-edit-backdrop";
     backdrop.innerHTML = `<div class="history-edit-modal"><h2 style="margin-top:0">Edit Job #${esc(j.job_number)}</h2><div class="history-edit-note">Audited History correction. Task Type is locked. Saving recalculates dependent values and writes a structured correction audit.</div><div class="history-edit-grid">
       <div class="full"><label>Task Type</label><input class="history-readonly" value="${esc(j.task_type_name)}" readonly></div>
+      ${employeeField}
       <div class="full"><label>Correction Reason</label><input id="history-edit-reason" placeholder="Required"></div>
       ${productiveFields}
       <div class="full"><label>Job Comments</label><textarea id="history-edit-comments">${esc(j.comments || "")}</textarea></div>
@@ -185,11 +234,12 @@
       save.disabled = true;
       save.textContent = "Saving...";
       try {
-        await rpc("edit_history_job_v2", {
+        await rpc("edit_history_job_v3", {
           p_session_token: token(),
           p_job_id: j.job_id,
           p_correction_reason: reason,
           p_task_type_id: fixedTask.task_type_id,
+          p_employee_id: canReassignEmployee ? modal.querySelector("#history-edit-employee").value : j.employee_id,
           p_assigned_quantity: isProductive ? Number(modal.querySelector("#history-edit-qty").value) : null,
           p_item_id: isProductive ? currentItem.item_id : null,
           p_item_not_listed_detail: isProductive ? (j.item_not_listed_detail || null) : null,
@@ -201,7 +251,8 @@
         });
         backdrop.remove();
         showPageMessage("Job details corrected and audit record created.", "success");
-        document.getElementById("employee-load")?.click();
+        if (document.getElementById("productive-history-view")?.hidden === false) document.getElementById("productive-load")?.click();
+        else document.getElementById("employee-load")?.click();
       } catch (e) {
         msg.textContent = e.message;
         msg.dataset.type = "error";
@@ -222,7 +273,7 @@
       canEditHistory = Boolean(await rpc("can_correct_history_jobs", {
         p_session_token: t
       }));
-      if (canEditHistory) decorate();
+      if (canEditHistory) decorateAll();
       return canEditHistory;
     } catch {
       canEditHistory = false;
@@ -233,11 +284,12 @@
   const observer = new MutationObserver(() => {
     clearTimeout(decorateTimer);
     decorateTimer = setTimeout(() => {
-      if (canEditHistory) decorate();
+      if (canEditHistory) decorateAll();
       else initAdmin();
     }, 160);
   });
-  observer.observe(list, { childList: true, subtree: true });
+  if (list) observer.observe(list, { childList: true, subtree: true });
+  if (productiveTable) observer.observe(productiveTable, { childList: true, subtree: true });
 
   let tries = 0;
   const timer = setInterval(() => {
