@@ -56,9 +56,9 @@
     window.scrollTo({top:0,behavior:"smooth"});
   }
 
-  function isPriorityStandardJobType(jobType){
+  function isComponentMatchJobType(jobType){
     const value=String(jobType||"").trim().toLowerCase();
-    return value==="priority standard"||value==="nib"||value==="new in bag";
+    return value==="priority standard"||value==="nib"||value==="new in bag"||value==="aftermarket";
   }
 
   function rowHasUserWork(row){
@@ -181,7 +181,7 @@
     const raw=String(name||"").trim();
     if(!raw) return null;
 
-    if(isPriorityStandardJobType(jobType)&&/^u/i.test(raw)){
+    if(isComponentMatchJobType(jobType)&&/^u/i.test(raw)){
       const finishedName=raw.slice(1).trim();
       const finished=itemMap.get(finishedName.toLowerCase())||null;
       if(finished){
@@ -299,7 +299,7 @@
             if(resolved?.matched_from_component){
               rows[index].item_name=resolved.item.item_name;
               rows[index].matched_from_component=resolved.matched_from_component;
-            }else if(!isPriorityStandardJobType(input.value)){
+            }else if(!isComponentMatchJobType(input.value)){
               rows[index].matched_from_component="";
             }
             saveDraft();
