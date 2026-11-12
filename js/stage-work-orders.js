@@ -17,6 +17,9 @@
   let itemMap=new Map();
   let rows=[];
   let queue=[];
+  let draftKey=null;
+  let allowNextUnload=false;
+  const DRAFT_VERSION=1;
 
   function esc(value){
     return String(value??"")
@@ -53,6 +56,171 @@
     window.scrollTo({top:0,behavior:"smooth"});
   }
 
+  function isPriorityStandardJobType(jobType){
+    const value=String(jobType||"").trim().toLowerCase();
+    return value==="priority standard"||value==="nib"||value==="new in bag";
+  }
+
+  function rowHasUserWork(row){
+    if(!row) return false;
+    const item=String(row.item_name||"").trim();
+    const qty=String(row.quantity??"").trim();
+    const dept=String(row.priority_department||"").trim();
+    const memo=String(row.work_order_memo||"").trim();
+    const expectedMemo=memoForJobType(row.work_order_job_type);
+    return Boolean(item||qty||dept||(memo&&memo!==expectedMemo));
+  }
+
+  function hasUnsubmittedWork(){
+    return rows.some(rowHasUserWork);
+  }
+
+  function setDraftStatus(text,saved=false){
+    const el=$("draft-status");
+    if(!el) return;
+    el.textContent=text;
+    el.classList.toggle("saved",Boolean(saved));
+  }
+
+  function clearDraft(){
+    if(draftKey){
+      try{localStorage.removeItem(draftKey);}catch{}
+    }
+    setDraftStatus("Draft autosave ready",false);
+  }
+
+  function saveDraft(){
+    if(!draftKey) return;
+    if(!hasUnsubmittedWork()){
+      clearDraft();
+      return;
+    }
+    try{
+      const payload={
+        version:DRAFT_VERSION,
+        saved_at:new Date().toISOString(),
+        defaults:{
+          work_order_type:$("default-wo-type")?.value||"Production",
+          work_order_job_type:$("default-job-type")?.value||"Build Line"
+        },
+        rows:rows.map((row)=>({
+          item_name:String(row.item_name||""),
+          matched_from_component:String(row.matched_from_component||""),
+          quantity:String(row.quantity??""),
+          work_order_type:String(row.work_order_type||"Production"),
+          work_order_job_type:String(row.work_order_job_type||""),
+          priority_department:String(row.priority_department||""),
+          work_order_memo:String(row.work_order_memo||"")
+        }))
+      };
+      localStorage.setItem(draftKey,JSON.stringify(payload));
+      setDraftStatus("Draft saved "+new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"}),true);
+    }catch(error){
+      console.warn("Stage Work Orders draft save failed:",error);
+      setDraftStatus("Draft could not be saved",false);
+    }
+  }
+
+  function restoreDraft(){
+    if(!draftKey) return false;
+    let saved;
+    try{
+      const raw=localStorage.getItem(draftKey);
+      if(!raw) return false;
+      saved=JSON.parse(raw);
+    }catch(error){
+      console.warn("Stage Work Orders draft restore failed:",error);
+      clearDraft();
+      return false;
+    }
+    if(saved?.version!==DRAFT_VERSION||!Array.isArray(saved.rows)){
+      clearDraft();
+      return false;
+    }
+
+    const jobTypes=Array.isArray(bootstrap?.job_types)?bootstrap.job_types:[];
+    const priorityDepartments=Array.isArray(bootstrap?.priority_departments)?bootstrap.priority_departments:[];
+    const defaultJobType=jobTypes.includes(saved?.defaults?.work_order_job_type)
+      ? saved.defaults.work_order_job_type
+      : ($("default-job-type")?.value||jobTypes[0]||"Build Line");
+    const defaultWoType=["Production","Priority"].includes(saved?.defaults?.work_order_type)
+      ? saved.defaults.work_order_type
+      : "Production";
+
+    if($("default-wo-type")) $("default-wo-type").value=defaultWoType;
+    if($("default-job-type")&&jobTypes.includes(defaultJobType)) $("default-job-type").value=defaultJobType;
+
+    rows=saved.rows.map((row)=>{
+      const jobType=jobTypes.includes(row?.work_order_job_type)?row.work_order_job_type:defaultJobType;
+      return {
+        item_name:String(row?.item_name||""),
+        matched_from_component:String(row?.matched_from_component||""),
+        quantity:String(row?.quantity??""),
+        work_order_type:["Production","Priority"].includes(row?.work_order_type)?row.work_order_type:defaultWoType,
+        work_order_job_type:jobType,
+        priority_department:priorityDepartments.includes(row?.priority_department)?row.priority_department:"",
+        work_order_memo:String(row?.work_order_memo||memoForJobType(jobType))
+      };
+    });
+
+    if(!rows.length) rows=[emptyRow()];
+    if(!hasUnsubmittedWork()){
+      clearDraft();
+      return false;
+    }
+
+    const savedAt=saved.saved_at?new Date(saved.saved_at):null;
+    const savedLabel=savedAt&&!Number.isNaN(savedAt.getTime())
+      ? savedAt.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})
+      : "earlier";
+    setDraftStatus("Draft restored from "+savedLabel,true);
+    return true;
+  }
+
+  function resolveItemInput(name,jobType){
+    const raw=String(name||"").trim();
+    if(!raw) return null;
+
+    if(isPriorityStandardJobType(jobType)&&/^u/i.test(raw)){
+      const finishedName=raw.slice(1).trim();
+      const finished=itemMap.get(finishedName.toLowerCase())||null;
+      if(finished){
+        return {item:finished,matched_from_component:raw};
+      }
+    }
+
+    const exact=itemMap.get(raw.toLowerCase())||null;
+    return exact?{item:exact,matched_from_component:null}:null;
+  }
+
+  function applyItemInputResolution(row,input,tr){
+    const raw=String(input.value||"").trim();
+    row.item_name=input.value;
+    row.matched_from_component="";
+
+    const resolved=resolveItemInput(raw,row.work_order_job_type);
+    if(resolved?.matched_from_component){
+      row.item_name=resolved.item.item_name;
+      row.matched_from_component=resolved.matched_from_component;
+      input.value=resolved.item.item_name;
+    }
+
+    const note=tr.querySelector(".item-match-note");
+    if(note){
+      note.hidden=!row.matched_from_component;
+      note.textContent=row.matched_from_component
+        ?"Matched from component: "+row.matched_from_component
+        :"";
+    }
+  }
+
+  function confirmPageLeave(){
+    if(!hasUnsubmittedWork()) return true;
+    return window.confirm(
+      "You have unsubmitted Work Order rows. Your draft is saved and will be restored when you return. Leave this page?"
+    );
+  }
+
   function memoForJobType(jobType){
     switch(String(jobType||"").trim()){
       case "Aftermarket":
@@ -73,6 +241,7 @@
     const jobType=$("default-job-type")?.value||"Build Line";
     return {
       item_name:"",
+      matched_from_component:"",
       quantity:"",
       work_order_type:$("default-wo-type")?.value||"Production",
       work_order_job_type:jobType,
@@ -84,6 +253,7 @@
   function addRows(count=1){
     for(let i=0;i<count;i++) rows.push(emptyRow());
     renderEntryRows();
+    saveDraft();
   }
 
   function renderJobTypeOptions(selected){
@@ -100,7 +270,7 @@
     $("entry-body").innerHTML=rows.map((row,index)=>
       '<tr data-entry-index="'+index+'">'+
         '<td>'+(index+1)+'</td>'+
-        '<td><input class="item-input" list="item-list" data-field="item_name" value="'+esc(row.item_name)+'" placeholder="Search Item"></td>'+
+        '<td><div class="item-entry-wrap"><input class="item-input" list="item-list" data-field="item_name" value="'+esc(row.item_name)+'" placeholder="Search Item"><div class="item-match-note" '+(row.matched_from_component?"":"hidden")+'>'+esc(row.matched_from_component?"Matched from component: "+row.matched_from_component:"")+'</div></div></td>'+
         '<td><div class="qty-fill-wrap"><input class="qty-input" type="number" min="1" step="1" data-field="quantity" value="'+esc(row.quantity)+'"><button class="qty-fill-handle" type="button" data-fill-qty="'+index+'" title="Fill this quantity down into blank rows" aria-label="Fill quantity down"></button></div></td>'+
         '<td><select data-field="work_order_type"><option value="Production" '+(row.work_order_type==="Production"?"selected":"")+'>Production</option><option value="Priority" '+(row.work_order_type==="Priority"?"selected":"")+'>Priority</option></select></td>'+
         '<td><select class="job-input" data-field="work_order_job_type">'+renderJobTypeOptions(row.work_order_job_type)+'</select></td>'+
@@ -113,22 +283,33 @@
     $("entry-body").querySelectorAll("[data-entry-index]").forEach((tr)=>{
       const index=Number(tr.dataset.entryIndex);
       tr.querySelectorAll("[data-field]").forEach((input)=>{
-        input.addEventListener("input",()=>{
+        const update=()=>{
           const field=input.dataset.field;
+          if(field==="item_name"){
+            applyItemInputResolution(rows[index],input,tr);
+            saveDraft();
+            return;
+          }
+
           rows[index][field]=input.value;
           if(field==="work_order_job_type"){
             rows[index].work_order_memo=memoForJobType(input.value);
+            const sourceName=rows[index].matched_from_component||rows[index].item_name;
+            const resolved=resolveItemInput(sourceName,input.value);
+            if(resolved?.matched_from_component){
+              rows[index].item_name=resolved.item.item_name;
+              rows[index].matched_from_component=resolved.matched_from_component;
+            }else if(!isPriorityStandardJobType(input.value)){
+              rows[index].matched_from_component="";
+            }
+            saveDraft();
             renderEntryRows();
+            return;
           }
-        });
-        input.addEventListener("change",()=>{
-          const field=input.dataset.field;
-          rows[index][field]=input.value;
-          if(field==="work_order_job_type"){
-            rows[index].work_order_memo=memoForJobType(input.value);
-            renderEntryRows();
-          }
-        });
+          saveDraft();
+        };
+        input.addEventListener("input",update);
+        input.addEventListener("change",update);
       });
     });
 
@@ -137,6 +318,7 @@
         const index=Number(button.dataset.duplicate);
         rows.splice(index+1,0,{...rows[index]});
         renderEntryRows();
+        saveDraft();
       });
     });
 
@@ -145,6 +327,7 @@
         rows.splice(Number(button.dataset.remove),1);
         if(!rows.length) rows.push(emptyRow());
         renderEntryRows();
+        saveDraft();
       });
     });
 
@@ -168,6 +351,7 @@
           return;
         }
         renderEntryRows();
+        saveDraft();
         setMessage("Filled Quantity "+value+" into "+filled+" blank row"+(filled===1?"":"s")+".","success");
       });
     });
@@ -183,8 +367,12 @@
       const hasAnything=[row.item_name,row.quantity].some((v)=>String(v??"").trim()!=="");
       if(!hasAnything) continue;
 
-      const item=resolveItem(row.item_name);
-      if(!item) throw new Error('Item "'+row.item_name+'" does not exactly match an active Item.');
+      const resolved=resolveItemInput(
+        row.matched_from_component||row.item_name,
+        row.work_order_job_type
+      );
+      const item=resolved?.item||resolveItem(row.item_name);
+      if(!item) throw new Error('Item "'+row.item_name+'" does not match an active Item.');
       if(!(Number(row.quantity)>0)) throw new Error(item.item_name+" needs a Quantity greater than zero.");
       if(!String(row.work_order_job_type||"").trim()) throw new Error(item.item_name+" needs a Work Order Job Type.");
 
@@ -208,6 +396,7 @@
       });
       setMessage(result.inserted_count+" Work Order row(s) staged as Pending Import.","success");
       rows=[emptyRow()];
+      clearDraft();
       renderEntryRows();
       await loadQueue();
     }finally{
@@ -336,9 +525,14 @@
     $("default-job-type").innerHTML=(bootstrap.job_types||[]).map((v)=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join("");
     $("item-list").innerHTML=items.map((item)=>'<option value="'+esc(item.item_name)+'"></option>').join("");
 
-    rows=[emptyRow()];
+    draftKey="task-tracker:stage-work-orders:draft:"+(bootstrap?.viewer?.employee_id||"unknown");
+    const restored=restoreDraft();
+    if(!restored) rows=[emptyRow()];
     renderEntryRows();
     renderQueue();
+    if(restored){
+      setMessage("Restored "+rows.filter(rowHasUserWork).length+" unsubmitted Work Order row(s) from your saved draft.","success");
+    }
   }
 
   async function init(){
@@ -360,9 +554,38 @@
   $("add-row-bottom").addEventListener("click",()=>addRows(1));
   $("add-five").addEventListener("click",()=>addRows(5));
   $("stage-rows").addEventListener("click",()=>stageRows().catch(showError));
-  $("default-job-type").addEventListener("change",()=>{});
+  $("default-wo-type").addEventListener("change",saveDraft);
+  $("default-job-type").addEventListener("change",saveDraft);
   $("export-selected").addEventListener("click",()=>{try{exportSelected();}catch(error){showError(error);}});
   $("mark-imported").addEventListener("click",()=>markImported().catch(showError));
+
+  document.addEventListener("click",(event)=>{
+    const link=event.target.closest?.("a[href]");
+    if(!link||link.target==="_blank"||allowNextUnload||!hasUnsubmittedWork()) return;
+    if(!confirmPageLeave()){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    allowNextUnload=true;
+  },true);
+
+  $("sign-out")?.addEventListener("click",(event)=>{
+    if(allowNextUnload||!hasUnsubmittedWork()) return;
+    if(!confirmPageLeave()){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    allowNextUnload=true;
+  },true);
+
+  window.addEventListener("beforeunload",(event)=>{
+    if(allowNextUnload||!hasUnsubmittedWork()) return;
+    saveDraft();
+    event.preventDefault();
+    event.returnValue="";
+  });
 
   init();
 })();
