@@ -794,7 +794,7 @@
       const historicalCount = Number(category.historical_project_count || 0);
       const deleteLabel = activeCount > 0 ? "In Use (" + activeCount + ")" : (historicalCount > 0 ? "Archive" : "Delete");
       return '<div class="project-category-row" data-category-id="'+esc(category.category_id)+'" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:8px">'+
-        '<input class="project-category-name" value="'+esc(category.name)+'" aria-label="Category name">'+
+        '<input class="project-category-name" style="width:100%;min-height:38px;border:1px solid #94a3b8;border-radius:8px;padding:7px 9px" value="'+esc(category.name)+'" aria-label="Category name">'+
         '<button class="ghost small save-project-category" type="button">Save</button>'+
         '<button class="danger small delete-project-category" type="button" '+(activeCount>0?'disabled title="Used by active projects"':'')+'>'+esc(deleteLabel)+'</button>'+
         '</div>';
