@@ -3,7 +3,8 @@
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
-  if (!config || !supabaseLib) throw new Error("Work Hub configuration failed to load.");
+  const rich = window.WorkHubRichText;
+  if (!config || !supabaseLib || !rich) throw new Error("Work Hub configuration failed to load.");
 
   const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
     auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false }
@@ -50,8 +51,75 @@
   }[value] || value || "");
 
   const canManage = () => !!bootstrap?.viewer?.can_manage;
+  const canEditCategories = () => !!bootstrap?.viewer?.can_edit_project_categories;
   const assignmentPeople = () => bootstrap?.assignment_people || bootstrap?.people || [];
   const mentionPeople = () => bootstrap?.mention_people || bootstrap?.people || [];
+  const projectCategories = () => bootstrap?.project_categories || [];
+  const activeProjectCategories = () => projectCategories().filter((category) => category.is_active !== false);
+  const quickRailStorageKey = () => "task-tracker:work-hub:quick-rail-collapsed:" + (bootstrap?.viewer?.employee_id || "unknown");
+
+  function lastActivityText(value) {
+    if (!value) return "No activity";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    const now = new Date();
+    const sameDay = d.toDateString() === now.toDateString();
+    if (sameDay) return "Today " + d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate()-1);
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday " + d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"});
+    return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:d.getFullYear()===now.getFullYear()?undefined:"numeric"});
+  }
+
+  function inputText(input) {
+    if (!input) return "";
+    return input.isContentEditable ? (input.innerText || input.textContent || "") : (input.value || "");
+  }
+
+  function caretOffset(input) {
+    if (!input?.isContentEditable) return input?.selectionStart ?? 0;
+    const selection = window.getSelection();
+    if (!selection?.rangeCount) return inputText(input).length;
+    const range = selection.getRangeAt(0).cloneRange();
+    range.selectNodeContents(input);
+    try { range.setEnd(selection.anchorNode, selection.anchorOffset); } catch { return inputText(input).length; }
+    return range.toString().length;
+  }
+
+  function replaceEditableText(input,start,end,text) {
+    if (!input?.isContentEditable) {
+      const value = input.value || "";
+      input.value = value.slice(0,start) + text + value.slice(end);
+      const pos = start + text.length;
+      input.focus();
+      input.setSelectionRange(pos,pos);
+      return;
+    }
+    const walker = document.createTreeWalker(input,NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let total = 0;
+    while (walker.nextNode()) {
+      const node = walker.currentNode;
+      const from = total;
+      const to = total + (node.nodeValue || "").length;
+      nodes.push({node,from,to});
+      total = to;
+    }
+    const startHit = nodes.find((x) => start >= x.from && start <= x.to) || nodes[nodes.length-1];
+    const endHit = nodes.find((x) => end >= x.from && end <= x.to) || nodes[nodes.length-1];
+    if (!startHit || !endHit) {
+      input.focus();
+      document.execCommand("insertText",false,text);
+      return;
+    }
+    const range = document.createRange();
+    range.setStart(startHit.node,Math.max(0,start-startHit.from));
+    range.setEnd(endHit.node,Math.max(0,end-endHit.from));
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand("insertText",false,text);
+  }
 
   async function rpc(name, args = {}) {
     const { data, error } = await client.rpc(name, args);
@@ -158,6 +226,12 @@
     $("routine-assignees").innerHTML = checkListHtml(assignments, "routine-assignee", [viewerId]);
     $("quick-assignees").innerHTML = checkListHtml(assignments, "quick-assignee", [viewerId]);
     $("project-participants").innerHTML = checkListHtml(bootstrap.project_participants || [], "project-participant", []);
+    $("edit-project-categories").hidden = !canEditCategories();
+    const categoryFilter = $("project-category-filter");
+    const selectedFilter = categoryFilter.value;
+    categoryFilter.innerHTML = '<option value="">All Categories</option><option value="UNCATEGORIZED">Uncategorized</option>' +
+      projectCategories().map((category) => '<option value="'+esc(category.category_id)+'">'+esc(category.name)+(category.is_active===false?' (Archived)':'')+'</option>').join("");
+    if ([...categoryFilter.options].some((option) => option.value === selectedFilter)) categoryFilter.value = selectedFilter;
   }
 
   function viewFromHash() {
@@ -171,6 +245,9 @@
     $("side-name").textContent = bootstrap.viewer.employee_name || "";
     $("side-meta").textContent = [bootstrap.viewer.role, bootstrap.viewer.department].filter(Boolean).join(" · ");
     hydratePeopleControls();
+    try {
+      $("projects-layout").classList.toggle("quick-collapsed",localStorage.getItem(quickRailStorageKey())==="1");
+    } catch {}
     ensureQueueAssignmentUi();
     $("routine-date").value = todayLocal();
     await loadNotifications();
@@ -548,6 +625,9 @@
     });
     projects = Array.isArray(data) ? data : [];
     if (filter === "ACTIVE") projects = projects.filter((project) => project.status !== "COMPLETE");
+    const categoryFilter = $("project-category-filter").value;
+    if (categoryFilter === "UNCATEGORIZED") projects = projects.filter((project) => !project.category_id);
+    else if (categoryFilter) projects = projects.filter((project) => String(project.category_id || "") === String(categoryFilter));
     renderProjects();
   }
 
@@ -560,14 +640,15 @@
 
     host.innerHTML = projects.map((project) => `<article class="project-card" data-id="${esc(project.project_id)}" style="border-left-color:${esc(project.theme_color || "#2563eb")}">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
-        <div style="min-width:0"><div class="card-title" style="font-size:17px">${esc(project.title)}</div><div class="muted" style="margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(project.description)}</div></div>
-        <span class="pill">${esc(statusLabel(project.status))}</span>
+        <div style="min-width:0"><div class="card-title" style="font-size:17px">${esc(project.title)}</div><div class="muted" style="margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(rich.plain(project.description))}</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><span class="pill">${esc(statusLabel(project.status))}</span>${project.category_name ? '<span class="pill" style="background:#ede9fe;color:#5b21b6">'+esc(project.category_name)+'</span>' : '<span class="pill" style="background:#f1f5f9;color:#64748b">Uncategorized</span>'}</div>
       </div>
       <div class="project-meta">
         <span>Owner: ${esc(project.owner_name)}</span>
         <span>Due: ${esc(project.due_date || "None")}</span>
         <span>${Number(project.open_task_count || 0)} open task${Number(project.open_task_count || 0) === 1 ? "" : "s"}</span>
         <span>${(project.participants || []).length} participant${(project.participants || []).length === 1 ? "" : "s"}</span>
+        <span>Last activity: ${esc(lastActivityText(project.last_activity_at))}</span>
         ${Number(project.pinned_update_count || 0) ? `<span>📌 ${Number(project.pinned_update_count)} pinned</span>` : ""}
       </div>
       ${project.can_edit_project ? `<div class="project-actions"><button class="ghost small edit-project" type="button" data-id="${esc(project.project_id)}">Settings</button>${project.status !== "COMPLETE" ? `<button class="success small complete-project" type="button" data-id="${esc(project.project_id)}">Complete</button>` : ""}</div>` : ""}
@@ -603,8 +684,11 @@
     $("project-modal-title").textContent = project ? "Edit Project" : "New Project";
     $("delete-project").hidden = !project;
     $("project-title").value = project?.title || "";
-    $("project-description").value = project?.description || "";
+    rich.set("project-description", project?.description || "");
     $("project-modal-status").value = project?.status || "OPEN";
+    const categoryRows = projectCategories().filter((category) => category.is_active !== false || String(category.category_id) === String(project?.category_id || ""));
+    $("project-modal-category").innerHTML = '<option value="">Uncategorized</option>' + categoryRows.map((category) => '<option value="'+esc(category.category_id)+'">'+esc(category.name)+(category.is_active===false?' (Archived)':'')+'</option>').join("");
+    $("project-modal-category").value = project?.category_id || "";
     const ownerRows = canManage() ? (bootstrap.people || []) : assignmentPeople();
     $("project-modal-owner").innerHTML = optionHtml(ownerRows, project?.owner_employee_id || bootstrap.viewer.employee_id);
     $("project-modal-owner").disabled = !canManage() && !!project;
@@ -636,34 +720,39 @@
   }
 
   async function saveProjectRecord(project, overrideStatus = null) {
-    return rpc("save_work_hub_project", {
+    return rpc("save_work_hub_project_v2", {
       p_session_token: sessionToken,
       p_project_id: project?.project_id || null,
       p_title: project ? project.title : $("project-title").value.trim(),
-      p_description: project ? project.description : $("project-description").value.trim(),
+      p_description: project ? project.description : rich.get("project-description"),
       p_status: overrideStatus || (project ? project.status : $("project-modal-status").value),
       p_owner_employee_id: project ? project.owner_employee_id : $("project-modal-owner").value,
       p_due_date: project ? (project.due_date || null) : ($("project-due").value || null),
       p_theme_color: project ? project.theme_color : $("project-color").value,
-      p_participant_employee_ids: project ? (project.participants || []).map((x) => x.employee_id) : [...document.querySelectorAll('#project-participants input[name="project-participant"]:checked')].map((x) => x.value)
+      p_participant_employee_ids: project ? (project.participants || []).map((x) => x.employee_id) : [...document.querySelectorAll('#project-participants input[name="project-participant"]:checked')].map((x) => x.value),
+      p_category_id: project ? (project.category_id || null) : ($("project-modal-category").value || null)
     });
   }
 
   async function saveProject(event) {
     event.preventDefault();
-    const existing = projects.find((project) => project.project_id === $("project-id").value);
+    const editingProjectId = $("project-id").value;
+    const existing = projects.find((project) => project.project_id === editingProjectId)
+      || (String(activeProject?.project_id || "") === String(editingProjectId) ? activeProject : null);
     const payload = {
       project_id: existing?.project_id || null,
       title: $("project-title").value.trim(),
-      description: $("project-description").value.trim(),
+      description: rich.get("project-description"),
       status: $("project-modal-status").value,
+      category_id: $("project-modal-category").value || null,
       owner_employee_id: $("project-modal-owner").value,
       due_date: $("project-due").value || null,
       theme_color: $("project-color").value,
       participants: [...document.querySelectorAll('#project-participants input[name="project-participant"]:checked')].map((el) => ({ employee_id: el.value }))
     };
 
-    await rpc("save_work_hub_project", {
+    if (!rich.plain(payload.description)) throw new Error("Project description is required.");
+    await rpc("save_work_hub_project_v2", {
       p_session_token: sessionToken,
       p_project_id: payload.project_id,
       p_title: payload.title,
@@ -672,13 +761,108 @@
       p_owner_employee_id: payload.owner_employee_id,
       p_due_date: payload.due_date,
       p_theme_color: payload.theme_color,
-      p_participant_employee_ids: payload.participants.map((x) => x.employee_id)
+      p_participant_employee_ids: payload.participants.map((x) => x.employee_id),
+      p_category_id: payload.category_id
     });
 
     $("project-modal").hidden = true;
     await Promise.all([loadProjects(), loadNotifications()]);
     if (activeProject?.project_id === payload.project_id) await openProjectDrawer(payload.project_id);
     setMessage("Project saved.", "success");
+  }
+
+  async function reloadProjectCategories() {
+    bootstrap = await rpc("get_work_hub_bootstrap", { p_session_token: sessionToken });
+    hydratePeopleControls();
+    renderProjectCategoryList();
+    await loadProjects();
+  }
+
+  function openProjectCategoryModal() {
+    if (!canEditCategories()) return;
+    $("project-category-modal").hidden = false;
+    $("new-project-category-name").value = "";
+    renderProjectCategoryList();
+  }
+
+  function renderProjectCategoryList() {
+    const host = $("project-category-list");
+    if (!host) return;
+    const rows = activeProjectCategories();
+    host.innerHTML = rows.length ? rows.map((category) => {
+      const activeCount = Number(category.active_project_count || 0);
+      const historicalCount = Number(category.historical_project_count || 0);
+      const deleteLabel = activeCount > 0 ? "In Use (" + activeCount + ")" : (historicalCount > 0 ? "Archive" : "Delete");
+      return '<div class="project-category-row" data-category-id="'+esc(category.category_id)+'" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:8px">'+
+        '<input class="project-category-name" style="width:100%;min-height:38px;border:1px solid #94a3b8;border-radius:8px;padding:7px 9px" value="'+esc(category.name)+'" aria-label="Category name">'+
+        '<button class="ghost small save-project-category" type="button">Save</button>'+
+        '<button class="danger small delete-project-category" type="button" '+(activeCount>0?'disabled title="Used by active projects"':'')+'>'+esc(deleteLabel)+'</button>'+
+        '</div>';
+    }).join("") : '<div class="empty">No Project categories yet.</div>';
+
+    host.querySelectorAll(".save-project-category").forEach((button) => button.addEventListener("click", async () => {
+      const row = button.closest("[data-category-id]");
+      const name = row.querySelector(".project-category-name").value.trim();
+      if (!name) return setMessage("Category name is required.","error");
+      try {
+        button.disabled = true;
+        await rpc("save_work_hub_project_category", {
+          p_session_token: sessionToken,
+          p_category_id: row.dataset.categoryId,
+          p_name: name
+        });
+        await reloadProjectCategories();
+        setMessage("Project category saved.","success");
+      } catch (error) {
+        showError(error);
+      } finally {
+        button.disabled = false;
+      }
+    }));
+
+    host.querySelectorAll(".delete-project-category:not(:disabled)").forEach((button) => button.addEventListener("click", async () => {
+      const row = button.closest("[data-category-id]");
+      const category = activeProjectCategories().find((item) => String(item.category_id) === String(row.dataset.categoryId));
+      if (!category) return;
+      const historicalCount = Number(category.historical_project_count || 0);
+      const action = historicalCount > 0 ? "archive" : "delete";
+      if (!confirm((action === "archive" ? "Archive" : "Delete") + ' Project category "' + category.name + '"?')) return;
+      try {
+        button.disabled = true;
+        const result = await rpc("delete_work_hub_project_category", {
+          p_session_token: sessionToken,
+          p_category_id: row.dataset.categoryId
+        });
+        await reloadProjectCategories();
+        setMessage(result.action === "ARCHIVED" ? "Project category archived." : "Project category deleted.","success");
+      } catch (error) {
+        showError(error);
+      } finally {
+        button.disabled = false;
+      }
+    }));
+  }
+
+  async function addProjectCategory() {
+    const input = $("new-project-category-name");
+    const name = input.value.trim();
+    if (!name) return setMessage("Category name is required.","error");
+    const button = $("add-project-category");
+    button.disabled = true;
+    try {
+      await rpc("save_work_hub_project_category", {
+        p_session_token: sessionToken,
+        p_category_id: null,
+        p_name: name
+      });
+      input.value = "";
+      await reloadProjectCategories();
+      setMessage("Project category added.","success");
+    } catch (error) {
+      showError(error);
+    } finally {
+      button.disabled = false;
+    }
   }
 
   async function openProjectDrawer(projectId) {
@@ -693,8 +877,10 @@
     $("drawer-title").textContent = activeProject.title;
     $("drawer-meta").textContent = [
       statusLabel(activeProject.status),
+      activeProject.category_name ? `Category: ${activeProject.category_name}` : "Uncategorized",
       `Owner: ${activeProject.owner_name}`,
-      activeProject.due_date ? `Due: ${activeProject.due_date}` : null
+      activeProject.due_date ? `Due: ${activeProject.due_date}` : null,
+      activeProject.last_activity_at ? `Last activity: ${lastActivityText(activeProject.last_activity_at)}` : null
     ].filter(Boolean).join(" · ");
     renderProjectDrawer();
     $("drawer-overlay").classList.add("open");
@@ -744,7 +930,7 @@
         </div>
         ${access.can_comment ? `
           <div class="task-comment-composer">
-            <div style="position:relative"><textarea data-task-comment-input="${esc(taskId)}" placeholder="Comment on this task. Type @ to mention someone."></textarea></div>
+            <div style="position:relative">${rich.editorMarkup("task-comment-"+taskId,"Comment on this task. Type @ to mention someone.",true).replace('id="task-comment-'+esc(taskId)+'"','id="task-comment-'+esc(taskId)+'" data-task-comment-input="'+esc(taskId)+'"')}</div>
             <div class="task-comment-actions"><span class="muted">This comment stays with this task.</span><button class="primary small post-task-comment" data-id="${esc(taskId)}" type="button">Post Comment</button></div>
           </div>` : ""}
       </div>` : "";
@@ -797,7 +983,7 @@
     $("drawer-content").innerHTML = `
       <section class="project-section project-summary-section">
         <div class="section-title"><h2>Project Description</h2>${access.can_edit_project ? '<button id="drawer-edit-project" class="ghost small" type="button">Project Settings</button>' : ""}</div>
-        <div class="project-description">${esc(project.description)}</div>
+        <div class="project-description wh-rich-output">${rich.render(project.description)}</div>
         <div class="project-meta"><span><strong>Participants:</strong> ${(project.participants || []).map((x) => esc(x.employee_name)).join(", ") || "None"}</span></div>
       </section>
 
@@ -829,8 +1015,8 @@
       <section class="project-section project-update-section">
         <div class="section-title"><div><h2>Add Project Comment</h2><div class="muted">Use this for the overall project. Comment directly under a task when the conversation belongs to that task.</div></div></div>
         <div class="composer">
-          <div style="position:relative"><textarea id="project-comment" placeholder="Post a project comment. Type @ to mention someone."></textarea></div>
-          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px"><span class="muted" style="font-size:11px">Paste screenshots directly into this comment, or attach a file.</span><button id="post-project-comment" class="primary small" type="button">Post Comment</button></div>
+          <div style="position:relative">${rich.editorMarkup("project-comment","Post a project comment. Type @ to mention someone.",true)}</div>
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;margin-top:8px"><span class="muted" style="font-size:11px">Format text, paste spreadsheet rows as a table, paste screenshots, or attach a file.</span><button id="post-project-comment" class="primary small" type="button">Post Comment</button></div>
         </div>
       </section>`;
 
@@ -876,6 +1062,7 @@
       projectCommentSort = event.target.value === "OLDEST" ? "OLDEST" : "NEWEST";
       renderProjectDrawer();
     });
+    rich.enhanceAll($("drawer-content"));
     $("post-project-comment")?.addEventListener("click", postProjectUpdate);
     $("project-comment")?.addEventListener("input", handleMentionInput);
   }
@@ -891,7 +1078,7 @@
     const context = taskLabel ? ` · ${esc(taskLabel)}` : "";
     return `<article class="feed-item ${update.update_type === "SYSTEM" ? "system" : ""} ${update.is_pinned ? "pinned" : ""}" data-update-id="${esc(update.update_id)}">
       <div class="feed-meta"><strong>${esc(update.update_type === "SYSTEM" ? "System" : update.author_name || "Unknown")}</strong>${context} · ${esc(new Date(update.created_at).toLocaleString())}${pin}</div>
-      <div style="white-space:pre-wrap">${esc(update.body)}</div>
+      <div class="wh-rich-output">${update.update_type === "SYSTEM" ? esc(update.body).replaceAll("\n","<br>") : rich.render(update.body)}</div>
       ${attachments}
       ${canPin && update.update_type === "COMMENT" ? `<div style="margin-top:8px"><button class="ghost small pin-update" type="button" data-id="${esc(update.update_id)}" data-pinned="${update.is_pinned ? "true" : "false"}">${update.is_pinned ? "Unpin" : "Pin Update"}</button></div>` : ""}
     </article>`;
@@ -968,8 +1155,8 @@
   }
 
   function handleMentionInput(event) {
-    const value = event.target.value;
-    const cursor = event.target.selectionStart;
+    const value = inputText(event.target);
+    const cursor = caretOffset(event.target);
     const left = value.slice(0, cursor);
     const match = left.match(/@([^@\n]{0,40})$/);
     const menu = $("mention-menu");
@@ -995,10 +1182,7 @@
     menu.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => {
       const start = cursor - match[0].length;
       const insert = `@${button.dataset.name} `;
-      event.target.value = value.slice(0, start) + insert + value.slice(cursor);
-      const pos = start + insert.length;
-      event.target.focus();
-      event.target.setSelectionRange(pos, pos);
+      replaceEditableText(event.target,start,cursor,insert);
       let ids = queuedMentionIdsByInput.get(event.target);
       if (!ids) {
         ids = new Set();
@@ -1020,17 +1204,18 @@
 
   async function postProjectUpdate() {
     const input = $("project-comment");
-    const body = input.value.trim();
-    if (!body) return;
+    const body = rich.get(input);
+    const plainBody = rich.plain(input);
+    if (!plainBody) return;
     try {
       await rpc("add_work_hub_project_update", {
         p_session_token: sessionToken,
         p_project_id: activeProject.project_id,
         p_project_task_id: null,
         p_body: body,
-        p_mention_employee_ids: detectedMentionIds(body, input)
+        p_mention_employee_ids: detectedMentionIds(plainBody, input)
       });
-      input.value = "";
+      rich.clear(input);
       queuedMentionIdsByInput.delete(input);
       await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
       setMessage("Project comment posted.", "success");
@@ -1042,8 +1227,9 @@
   async function postTaskComment(taskId) {
     const input = Array.from($("drawer-content").querySelectorAll("[data-task-comment-input]"))
       .find((el) => String(el.dataset.taskCommentInput || "") === String(taskId));
-    const body = input?.value.trim() || "";
-    if (!body) return;
+    const body = rich.get(input);
+    const plainBody = rich.plain(input);
+    if (!plainBody) return;
 
     try {
       await rpc("add_work_hub_project_update", {
@@ -1051,8 +1237,9 @@
         p_project_id: activeProject.project_id,
         p_project_task_id: taskId,
         p_body: body,
-        p_mention_employee_ids: detectedMentionIds(body, input)
+        p_mention_employee_ids: detectedMentionIds(plainBody, input)
       });
+      rich.clear(input);
       queuedMentionIdsByInput.delete(input);
       expandedTaskComments.add(String(taskId));
       await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
@@ -1236,11 +1423,24 @@
     $("quick-employee").addEventListener("change", () => loadQuickTasks().catch(showError));
     $("add-quick").addEventListener("click", () => openQuickModal());
     $("quick-form").addEventListener("submit", (event) => saveQuickTask(event).catch(showError));
-    $("toggle-quick-rail").addEventListener("click", () => $("projects-layout").classList.toggle("quick-collapsed"));
+    $("toggle-quick-rail").addEventListener("click", () => {
+      const collapsed = !$("projects-layout").classList.contains("quick-collapsed");
+      $("projects-layout").classList.toggle("quick-collapsed",collapsed);
+      try { localStorage.setItem(quickRailStorageKey(),collapsed?"1":"0"); } catch {}
+    });
+    $("edit-project-categories").addEventListener("click", openProjectCategoryModal);
+    $("add-project-category").addEventListener("click", () => addProjectCategory().catch(showError));
+    $("new-project-category-name").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addProjectCategory().catch(showError);
+      }
+    });
     $("new-project").addEventListener("click", () => openProjectModal());
     $("project-form").addEventListener("submit", (event) => saveProject(event).catch(showError));
     $("delete-project").addEventListener("click", () => deleteProject().catch(showError));
     $("project-status").addEventListener("change", () => loadProjects().catch(showError));
+    $("project-category-filter").addEventListener("change", () => loadProjects().catch(showError));
     $("project-owner").addEventListener("change", () => loadProjects().catch(showError));
     let searchTimer = null;
     $("project-search").addEventListener("input", () => {
@@ -1258,7 +1458,7 @@
     });
     document.addEventListener("click", (event) => {
       if (!event.target.closest(".notification-wrap")) $("notification-panel").hidden = true;
-      if (!event.target.closest("#mention-menu") && event.target !== $("project-comment")) $("mention-menu").hidden = true;
+      if (!event.target.closest("#mention-menu") && !event.target.closest("#project-comment")) $("mention-menu").hidden = true;
     });
     window.addEventListener("hashchange", () => {
       if (bootstrap) switchView(viewFromHash(), false);

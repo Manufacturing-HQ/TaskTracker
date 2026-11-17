@@ -3,6 +3,7 @@
 (() => {
   const config = window.TaskTrackerConfig;
   const supabaseLib = window.supabase;
+  const rich = window.WorkHubRichText;
   if (!config || !supabaseLib) return;
 
   const client = supabaseLib.createClient(config.supabaseUrl, config.supabasePublishableKey, {
@@ -421,7 +422,7 @@
   }
 
   async function detectedMentionIds(text) {
-    const lower = String(text || "").toLowerCase();
+    const lower = String(rich ? rich.plain(text) : (text || "")).toLowerCase();
     const people = await ensurePeople();
     return people
       .filter((person) => lower.includes(`@${String(person.employee_name || "").toLowerCase()}`))
@@ -479,8 +480,9 @@
     }
 
     const filesToUpload = pendingFiles.map((entry) => entry.file);
-    const typedBody = textarea.value.trim();
-    const body = typedBody || (filesToUpload.length === 1 ? `Attached ${filesToUpload[0].name}.` : `Attached ${filesToUpload.length} files.`);
+    const typedBody = rich ? rich.get(textarea) : textarea.value.trim();
+    const typedPlain = rich ? rich.plain(textarea) : typedBody;
+    const body = typedPlain ? typedBody : (filesToUpload.length === 1 ? `Attached ${filesToUpload[0].name}.` : `Attached ${filesToUpload.length} files.`);
     const originalLabel = button.textContent;
     button.disabled = true;
     button.textContent = "Posting...";
@@ -506,7 +508,7 @@
         }
       }
 
-      textarea.value = "";
+      if (rich) rich.clear(textarea); else textarea.value = "";
       clearPendingFiles();
       document.getElementById("mention-menu")?.setAttribute("hidden", "");
       await refreshNotificationBadge();
