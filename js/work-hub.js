@@ -736,7 +736,9 @@
 
   async function saveProject(event) {
     event.preventDefault();
-    const existing = projects.find((project) => project.project_id === $("project-id").value);
+    const editingProjectId = $("project-id").value;
+    const existing = projects.find((project) => project.project_id === editingProjectId)
+      || (String(activeProject?.project_id || "") === String(editingProjectId) ? activeProject : null);
     const payload = {
       project_id: existing?.project_id || null,
       title: $("project-title").value.trim(),
