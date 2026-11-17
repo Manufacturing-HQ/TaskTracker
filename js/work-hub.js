@@ -928,7 +928,7 @@
         </div>
         ${access.can_comment ? `
           <div class="task-comment-composer">
-            <div style="position:relative"><textarea data-task-comment-input="${esc(taskId)}" placeholder="Comment on this task. Type @ to mention someone."></textarea></div>
+            <div style="position:relative">${rich.editorMarkup("task-comment-"+taskId,"Comment on this task. Type @ to mention someone.",true).replace('id="task-comment-'+esc(taskId)+'"','id="task-comment-'+esc(taskId)+'" data-task-comment-input="'+esc(taskId)+'"')}</div>
             <div class="task-comment-actions"><span class="muted">This comment stays with this task.</span><button class="primary small post-task-comment" data-id="${esc(taskId)}" type="button">Post Comment</button></div>
           </div>` : ""}
       </div>` : "";
@@ -1225,8 +1225,9 @@
   async function postTaskComment(taskId) {
     const input = Array.from($("drawer-content").querySelectorAll("[data-task-comment-input]"))
       .find((el) => String(el.dataset.taskCommentInput || "") === String(taskId));
-    const body = input?.value.trim() || "";
-    if (!body) return;
+    const body = rich.get(input);
+    const plainBody = rich.plain(input);
+    if (!plainBody) return;
 
     try {
       await rpc("add_work_hub_project_update", {
@@ -1234,8 +1235,9 @@
         p_project_id: activeProject.project_id,
         p_project_task_id: taskId,
         p_body: body,
-        p_mention_employee_ids: detectedMentionIds(body, input)
+        p_mention_employee_ids: detectedMentionIds(plainBody, input)
       });
+      rich.clear(input);
       queuedMentionIdsByInput.delete(input);
       expandedTaskComments.add(String(taskId));
       await Promise.all([openProjectDrawer(activeProject.project_id), loadProjects(), loadNotifications()]);
