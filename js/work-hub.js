@@ -211,6 +211,39 @@
     ).join("");
   }
 
+  function projectCategoryIds(project) {
+    const ids = (project?.categories || []).map((category) => category.category_id).filter(Boolean);
+    if (ids.length) return ids;
+    return project?.category_id ? [project.category_id] : [];
+  }
+
+  function categoryCheckListHtml(rows, selected = []) {
+    const selectedSet = new Set((selected || []).map(String));
+    if (!(rows || []).length) return '<div class="muted">No Project categories are available yet.</div>';
+    return (rows || []).map((category) =>
+      `<label><input type="checkbox" name="project-category" value="${esc(category.category_id)}" ${selectedSet.has(String(category.category_id)) ? "checked" : ""}> ${esc(category.name)}${category.is_active===false ? ' <span class="muted">(Archived)</span>' : ""}</label>`
+    ).join("");
+  }
+
+  function categoryBadgesHtml(project) {
+    const categories = Array.isArray(project?.categories) ? project.categories : [];
+    if (!categories.length && project?.category_name) {
+      return '<span class="pill" style="background:#ede9fe;color:#5b21b6">'+esc(project.category_name)+'</span>';
+    }
+    if (!categories.length) {
+      return '<span class="pill" style="background:#f1f5f9;color:#64748b">Uncategorized</span>';
+    }
+    return categories.map((category) =>
+      '<span class="pill" style="background:#ede9fe;color:#5b21b6">'+esc(category.name)+'</span>'
+    ).join("");
+  }
+
+  function categoryNamesText(project) {
+    const categories = Array.isArray(project?.categories) ? project.categories : [];
+    if (categories.length) return categories.map((category) => category.name).join(", ");
+    return project?.category_name || "Uncategorized";
+  }
+
   function hydratePeopleControls() {
     const viewerId = bootstrap.viewer.employee_id;
     const assignments = assignmentPeople();
@@ -626,8 +659,11 @@
     projects = Array.isArray(data) ? data : [];
     if (filter === "ACTIVE") projects = projects.filter((project) => project.status !== "COMPLETE");
     const categoryFilter = $("project-category-filter").value;
-    if (categoryFilter === "UNCATEGORIZED") projects = projects.filter((project) => !project.category_id);
-    else if (categoryFilter) projects = projects.filter((project) => String(project.category_id || "") === String(categoryFilter));
+    if (categoryFilter === "UNCATEGORIZED") {
+      projects = projects.filter((project) => projectCategoryIds(project).length === 0);
+    } else if (categoryFilter) {
+      projects = projects.filter((project) => projectCategoryIds(project).some((id) => String(id) === String(categoryFilter)));
+    }
     renderProjects();
   }
 
@@ -641,7 +677,7 @@
     host.innerHTML = projects.map((project) => `<article class="project-card" data-id="${esc(project.project_id)}" style="border-left-color:${esc(project.theme_color || "#2563eb")}">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
         <div style="min-width:0"><div class="card-title" style="font-size:17px">${esc(project.title)}</div><div class="muted" style="margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(rich.plain(project.description))}</div></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><span class="pill">${esc(statusLabel(project.status))}</span>${project.category_name ? '<span class="pill" style="background:#ede9fe;color:#5b21b6">'+esc(project.category_name)+'</span>' : '<span class="pill" style="background:#f1f5f9;color:#64748b">Uncategorized</span>'}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end"><span class="pill">${esc(statusLabel(project.status))}</span>${categoryBadgesHtml(project)}</div>
       </div>
       <div class="project-meta">
         <span>Owner: ${esc(project.owner_name)}</span>
@@ -686,9 +722,10 @@
     $("project-title").value = project?.title || "";
     rich.set("project-description", project?.description || "");
     $("project-modal-status").value = project?.status || "OPEN";
-    const categoryRows = projectCategories().filter((category) => category.is_active !== false || String(category.category_id) === String(project?.category_id || ""));
-    $("project-modal-category").innerHTML = '<option value="">Uncategorized</option>' + categoryRows.map((category) => '<option value="'+esc(category.category_id)+'">'+esc(category.name)+(category.is_active===false?' (Archived)':'')+'</option>').join("");
-    $("project-modal-category").value = project?.category_id || "";
+    const selectedCategoryIds = projectCategoryIds(project);
+    const selectedCategorySet = new Set(selectedCategoryIds.map(String));
+    const categoryRows = projectCategories().filter((category) => category.is_active !== false || selectedCategorySet.has(String(category.category_id)));
+    $("project-modal-categories").innerHTML = categoryCheckListHtml(categoryRows, selectedCategoryIds);
     const ownerRows = canManage() ? (bootstrap.people || []) : assignmentPeople();
     $("project-modal-owner").innerHTML = optionHtml(ownerRows, project?.owner_employee_id || bootstrap.viewer.employee_id);
     $("project-modal-owner").disabled = !canManage() && !!project;
@@ -720,7 +757,7 @@
   }
 
   async function saveProjectRecord(project, overrideStatus = null) {
-    return rpc("save_work_hub_project_v2", {
+    return rpc("save_work_hub_project_v3", {
       p_session_token: sessionToken,
       p_project_id: project?.project_id || null,
       p_title: project ? project.title : $("project-title").value.trim(),
@@ -730,7 +767,7 @@
       p_due_date: project ? (project.due_date || null) : ($("project-due").value || null),
       p_theme_color: project ? project.theme_color : $("project-color").value,
       p_participant_employee_ids: project ? (project.participants || []).map((x) => x.employee_id) : [...document.querySelectorAll('#project-participants input[name="project-participant"]:checked')].map((x) => x.value),
-      p_category_id: project ? (project.category_id || null) : ($("project-modal-category").value || null)
+      p_category_ids: project ? projectCategoryIds(project) : [...document.querySelectorAll('#project-modal-categories input[name="project-category"]:checked')].map((x) => x.value)
     });
   }
 
@@ -744,7 +781,7 @@
       title: $("project-title").value.trim(),
       description: rich.get("project-description"),
       status: $("project-modal-status").value,
-      category_id: $("project-modal-category").value || null,
+      category_ids: [...document.querySelectorAll('#project-modal-categories input[name="project-category"]:checked')].map((el) => el.value),
       owner_employee_id: $("project-modal-owner").value,
       due_date: $("project-due").value || null,
       theme_color: $("project-color").value,
@@ -752,7 +789,7 @@
     };
 
     if (!rich.plain(payload.description)) throw new Error("Project description is required.");
-    await rpc("save_work_hub_project_v2", {
+    await rpc("save_work_hub_project_v3", {
       p_session_token: sessionToken,
       p_project_id: payload.project_id,
       p_title: payload.title,
@@ -762,7 +799,7 @@
       p_due_date: payload.due_date,
       p_theme_color: payload.theme_color,
       p_participant_employee_ids: payload.participants.map((x) => x.employee_id),
-      p_category_id: payload.category_id
+      p_category_ids: payload.category_ids
     });
 
     $("project-modal").hidden = true;
@@ -877,7 +914,7 @@
     $("drawer-title").textContent = activeProject.title;
     $("drawer-meta").textContent = [
       statusLabel(activeProject.status),
-      activeProject.category_name ? `Category: ${activeProject.category_name}` : "Uncategorized",
+      projectCategoryIds(activeProject).length ? `Categories: ${categoryNamesText(activeProject)}` : "Uncategorized",
       `Owner: ${activeProject.owner_name}`,
       activeProject.due_date ? `Due: ${activeProject.due_date}` : null,
       activeProject.last_activity_at ? `Last activity: ${lastActivityText(activeProject.last_activity_at)}` : null
