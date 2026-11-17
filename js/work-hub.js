@@ -769,6 +769,100 @@
     setMessage("Project saved.", "success");
   }
 
+  async function reloadProjectCategories() {
+    bootstrap = await rpc("get_work_hub_bootstrap", { p_session_token: sessionToken });
+    hydratePeopleControls();
+    renderProjectCategoryList();
+    await loadProjects();
+  }
+
+  function openProjectCategoryModal() {
+    if (!canEditCategories()) return;
+    $("project-category-modal").hidden = false;
+    $("new-project-category-name").value = "";
+    renderProjectCategoryList();
+  }
+
+  function renderProjectCategoryList() {
+    const host = $("project-category-list");
+    if (!host) return;
+    const rows = activeProjectCategories();
+    host.innerHTML = rows.length ? rows.map((category) => {
+      const activeCount = Number(category.active_project_count || 0);
+      const historicalCount = Number(category.historical_project_count || 0);
+      const deleteLabel = activeCount > 0 ? "In Use (" + activeCount + ")" : (historicalCount > 0 ? "Archive" : "Delete");
+      return '<div class="project-category-row" data-category-id="'+esc(category.category_id)+'" style="display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin-bottom:8px">'+
+        '<input class="project-category-name" value="'+esc(category.name)+'" aria-label="Category name">'+
+        '<button class="ghost small save-project-category" type="button">Save</button>'+
+        '<button class="danger small delete-project-category" type="button" '+(activeCount>0?'disabled title="Used by active projects"':'')+'>'+esc(deleteLabel)+'</button>'+
+        '</div>';
+    }).join("") : '<div class="empty">No Project categories yet.</div>';
+
+    host.querySelectorAll(".save-project-category").forEach((button) => button.addEventListener("click", async () => {
+      const row = button.closest("[data-category-id]");
+      const name = row.querySelector(".project-category-name").value.trim();
+      if (!name) return setMessage("Category name is required.","error");
+      try {
+        button.disabled = true;
+        await rpc("save_work_hub_project_category", {
+          p_session_token: sessionToken,
+          p_category_id: row.dataset.categoryId,
+          p_name: name
+        });
+        await reloadProjectCategories();
+        setMessage("Project category saved.","success");
+      } catch (error) {
+        showError(error);
+      } finally {
+        button.disabled = false;
+      }
+    }));
+
+    host.querySelectorAll(".delete-project-category:not(:disabled)").forEach((button) => button.addEventListener("click", async () => {
+      const row = button.closest("[data-category-id]");
+      const category = activeProjectCategories().find((item) => String(item.category_id) === String(row.dataset.categoryId));
+      if (!category) return;
+      const historicalCount = Number(category.historical_project_count || 0);
+      const action = historicalCount > 0 ? "archive" : "delete";
+      if (!confirm((action === "archive" ? "Archive" : "Delete") + ' Project category "' + category.name + '"?')) return;
+      try {
+        button.disabled = true;
+        const result = await rpc("delete_work_hub_project_category", {
+          p_session_token: sessionToken,
+          p_category_id: row.dataset.categoryId
+        });
+        await reloadProjectCategories();
+        setMessage(result.action === "ARCHIVED" ? "Project category archived." : "Project category deleted.","success");
+      } catch (error) {
+        showError(error);
+      } finally {
+        button.disabled = false;
+      }
+    }));
+  }
+
+  async function addProjectCategory() {
+    const input = $("new-project-category-name");
+    const name = input.value.trim();
+    if (!name) return setMessage("Category name is required.","error");
+    const button = $("add-project-category");
+    button.disabled = true;
+    try {
+      await rpc("save_work_hub_project_category", {
+        p_session_token: sessionToken,
+        p_category_id: null,
+        p_name: name
+      });
+      input.value = "";
+      await reloadProjectCategories();
+      setMessage("Project category added.","success");
+    } catch (error) {
+      showError(error);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   async function openProjectDrawer(projectId) {
     activeProjectDetail = await rpc("get_work_hub_project_detail", {
       p_session_token: sessionToken,
@@ -1329,6 +1423,14 @@
       const collapsed = !$("projects-layout").classList.contains("quick-collapsed");
       $("projects-layout").classList.toggle("quick-collapsed",collapsed);
       try { localStorage.setItem(quickRailStorageKey(),collapsed?"1":"0"); } catch {}
+    });
+    $("edit-project-categories").addEventListener("click", openProjectCategoryModal);
+    $("add-project-category").addEventListener("click", () => addProjectCategory().catch(showError));
+    $("new-project-category-name").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addProjectCategory().catch(showError);
+      }
     });
     $("new-project").addEventListener("click", () => openProjectModal());
     $("project-form").addEventListener("submit", (event) => saveProject(event).catch(showError));
