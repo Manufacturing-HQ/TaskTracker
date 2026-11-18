@@ -129,20 +129,22 @@
     if (!token() || !attendanceDate.value || !attendanceBody.querySelector("tr")) return;
     try {
       const date = attendanceDate.value;
-      const [audit, reporting] = await Promise.all([
-        rpc("get_attendance_audit", { p_session_token: token(), p_business_date: date }),
-        rpc("get_attendance_reconciliation_daily", {
-          p_session_token: token(),
-          p_business_date: date
-        })
-      ]);
-      state.eventTypes = new Map((audit?.event_types || []).map((row) => [row.event_type_id, row]));
-      state.attendanceNotes = new Map((audit?.employees || []).map((row) => [row.employee_id, row.notes || ""]));
+      applyAuditData(window.TaskTrackerAttendanceData);
+      const reporting = await rpc("get_attendance_reconciliation_daily", {
+        p_session_token: token(),
+        p_business_date: date
+      });
       state.reporting = new Map((Array.isArray(reporting) ? reporting : []).map((row) => [row.employee_id, row]));
       decorateAttendance();
     } catch {
       // The base Attendance Audit remains usable if reconciliation data cannot load.
     }
+  }
+
+  function applyAuditData(audit) {
+    if (!audit) return;
+    state.eventTypes = new Map((audit.event_types || []).map((row) => [row.event_type_id, row]));
+    state.attendanceNotes = new Map((audit.employees || []).map((row) => [row.employee_id, row.notes || ""]));
   }
 
   function scheduleAttendanceRefresh(delay = 120) {
@@ -204,6 +206,11 @@
       if (employeeId) saveAttendanceEnhanced(employeeId);
     }
   }, true);
+
+  window.addEventListener("tasktracker:attendance-audit-loaded", (event) => {
+    applyAuditData(event.detail || window.TaskTrackerAttendanceData);
+    scheduleAttendanceRefresh(40);
+  });
 
   attendanceObserver = new MutationObserver(() => scheduleAttendanceRefresh());
   attendanceObserver.observe(attendanceBody, { childList: true, subtree: true });
