@@ -673,6 +673,10 @@
     }
     await waitForDraftSave();
 
+    await Promise.all(
+      [...$("pick-rows").querySelectorAll("tr")].map((tr) => hydratePickOrderRow(tr,false))
+    );
+
     const orders = collectPickOrders();
     if (!$("pick-bin").value) throw new Error("Select a Pick Bin.");
     if (!orders.length) throw new Error("Scan at least one Sales Order before submitting.");
@@ -704,6 +708,74 @@
     } finally {
       button.disabled = false;
       button.textContent = editingBatchStatus === "SUBMITTED" ? "Save Pick Batch" : "Submit Pick Batch";
+    }
+  }
+
+  function pickResultLabel(value) {
+    if (value === "INVENTORY_DISCREPANCY") return "Inventory Discrepancy";
+    if (value === "COSMETIC_REJECTION") return "Cosmetic Rejection";
+    return "Picked";
+  }
+
+  function orderLinesSummaryHtml(lines = [], emptyText = "") {
+    const rows = Array.isArray(lines) ? lines : [];
+    if (!rows.length) return emptyText ? '<div class="muted">'+esc(emptyText)+'</div>' : "";
+    return '<div class="order-lines-summary"><div class="bulk-line-head"><span>Item</span><span>Qty</span></div>' +
+      rows.map((line) => '<div class="bulk-line"><span>'+esc(line.item_name || "")+'</span><strong>'+esc(line.quantity ?? "")+'</strong></div>').join("") +
+      '</div>';
+  }
+
+  function closeBatchDetail() {
+    const modal = $("batch-detail-modal");
+    if (modal) modal.hidden = true;
+  }
+
+  async function openBatchDetail(batchId) {
+    const modal = $("batch-detail-modal");
+    const title = $("batch-detail-title");
+    const meta = $("batch-detail-meta");
+    const body = $("batch-detail-body");
+    if (!modal || !title || !meta || !body) return;
+
+    modal.hidden = false;
+    title.textContent = "Pick Batch";
+    meta.textContent = "Loading batch details...";
+    body.innerHTML = "";
+
+    try {
+      const detail = await rpc("get_pps_pick_batch_view", {
+        p_session_token: sessionToken,
+        p_batch_id: batchId
+      });
+      const batch = detail?.batch || {};
+      const orders = detail?.orders || [];
+
+      title.textContent = batch.batch_number || "Pick Batch";
+      meta.innerHTML = '<strong>'+esc(batch.picker_name || "—")+'</strong> · '+esc(batch.pick_bin || "—")+
+        ' · '+formatDate(batch.business_date)+' · '+statusLabel(batch.status);
+
+      if (batch.comments) {
+        body.innerHTML += '<div class="batch-detail-comments"><strong>Picker Comments</strong><div>'+esc(batch.comments)+'</div></div>';
+      }
+
+      body.innerHTML += orders.map((order) => {
+        const pickerItems = Array.isArray(order.picker_cosmetic_items) ? order.picker_cosmetic_items : [];
+        const finalItems = Array.isArray(order.cosmetic_items) ? order.cosmetic_items : [];
+        const qa = order.qa_review;
+        const lines = orderLinesSummaryHtml(order.order_lines || []);
+        return '<div class="batch-detail-order">' +
+          '<div class="qa-order-header"><div><strong>'+esc(order.sales_order_number)+'</strong><div class="muted">Picker Result: '+esc(pickResultLabel(order.pick_result))+'</div></div>' +
+          '<span class="status '+(order.pick_result === "COSMETIC_REJECTION" ? "review" : "")+'">'+esc(pickResultLabel(order.pick_result))+'</span></div>' +
+          lines +
+          (pickerItems.length ? '<div class="picker-identified"><strong>Picker identified cosmetic rejection:</strong> '+pickerItems.map(esc).join(", ")+'</div>' : '') +
+          (qa ? '<div class="qa-result-summary"><strong>QA:</strong> '+esc(qa.qa_employee_name || "—")+
+            (qa.pick_error ? ' · Pick Error'+(qa.pick_error_comment ? ': '+esc(qa.pick_error_comment) : '') : ' · No Pick Error')+'</div>' : '<div class="muted">QA not completed.</div>') +
+          (finalItems.length ? '<div class="picker-identified"><strong>Confirmed cosmetic rejection:</strong> '+finalItems.map(esc).join(", ")+'</div>' : '') +
+          '</div>';
+      }).join("") || '<div class="muted">No Sales Orders are stored in this Pick Batch.</div>';
+    } catch (error) {
+      meta.textContent = "";
+      body.innerHTML = '<div class="warning-box">'+esc(error?.message || String(error))+'</div>';
     }
   }
 
