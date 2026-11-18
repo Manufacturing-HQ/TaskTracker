@@ -1266,7 +1266,7 @@
     host.innerHTML = `<table><thead><tr><th>Sales Order</th><th>Pick Date</th><th>Pick Batch</th><th>Picker</th><th>Bin</th><th>Pick Result</th><th>Batch Status</th><th>Pick Error</th><th>Cosmetic Rejection</th><th>QA Employee</th></tr></thead><tbody>${rows.map((row) => {
       const reviewed = !!row.qa_reviewed_at;
       const discrepancy = row.pick_result === "INVENTORY_DISCREPANCY";
-      const pickResult = discrepancy ? "Inventory Discrepancy" : "Picked";
+      const pickResult = pickResultLabel(row.pick_result);
       const pickError = discrepancy
         ? "N/A"
         : !reviewed
@@ -1286,7 +1286,7 @@
       return `<tr>
         <td><strong>${esc(row.sales_order_number)}</strong></td>
         <td>${formatDate(row.business_date)}</td>
-        <td><strong>${esc(row.batch_number)}</strong></td>
+        <td><button class="batch-link" data-view-batch="${esc(row.batch_id)}" type="button">${esc(row.batch_number)}</button></td>
         <td>${esc(row.picker_name || "—")}</td>
         <td>${esc(row.pick_bin || "—")}</td>
         <td>${esc(pickResult)}</td>
@@ -1296,6 +1296,9 @@
         <td>${esc(row.qa_employee_name || "—")}</td>
       </tr>`;
     }).join("")}</tbody></table>`;
+    host.querySelectorAll("[data-view-batch]").forEach((button) => {
+      button.addEventListener("click", () => openBatchDetail(button.dataset.viewBatch));
+    });
   }
 
   async function searchOrderHistory() {
@@ -1363,6 +1366,10 @@
 
   function wireEvents() {
     document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+    $("batch-detail-close")?.addEventListener("click", closeBatchDetail);
+    $("batch-detail-modal")?.addEventListener("click", (event) => {
+      if (event.target === $("batch-detail-modal")) closeBatchDetail();
+    });
     $("add-pick-row").addEventListener("click", () => addPickRow({}, true));
     $("submit-pick-batch").addEventListener("click", () => savePickBatch().catch(showError));
     $("cancel-edit").addEventListener("click", () => cancelPickEdit().catch(showError));
