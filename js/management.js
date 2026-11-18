@@ -304,13 +304,15 @@
       p_session_token: sessionToken,
       p_business_date: $("attendance-date").value || null
     });
+    window.TaskTrackerAttendanceData = attendanceData;
     $("attendance-date").value = attendanceData.business_date;
     const body = $("attendance-body");
     body.innerHTML = "";
     (attendanceData.employees || []).forEach((emp) => {
       const tr = document.createElement("tr");
+      if (emp.is_probationary) tr.classList.add("probationary-row");
       const options = (attendanceData.event_types || []).map((t) => `<option value="${t.event_type_id}" ${t.event_type_id === emp.event_type_id ? "selected" : ""}>${escapeHtml(t.display_name)}</option>`).join("");
-      tr.innerHTML = `<td><strong>${escapeHtml(emp.employee_name)}</strong></td>
+      tr.innerHTML = `<td><strong>${escapeHtml(emp.employee_name)}</strong>${emp.is_probationary ? '<span class="probationary-label">Probationary</span>' : ""}</td>
         <td><select data-kind="event" data-employee="${emp.employee_id}"><option value="">Select...</option>${options}</select></td>
         <td><input data-kind="hours" data-employee="${emp.employee_id}" type="number" min="0" max="24" step="0.01" value="${emp.entered_hours ?? ""}" style="width:95px"></td>
         <td data-minutes="${emp.employee_id}">${emp.minutes_worked ?? "—"}</td>
@@ -322,6 +324,7 @@
       el.addEventListener("change", () => saveAttendanceRow(el.dataset.employee));
       el.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); el.blur(); } });
     });
+    window.dispatchEvent(new CustomEvent("tasktracker:attendance-audit-loaded", { detail: attendanceData }));
   }
 
   async function saveAttendanceRow(employeeId) {
