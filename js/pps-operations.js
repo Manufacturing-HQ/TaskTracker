@@ -146,21 +146,239 @@
     });
   }
 
+  function isBulkPickBin(value = $("pick-bin")?.value) {
+    return String(value || "").startsWith("Bulk - ");
+  }
+
+  function collectManualLines(tr) {
+    const rows = [...tr.querySelectorAll('[data-role="manual-line-row"]')];
+    if (!rows.length) return Array.isArray(tr._manualLines) ? tr._manualLines : [];
+    const lines = rows.map((row) => ({
+      item_name: row.querySelector('[data-role="manual-item"]')?.value.trim() || "",
+      quantity: row.querySelector('[data-role="manual-qty"]')?.value.trim() || "",
+      line_source: "MANUAL"
+    })).filter((line) => line.item_name || line.quantity);
+    tr._manualLines = lines;
+    return lines;
+  }
+
+  function pickerCosmeticItems(tr) {
+    const checked = [...tr.querySelectorAll('[data-role="picker-cosmetic-item"]:checked')]
+      .map((input) => input.value.trim())
+      .filter(Boolean);
+    if (checked.length || tr.querySelector('[data-role="picker-cosmetic-items"]')) {
+      tr._pickerCosmeticItems = checked;
+    }
+    return Array.isArray(tr._pickerCosmeticItems) ? tr._pickerCosmeticItems : [];
+  }
+
+  function manualItemOptions(tr) {
+    return [...new Set(collectManualLines(tr).map((line) => String(line.item_name || "").trim()).filter(Boolean))];
+  }
+
+  function renderPickerCosmeticOptions(tr) {
+    const host = tr.querySelector('[data-role="picker-cosmetic-items"]');
+    if (!host) return;
+    const result = tr.querySelector('[data-role="pick-result"]')?.value;
+    if (result !== "COSMETIC_REJECTION") {
+      host.innerHTML = "";
+      return;
+    }
+
+    const selected = new Set((tr._pickerCosmeticItems || []).map((item) => String(item).toLowerCase()));
+    const options = [...new Set([
+      ...(tr._potentialItems || []),
+      ...(isBulkPickBin() && tr._lookupDone && !tr._lookupFound ? manualItemOptions(tr) : [])
+    ].map((item) => String(item || "").trim()).filter(Boolean))];
+
+    if (!options.length) {
+      host.innerHTML = '<div class="warning-box">No Open Sales Orders item lines were found. Enter the Bulk item lines first, or refresh the Sales Order data before submitting a Cosmetic Rejection.</div>';
+      return;
+    }
+
+    host.innerHTML = '<div><strong>Cosmetic Rejection Item</strong><div class="muted" style="margin-top:4px">Select the item identified by the picker.</div></div>' +
+      '<div class="cosmetic-items">' + options.map((item) =>
+        '<label class="cosmetic-item-option"><input type="checkbox" data-role="picker-cosmetic-item" value="'+esc(item)+'" '+(selected.has(item.toLowerCase()) ? "checked" : "")+'><span>'+esc(item)+'</span></label>'
+      ).join("") + '</div>';
+
+    host.querySelectorAll('[data-role="picker-cosmetic-item"]').forEach((input) => {
+      input.addEventListener("change", () => {
+        tr._pickerCosmeticItems = [...host.querySelectorAll('[data-role="picker-cosmetic-item"]:checked')].map((x) => x.value);
+        scheduleDraftSave(0);
+      });
+    });
+  }
+
+  function addManualBulkLine(tr, data = {}, focus = false) {
+    const host = tr.querySelector('[data-role="manual-lines"]');
+    if (!host) return;
+    const row = document.createElement("div");
+    row.className = "manual-line-row";
+    row.dataset.role = "manual-line-row";
+    row.innerHTML = '<input data-role="manual-item" type="text" autocomplete="off" placeholder="Item" value="'+esc(data.item_name || "")+'">' +
+      '<input data-role="manual-qty" type="number" min="0.01" step="0.01" placeholder="Qty" value="'+esc(data.quantity ?? "")+'">' +
+      '<button class="secondary" data-role="remove-manual-line" type="button">Remove</button>';
+
+    const sync = () => {
+      tr._manualLines = collectManualLines(tr);
+      renderPickerCosmeticOptions(tr);
+      scheduleDraftSave();
+    };
+    row.querySelector('[data-role="manual-item"]').addEventListener("input", sync);
+    row.querySelector('[data-role="manual-qty"]').addEventListener("input", sync);
+    row.querySelector('[data-role="manual-item"]').addEventListener("change", () => scheduleDraftSave(0));
+    row.querySelector('[data-role="manual-qty"]').addEventListener("change", () => scheduleDraftSave(0));
+    row.querySelector('[data-role="remove-manual-line"]').addEventListener("click", () => {
+      row.remove();
+      if (!host.querySelector('[data-role="manual-line-row"]')) addManualBulkLine(tr);
+      tr._manualLines = collectManualLines(tr);
+      renderPickerCosmeticOptions(tr);
+      scheduleDraftSave(0);
+    });
+    host.appendChild(row);
+    if (focus) row.querySelector('[data-role="manual-item"]')?.focus();
+  }
+
+  function renderPickOrderDetail(tr) {
+    const host = tr.querySelector('[data-role="order-detail"]');
+    if (!host) return;
+    const bulk = isBulkPickBin();
+    const result = tr.querySelector('[data-role="pick-result"]')?.value;
+    const cosmetic = result === "COSMETIC_REJECTION";
+    const so = tr.querySelector('[data-role="sales-order"]')?.value.trim() || "";
+
+    if (!bulk && !cosmetic) {
+      host.hidden = true;
+      host.innerHTML = "";
+      return;
+    }
+
+    host.hidden = false;
+    let html = "";
+
+    if (bulk) {
+      if (!so) {
+        html += '<div class="muted">Scan a Sales Order to load Bulk item and quantity lines.</div>';
+      } else if (!tr._lookupDone) {
+        html += '<div class="muted">Loading Open Sales Orders items...</div>';
+      } else if (tr._lookupFound) {
+        const lines = tr._lookupLines || [];
+        html += '<div class="source-note">Loaded from Open Sales Orders'+(tr._lookupCustomer ? ' · '+esc(tr._lookupCustomer) : '')+'</div>' +
+          '<div class="bulk-lines-table"><div class="bulk-line-head"><span>Item</span><span>Qty</span></div>' +
+          lines.map((line) => '<div class="bulk-line"><span>'+esc(line.item_name || "")+'</span><strong>'+esc(line.quantity ?? "")+'</strong></div>').join("") +
+          '</div>';
+      } else {
+        html += '<div class="warning-box">This Sales Order was not found in Open Sales Orders. Enter each Item and Quantity manually before submitting the Pick Batch.</div>' +
+          '<div data-role="manual-lines" class="manual-lines"></div>' +
+          '<button class="secondary" data-role="add-manual-line" type="button">Add Item Line</button>';
+      }
+    }
+
+    if (cosmetic) {
+      html += '<div data-role="picker-cosmetic-items" class="picker-cosmetic-wrap"></div>';
+    }
+
+    host.innerHTML = html;
+
+    if (bulk && tr._lookupDone && !tr._lookupFound) {
+      const existing = Array.isArray(tr._manualLines) && tr._manualLines.length ? tr._manualLines : [{}];
+      existing.forEach((line) => addManualBulkLine(tr,line));
+      host.querySelector('[data-role="add-manual-line"]')?.addEventListener("click", () => addManualBulkLine(tr,{},true));
+    }
+
+    if (cosmetic) renderPickerCosmeticOptions(tr);
+  }
+
+  async function hydratePickOrderRow(tr, force = false) {
+    const input = tr.querySelector('[data-role="sales-order"]');
+    const so = input?.value.trim() || "";
+    const result = tr.querySelector('[data-role="pick-result"]')?.value;
+    const needsLookup = isBulkPickBin() || result === "COSMETIC_REJECTION";
+
+    if (!so || !needsLookup) {
+      if (!so) {
+        tr._lookupSo = "";
+        tr._lookupDone = false;
+        tr._lookupFound = false;
+        tr._lookupLines = [];
+        tr._potentialItems = [];
+      }
+      renderPickOrderDetail(tr);
+      return;
+    }
+
+    if (!force && tr._lookupDone && tr._lookupSo === so) {
+      renderPickOrderDetail(tr);
+      return;
+    }
+
+    tr._lookupSo = so;
+    tr._lookupDone = false;
+    renderPickOrderDetail(tr);
+
+    const response = await rpc("get_pps_sales_order_lines", {
+      p_session_token: sessionToken,
+      p_sales_order_number: so
+    });
+
+    if ((input?.value.trim() || "") !== so) return;
+
+    tr._lookupDone = true;
+    tr._lookupFound = !!response?.found;
+    tr._lookupLines = Array.isArray(response?.lines) ? response.lines : [];
+    tr._potentialItems = Array.isArray(response?.potential_items) ? response.potential_items : [];
+    tr._lookupCustomer = response?.customer_name || "";
+
+    if (tr._lookupFound) tr._manualLines = [];
+    renderPickOrderDetail(tr);
+    scheduleDraftSave(0);
+  }
+
+  function refreshPickOrderDetails() {
+    [...$("pick-rows").querySelectorAll("tr")].forEach((tr) => {
+      hydratePickOrderRow(tr,false).catch(showError);
+    });
+  }
+
   function addPickRow(data = {}, focus = false) {
     const tbody = $("pick-rows");
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="scan-num" data-row-number></td>
-      <td><input data-role="sales-order" type="text" autocomplete="off" placeholder="Scan sales order" value="${esc(data.sales_order_number || "")}"></td>
-      <td><select data-role="pick-result"><option value="PICKED">Picked</option><option value="INVENTORY_DISCREPANCY">Inventory Discrepancy - Fulfillment Deleted</option></select></td>
+      <td><input data-role="sales-order" type="text" autocomplete="off" placeholder="Scan sales order" value="${esc(data.sales_order_number || "")}"><div data-role="order-detail" class="pick-order-detail" hidden></div></td>
+      <td><select data-role="pick-result"><option value="PICKED">Picked</option><option value="INVENTORY_DISCREPANCY">Inventory Discrepancy - Fulfillment Deleted</option><option value="COSMETIC_REJECTION">Cosmetic Rejection</option></select></td>
       <td><button class="secondary" data-role="remove-row" type="button">Remove</button></td>`;
+
+    tr._pickerCosmeticItems = Array.isArray(data.picker_cosmetic_items) ? data.picker_cosmetic_items : [];
+    tr._manualLines = Array.isArray(data.order_lines) && data.order_lines.some((line) => line.line_source === "MANUAL")
+      ? data.order_lines.map((line) => ({ item_name:line.item_name || "", quantity:line.quantity ?? "", line_source:"MANUAL" }))
+      : [];
+
+    const savedSourceLines = Array.isArray(data.order_lines)
+      ? data.order_lines.filter((line) => line.line_source === "OPEN_SALES_ORDERS")
+      : [];
+    tr._lookupSo = data.sales_order_number || "";
+    tr._lookupDone = !!data.sales_order_number && (savedSourceLines.length > 0 || tr._manualLines.length > 0 || Array.isArray(data.potential_items));
+    tr._lookupFound = savedSourceLines.length > 0;
+    tr._lookupLines = savedSourceLines;
+    tr._potentialItems = Array.isArray(data.potential_items) ? data.potential_items : [];
+    tr._lookupCustomer = "";
+
     tr.querySelector('[data-role="pick-result"]').value = data.pick_result || "PICKED";
     tr.querySelector('[data-role="remove-row"]').addEventListener("click", () => {
       const rows = tbody.querySelectorAll("tr");
       if (rows.length === 1) {
-        tr.querySelector('[data-role="sales-order"]').value = "";
+        const soInput = tr.querySelector('[data-role="sales-order"]');
+        soInput.value = "";
         tr.querySelector('[data-role="pick-result"]').value = "PICKED";
-        tr.querySelector('[data-role="sales-order"]').focus();
+        tr._pickerCosmeticItems = [];
+        tr._manualLines = [];
+        tr._lookupDone = false;
+        tr._lookupFound = false;
+        tr._lookupLines = [];
+        tr._potentialItems = [];
+        renderPickOrderDetail(tr);
+        soInput.focus();
         scheduleDraftSave(0);
         return;
       }
@@ -170,14 +388,31 @@
     });
 
     const input = tr.querySelector('[data-role="sales-order"]');
-    input.addEventListener("input", () => scheduleDraftSave());
-    input.addEventListener("change", () => scheduleDraftSave(0));
-    tr.querySelector('[data-role="pick-result"]').addEventListener("change", () => scheduleDraftSave(0));
+    input.addEventListener("input", () => {
+      if (input.value.trim() !== tr._lookupSo) {
+        tr._lookupDone = false;
+        tr._lookupFound = false;
+        tr._lookupLines = [];
+        tr._potentialItems = [];
+      }
+      scheduleDraftSave();
+    });
+    input.addEventListener("change", () => {
+      hydratePickOrderRow(tr,true).catch(showError);
+      scheduleDraftSave(0);
+    });
+
+    tr.querySelector('[data-role="pick-result"]').addEventListener("change", () => {
+      if (tr.querySelector('[data-role="pick-result"]').value !== "COSMETIC_REJECTION") tr._pickerCosmeticItems = [];
+      hydratePickOrderRow(tr,false).catch(showError);
+      scheduleDraftSave(0);
+    });
 
     input.addEventListener("keydown", (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       if (!input.value.trim()) return;
+      hydratePickOrderRow(tr,true).catch(showError);
       const rows = [...tbody.querySelectorAll("tr")];
       const index = rows.indexOf(tr);
       if (index === rows.length - 1) addPickRow({}, true);
@@ -187,20 +422,51 @@
 
     tbody.appendChild(tr);
     renumberPickRows();
+    renderPickOrderDetail(tr);
     if (focus) input.focus();
     return tr;
   }
 
   function collectPickOrders() {
+    const bulk = isBulkPickBin();
     return [...$("pick-rows").querySelectorAll("tr")]
-      .map((tr) => ({
-        sales_order_number: tr.querySelector('[data-role="sales-order"]').value.trim(),
-        pick_result: tr.querySelector('[data-role="pick-result"]').value
-      }))
+      .map((tr) => {
+        const salesOrder = tr.querySelector('[data-role="sales-order"]').value.trim();
+        const pickResult = tr.querySelector('[data-role="pick-result"]').value;
+        const orderLines = bulk
+          ? (tr._lookupFound ? (tr._lookupLines || []) : collectManualLines(tr))
+          : [];
+        return {
+          sales_order_number: salesOrder,
+          pick_result: pickResult,
+          picker_cosmetic_items: pickResult === "COSMETIC_REJECTION" ? pickerCosmeticItems(tr) : [],
+          order_lines: orderLines
+        };
+      })
       .filter((row) => row.sales_order_number);
   }
 
-  function draftFingerprint() {
+  function validatePickOrdersForSubmit(orders) {
+    if (isBulkPickBin()) {
+      const missingLines = orders.find((order) => !(order.order_lines || []).length);
+      if (missingLines) throw new Error("Enter at least one Item and Quantity for Sales Order " + missingLines.sales_order_number + ".");
+      for (const order of orders) {
+        for (const line of order.order_lines || []) {
+          const item = String(line.item_name || "").trim();
+          const qty = Number(line.quantity);
+          if (!item || !Number.isFinite(qty) || qty <= 0) {
+            throw new Error("Every Bulk line for Sales Order " + order.sales_order_number + " requires an Item and Quantity greater than zero.");
+          }
+        }
+      }
+    }
+    const missingCosmetic = orders.find((order) => order.pick_result === "COSMETIC_REJECTION" && !(order.picker_cosmetic_items || []).length);
+    if (missingCosmetic) {
+      throw new Error("Select the Cosmetic Rejection Item for Sales Order " + missingCosmetic.sales_order_number + ".");
+    }
+  }
+
+  function draftFingerprint() {  function draftFingerprint() {
     return JSON.stringify({
       pick_bin: $("pick-bin").value || "",
       comments: $("pick-comments").value.trim(),
@@ -410,6 +676,7 @@
     const orders = collectPickOrders();
     if (!$("pick-bin").value) throw new Error("Select a Pick Bin.");
     if (!orders.length) throw new Error("Scan at least one Sales Order before submitting.");
+    validatePickOrdersForSubmit(orders);
     if (!(await confirmDiscrepancies(orders))) return;
 
     const wasSubmittedEdit = editingBatchStatus === "SUBMITTED";
@@ -1015,7 +1282,10 @@
     $("add-pick-row").addEventListener("click", () => addPickRow({}, true));
     $("submit-pick-batch").addEventListener("click", () => savePickBatch().catch(showError));
     $("cancel-edit").addEventListener("click", () => cancelPickEdit().catch(showError));
-    $("pick-bin").addEventListener("change", () => scheduleDraftSave(0));
+    $("pick-bin").addEventListener("change", () => {
+      refreshPickOrderDetails();
+      scheduleDraftSave(0);
+    });
     $("pick-comments").addEventListener("input", () => scheduleDraftSave());
     $("refresh-batches").addEventListener("click", () => loadBatches().catch(showError));
     $("refresh-qa").addEventListener("click", () => loadQaQueue().catch(showError));
