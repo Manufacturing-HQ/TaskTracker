@@ -368,6 +368,8 @@
     if (current && [...select.options].some((o) => o.value === current)) select.value = current;
     renderFindings();
     renderExistingAudit();
+    window.TaskTrackerAuditSetup = auditSetup;
+    window.dispatchEvent(new CustomEvent("tasktracker:audit-setup-loaded", { detail: auditSetup }));
   }
 
   function renderFindings() {
