@@ -963,9 +963,16 @@
       host.innerHTML = "";
 
       (detail.orders || []).forEach((order) => {
-        const saved = drafts.get(order.batch_order_id) || {};
+        const hasSavedDraft = drafts.has(order.batch_order_id);
+        const pickerIdentifiedCosmetic = order.pick_result === "COSMETIC_REJECTION";
+        const pickerCosmeticItems = Array.isArray(order.picker_cosmetic_items) ? order.picker_cosmetic_items : [];
+        const saved = hasSavedDraft
+          ? (drafts.get(order.batch_order_id) || {})
+          : pickerIdentifiedCosmetic
+            ? { good_confirmed:true, pick_error:false, pick_error_comment:null, cosmetic_rejection:true, cosmetic_items:pickerCosmeticItems }
+            : {};
         const card = document.createElement("div");
-        card.className = `qa-order ${order.pick_result === "INVENTORY_DISCREPANCY" ? "discrepancy" : ""}`;
+        card.className = `qa-order ${order.pick_result === "INVENTORY_DISCREPANCY" ? "discrepancy" : pickerIdentifiedCosmetic ? "picker-cosmetic" : ""}`;
         card.dataset.orderId = order.batch_order_id;
         card.dataset.pickResult = order.pick_result;
         card.dataset.salesOrder = order.sales_order_number;
@@ -981,14 +988,18 @@
             scheduleQaDraftSave(0);
           });
         } else {
-          card.innerHTML = `<div class="qa-order-header"><div><strong>${esc(order.sales_order_number)}</strong><div class="muted">Picker Result: Picked</div></div></div>
+          const pickerResultText = pickerIdentifiedCosmetic ? "Cosmetic Rejection - Picker Identified" : "Picked";
+          const lineSummary = orderLinesSummaryHtml(order.order_lines || []);
+          card.innerHTML = `<div class="qa-order-header"><div><strong>${esc(order.sales_order_number)}</strong><div class="muted">Picker Result: ${esc(pickerResultText)}</div></div>${pickerIdentifiedCosmetic ? '<span class="status review">Cosmetic Rejection</span>' : ""}</div>
+            ${lineSummary}
+            ${pickerIdentifiedCosmetic ? '<div class="picker-identified"><strong>Picker identified:</strong> '+pickerCosmeticItems.map(esc).join(", ")+'</div>' : ""}
             <div class="qa-controls">
               <label class="checkline"><input type="checkbox" data-role="good"> Order Good</label>
               <div class="field"><label>Pick Error</label><select data-role="pick-error"><option value="NO">No</option><option value="YES">Yes</option></select></div>
               <div class="field"><label>Cosmetic Rejection</label><select data-role="cosmetic"><option value="NO">No</option><option value="YES">Yes</option></select></div>
             </div>
             <div class="field" data-role="pick-error-comment-wrap" hidden style="margin-top:10px"><label>Pick Error Comment</label><textarea data-role="pick-error-comment" placeholder="Required when Pick Error is selected"></textarea></div>
-            <div data-role="cosmetic-wrap" hidden style="margin-top:12px"><div><strong>Cosmetic Rejection Items</strong><div class="muted" style="margin-top:4px">Select the rejected item or items listed on this Sales Order.</div></div><div class="cosmetic-items" data-role="cosmetic-items"></div></div>`;
+            <div data-role="cosmetic-wrap" hidden style="margin-top:12px"><div><strong>Cosmetic Rejection Items</strong><div class="muted" style="margin-top:4px">${pickerIdentifiedCosmetic ? "Picker selection is prefilled. Verify it, then submit QA." : "Select the rejected item or items listed on this Sales Order."}</div></div><div class="cosmetic-items" data-role="cosmetic-items"></div></div>`;
 
           const good = card.querySelector('[data-role="good"]');
           const errorSelect = card.querySelector('[data-role="pick-error"]');
