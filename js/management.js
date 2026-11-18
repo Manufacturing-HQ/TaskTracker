@@ -45,6 +45,16 @@
     el.hidden = !message;
   }
 
+  function setSectionMessage(view, message, type = "info") {
+    const id = view === "attendance" ? "attendance-message" : view === "audit" ? "audit-message" : null;
+    if (!id) return;
+    const el = $(id);
+    if (!el) return;
+    el.textContent = message || "";
+    el.dataset.type = type;
+    el.hidden = !message;
+  }
+
   function escapeHtml(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -214,8 +224,13 @@
   }
 
   function showViewError(view, error) {
+    const message = error?.message || String(error);
+    if (view === "attendance" || view === "audit") {
+      setSectionMessage(view, message, "error");
+      return;
+    }
     if (activeView !== view) {
-      console.warn("Background management request did not complete:", error?.message || error);
+      console.warn("Background management request did not complete:", message);
       return;
     }
     showError(error);
@@ -262,9 +277,10 @@
   }
 
   async function loadLiveStatus() {
-    const data = await rpc("get_supervisor_live_status_dashboard", {
+    const data = await rpc("get_live_status_dashboard_filtered", {
       p_session_token: sessionToken,
-      p_period: $("performance-period").value
+      p_period: $("performance-period").value,
+      p_supervisor_id: $("req-live-supervisor")?.value || null
     });
     const p = data?.performance || {};
     $("perf-productivity").textContent = pct(p.productivity_percent);
@@ -306,6 +322,7 @@
     });
     window.TaskTrackerAttendanceData = attendanceData;
     $("attendance-date").value = attendanceData.business_date;
+    setSectionMessage("attendance", "");
     const body = $("attendance-body");
     body.innerHTML = "";
     (attendanceData.employees || []).forEach((emp) => {
@@ -344,9 +361,10 @@
       });
       document.querySelector(`[data-minutes="${employeeId}"]`).textContent = result.minutes_worked ?? "—";
       savedEl.textContent = "Saved";
+      setSectionMessage("attendance", "");
     } catch (e) {
       savedEl.textContent = "Error";
-      showError(e);
+      showViewError("attendance", e);
     }
   }
 
@@ -368,6 +386,7 @@
     if (current && [...select.options].some((o) => o.value === current)) select.value = current;
     renderFindings();
     renderExistingAudit();
+    setSectionMessage("audit", "");
     window.TaskTrackerAuditSetup = auditSetup;
     window.dispatchEvent(new CustomEvent("tasktracker:audit-setup-loaded", { detail: auditSetup }));
   }
@@ -416,7 +435,7 @@
       p_finding_type_ids: findingIds.length ? findingIds : null,
       p_comments: $("audit-comments").value.trim() || null
     });
-    setMessage("Task Tracker Audit saved.");
+    setSectionMessage("audit", "Task Tracker Audit saved.");
     await ensureAuditSetup(true);
   }
 
@@ -483,14 +502,14 @@
   $("login-form").addEventListener("submit", (e) => login(e).catch(showError));
   $("sign-out").addEventListener("click", () => signOut().catch(showError));
   document.querySelectorAll("button[data-view]").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
-  $("performance-period").addEventListener("change", () => ensureLiveStatus(true).catch(showError));
-  $("refresh-status").addEventListener("click", () => ensureLiveStatus(true).catch(showError));
-  $("attendance-date").addEventListener("change", () => ensureAttendance(true).catch(showError));
-  $("audit-date").addEventListener("change", () => ensureAuditSetup(true).catch(showError));
-  $("audit-load").addEventListener("click", () => ensureAuditSetup(true).catch(showError));
+  $("performance-period").addEventListener("change", () => ensureLiveStatus(true).catch((error) => showViewError("home", error)));
+  $("refresh-status").addEventListener("click", () => ensureLiveStatus(true).catch((error) => showViewError("home", error)));
+  $("attendance-date").addEventListener("change", () => ensureAttendance(true).catch((error) => showViewError("attendance", error)));
+  $("audit-date").addEventListener("change", () => ensureAuditSetup(true).catch((error) => showViewError("audit", error)));
+  $("audit-load").addEventListener("click", () => ensureAuditSetup(true).catch((error) => showViewError("audit", error)));
   $("audit-employee").addEventListener("change", renderExistingAudit);
   $("audit-result").addEventListener("change", renderFindings);
-  $("audit-submit").addEventListener("click", () => submitAudit().catch(showError));
+  $("audit-submit").addEventListener("click", () => submitAudit().catch((error) => showViewError("audit", error)));
   $("include-completed").addEventListener("change", () => loadQueue().catch(showError));
 
   window.TaskTrackerManagementLoaders = {
