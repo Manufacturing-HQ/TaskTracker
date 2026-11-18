@@ -111,58 +111,11 @@
     bar.innerHTML = `<div class="field"><label>Supervisor</label><select id="req-live-supervisor">${supervisorOptions()}</select></div>`;
     perfPanel.insertBefore(bar, perfPanel.firstChild.nextSibling);
 
-    document.getElementById("req-live-supervisor").addEventListener("change", loadLiveFiltered);
-    document.getElementById("performance-period")?.addEventListener("change", () => setTimeout(loadLiveFiltered,60));
-    document.getElementById("refresh-status")?.addEventListener("click", () => setTimeout(loadLiveFiltered,60));
-    loadLiveFiltered();
-  }
-
-  async function loadLiveFiltered() {
-    if (!token()) return;
-    try {
-      const data = await rpc("get_live_status_dashboard_filtered", {
-        p_session_token:token(),
-        p_period:document.getElementById("performance-period")?.value || "WEEK",
-        p_supervisor_id:document.getElementById("req-live-supervisor")?.value || null
+    document.getElementById("req-live-supervisor").addEventListener("change", () => {
+      window.TaskTrackerManagementLoaders?.loadLiveStatus(true)?.catch((error) => {
+        console.warn("Live Status refresh did not complete:", error?.message || error);
       });
-      const p = data?.performance || {};
-      document.getElementById("perf-productivity").textContent = pct(p.productivity_percent);
-      document.getElementById("perf-efficiency").textContent = pct(p.efficiency_percent);
-      document.getElementById("perf-error").textContent = pct(p.error_rate_percent);
-
-      const body = document.getElementById("status-body");
-      if (!body) return;
-      body.innerHTML = "";
-      const renderedAt = Date.now();
-
-      (data?.employees || []).forEach((e) => {
-        const paused = !e.has_active_task && e.has_paused_job;
-        const task = e.has_active_task
-          ? [e.task_type,e.work_order_number,e.item_name || e.non_productive_task,e.job_type].filter(Boolean).join(" · ")
-          : paused
-            ? [e.paused_task_type,e.paused_work_order_number,e.paused_item_name || e.paused_non_productive_task,e.paused_job_type].filter(Boolean).join(" · ")
-            : "—";
-        const overdue = e.has_active_task && e.task_type === "Productive" && Number(e.expected_minutes) > 0 && Number(e.minutes_on_task) > Number(e.expected_minutes);
-        const timerKind = e.has_active_task ? "active" : paused ? "paused" : null;
-        const baseSeconds = e.has_active_task ? Number(e.active_elapsed_seconds || 0) : paused ? Number(e.paused_elapsed_seconds || 0) : 0;
-        const timerHtml = timerKind
-          ? `<span class="live-timer ${paused ? "paused-timer" : ""}" data-live-timer="1" data-timer-kind="${timerKind}" data-base-seconds="${baseSeconds}" data-rendered-at="${renderedAt}">${esc(`${paused ? "Paused " : ""}${elapsed(baseSeconds)}`)}</span>`
-          : "—";
-        const tr = document.createElement("tr");
-        if (e.active_from_prior_day) tr.className = "prior-day-active";
-        else if (overdue) tr.className = "req-overdue";
-        tr.innerHTML = `<td><strong>${esc(e.employee_name)}</strong><div class="req-muted">${esc(e.department || "")}</div></td>
-          <td><span class="status-pill ${e.has_active_task ? "" : "status-idle"}">${esc(e.status || "No Active Task")}</span>${e.active_from_prior_day ? '<div class="prior-day-note">Active from prior day</div>' : ""}</td>
-          <td>${esc(task)}</td>
-          <td>${timerHtml}${overdue ? `<div class="req-muted"><strong>Expected ${esc(minutes(e.expected_minutes))}</strong></div>` : ""}</td>
-          <td>${esc(e.total_stops || 0)}</td>
-          <td>${esc(e.supervisor_name || "—")}</td>`;
-        body.appendChild(tr);
-      });
-      if (!body.children.length) body.innerHTML = '<tr><td colspan="6">No employees are available for this filter.</td></tr>';
-    } catch (error) {
-      console.warn("Filtered live status skipped:", error.message);
-    }
+    });
   }
 
   function installAuditFilters() {
