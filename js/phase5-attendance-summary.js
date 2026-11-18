@@ -20,7 +20,23 @@
   async function signOut(){ const t=token; sessionStorage.removeItem(key); token=null;employee=null;setup=null;summary=null; if(t){try{await rpc("logout_employee_session",{p_session_token:t});}catch{}} window.location.replace("index.html"); }
   async function loadSetup(){ setup=await rpc("get_corrective_action_setup",{p_session_token:token}); fillSelect("action-employee",setup.employees,"employee_id",r=>[r.employee_name,r.department].filter(Boolean).join(" · "),"Select employee"); fillSelect("action-category",setup.categories,"category_id","display_name","Select category"); fillSelect("action-reason",setup.reasons,"reason_id","display_name","Select reason"); }
   async function loadSummary(){ summary=await rpc("get_attendance_employee_summary",{p_session_token:token,p_employee_id:$("filter-employee").value||null,p_supervisor_id:$("filter-supervisor").value||null,p_include_inactive_actions:$("include-inactive").checked}); renderFilters(); renderAttendance(); renderActions(); }
-  function renderFilters(){ if(!summary) return; if(!$("filter-employee").dataset.loaded){ fillSelect("filter-employee",summary.employees,"employee_id","employee_name","All employees"); $("filter-employee").dataset.loaded="1"; } const can=summary.viewer?.can_filter_supervisors; $("supervisor-filter-wrap").hidden=!can; if(can && !$("filter-supervisor").dataset.loaded){ fillSelect("filter-supervisor",summary.supervisors,"employee_id","employee_name","All supervisors"); $("filter-supervisor").dataset.loaded="1"; } }
+  function renderFilters(){
+    if(!summary) return;
+    const employeeSelect=$("filter-employee");
+    const supervisorSelect=$("filter-supervisor");
+    const currentEmployee=employeeSelect.value;
+    const currentSupervisor=supervisorSelect.value;
+
+    fillSelect("filter-employee",summary.employees,"employee_id","employee_name","All employees");
+    if([...employeeSelect.options].some(option=>option.value===currentEmployee)) employeeSelect.value=currentEmployee;
+
+    const can=summary.viewer?.can_filter_supervisors;
+    $("supervisor-filter-wrap").hidden=!can;
+    if(can){
+      fillSelect("filter-supervisor",summary.supervisors,"employee_id","employee_name","All supervisors");
+      if([...supervisorSelect.options].some(option=>option.value===currentSupervisor)) supervisorSelect.value=currentSupervisor;
+    }
+  }
   function renderAttendance(){
     const body=$("attendance-body");
     body.innerHTML="";
@@ -90,5 +106,5 @@
   async function deactivate(){ if(!currentAction) return; const reason=prompt("Optional reason for marking this Probationary Final inactive:")||null; try{await rpc("deactivate_probationary_final",{p_session_token:token,p_corrective_action_id:currentAction.corrective_action_id,p_reason:reason});$("action-modal").hidden=true;await loadSummary();}catch(e){alert(e.message);} }
   async function enter(){ const role=employee?.employee_role||employee?.role; if(!["Supervisor","Manager","Administrator"].includes(role)){sessionStorage.removeItem(key);token=null;window.location.replace("index.html");return;} $("login").hidden=true;$("app").hidden=false;$("side-name").textContent=employee.employee_name||employee.name||"";$("side-meta").textContent=[role,employee.department].filter(Boolean).join(" · "); await loadSetup(); await loadSummary(); }
   async function init(){try{await listLogin();if(await restore())await enter();}catch(e){msg(e.message,"error");}}
-  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>signOut());$("refresh").addEventListener("click",()=>loadSummary().catch(e=>alert(e.message)));$("filter-employee").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("filter-supervisor").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("include-inactive").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("new-action").addEventListener("click",openNew);$("close-modal").addEventListener("click",()=>$("action-modal").hidden=true);$("action-category").addEventListener("change",calcRolloff);$("action-date").addEventListener("change",calcRolloff);$("action-form").addEventListener("submit",saveAction);$("delete-action").addEventListener("click",deleteAction);$("deactivate-action").addEventListener("click",deactivate);init();
+  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>signOut());$("refresh").addEventListener("click",()=>loadSummary().catch(e=>alert(e.message)));$("filter-employee").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("filter-supervisor").addEventListener("change",()=>{ $("filter-employee").value=""; loadSummary().catch(e=>alert(e.message)); });$("include-inactive").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("new-action").addEventListener("click",openNew);$("close-modal").addEventListener("click",()=>$("action-modal").hidden=true);$("action-category").addEventListener("change",calcRolloff);$("action-date").addEventListener("change",calcRolloff);$("action-form").addEventListener("submit",saveAction);$("delete-action").addEventListener("click",deleteAction);$("deactivate-action").addEventListener("click",deactivate);init();
 })();
