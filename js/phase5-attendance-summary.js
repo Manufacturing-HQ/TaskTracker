@@ -19,7 +19,17 @@
   async function login(ev){ ev.preventDefault(); const r=await rpc("login_with_employee_pin",{p_employee_id:$("employee").value,p_pin:$("pin").value}); const row=Array.isArray(r)?r[0]:r; if(!row?.login_successful||!row.session_token){msg(row?.login_message||"Login failed.","error");return;} token=row.session_token;sessionStorage.setItem(key,token);employee=row;$("pin").value="";await enter(); }
   async function signOut(){ const t=token; sessionStorage.removeItem(key); token=null;employee=null;setup=null;summary=null; if(t){try{await rpc("logout_employee_session",{p_session_token:t});}catch{}} window.location.replace("index.html"); }
   async function loadSetup(){ setup=await rpc("get_corrective_action_setup",{p_session_token:token}); fillSelect("action-employee",setup.employees,"employee_id",r=>[r.employee_name,r.department].filter(Boolean).join(" · "),"Select employee"); fillSelect("action-category",setup.categories,"category_id","display_name","Select category"); fillSelect("action-reason",setup.reasons,"reason_id","display_name","Select reason"); }
-  async function loadSummary(){ summary=await rpc("get_attendance_employee_summary",{p_session_token:token,p_employee_id:$("filter-employee").value||null,p_supervisor_id:$("filter-supervisor").value||null,p_include_inactive_actions:$("include-inactive").checked}); renderFilters(); renderAttendance(); renderActions(); }
+  async function loadSummary(){
+    summary=await rpc("get_attendance_employee_summary",{
+      p_session_token:token,
+      p_employee_id:null,
+      p_supervisor_id:null,
+      p_include_inactive_actions:$("include-inactive").checked
+    });
+    renderFilters();
+    renderAttendance();
+    renderActions();
+  }
   function renderFilters(){
     if(!summary) return;
     const employeeSelect=$("filter-employee");
@@ -27,20 +37,49 @@
     const currentEmployee=employeeSelect.value;
     const currentSupervisor=supervisorSelect.value;
 
-    fillSelect("filter-employee",summary.employees,"employee_id","employee_name","All employees");
-    if([...employeeSelect.options].some(option=>option.value===currentEmployee)) employeeSelect.value=currentEmployee;
-
     const can=summary.viewer?.can_filter_supervisors;
     $("supervisor-filter-wrap").hidden=!can;
     if(can){
       fillSelect("filter-supervisor",summary.supervisors,"employee_id","employee_name","All supervisors");
       if([...supervisorSelect.options].some(option=>option.value===currentSupervisor)) supervisorSelect.value=currentSupervisor;
+    }else{
+      supervisorSelect.value="";
     }
+
+    const supervisorId=supervisorSelect.value;
+    const employeeRows=(summary.employees||[]).filter(row=>!supervisorId || String(row.supervisor_id||"")===String(supervisorId));
+    fillSelect("filter-employee",employeeRows,"employee_id","employee_name","All employees");
+    if([...employeeSelect.options].some(option=>option.value===currentEmployee)) employeeSelect.value=currentEmployee;
+    else employeeSelect.value="";
+  }
+
+  function filteredAttendanceRows(){
+    const supervisorId=$("filter-supervisor").value;
+    const employeeId=$("filter-employee").value;
+    return (summary?.attendance_rows||[]).filter(row=>
+      (!supervisorId || String(row.supervisor_id||"")===String(supervisorId)) &&
+      (!employeeId || String(row.employee_id||"")===String(employeeId))
+    );
+  }
+
+  function filteredCorrectiveActions(){
+    const supervisorId=$("filter-supervisor").value;
+    const employeeId=$("filter-employee").value;
+    return (summary?.corrective_actions||[]).filter(row=>
+      (!supervisorId || String(row.supervisor_id||"")===String(supervisorId)) &&
+      (!employeeId || String(row.employee_id||"")===String(employeeId))
+    );
+  }
+
+  function applySummaryFilters(){
+    renderFilters();
+    renderAttendance();
+    renderActions();
   }
   function renderAttendance(){
     const body=$("attendance-body");
     body.innerHTML="";
-    const rows=summary?.attendance_rows||[];
+    const rows=filteredAttendanceRows();
     if(!rows.length){body.innerHTML='<tr><td colspan="7">No employees match this view.</td></tr>';return;}
     rows.forEach(r=>{
       const actions=Array.isArray(r.attendance_actions)?r.attendance_actions:[];
@@ -54,7 +93,7 @@
       body.appendChild(tr);
     });
   }
-  function renderActions(){ const wrap=$("action-sections");wrap.innerHTML=""; const rows=summary?.corrective_actions||[]; const cats=setup?.categories||[]; cats.forEach(c=>{ const items=rows.filter(r=>r.category_code===c.category_code); const title=document.createElement("div");title.className="action-row-title";title.textContent=c.display_name;wrap.appendChild(title); const grid=document.createElement("div");grid.className="tiles"; if(!items.length){grid.innerHTML='<div class="empty">No records in this category.</div>';} items.forEach(a=>{const tile=document.createElement("div");tile.className="tile";tile.innerHTML=`<strong>${esc(a.employee_name)}</strong><small>${esc(a.reason_name)} · ${esc(a.incident_date)}</small><small>Roll off: ${esc(a.roll_off_display)}</small>`;tile.addEventListener("click",()=>openEdit(a));grid.appendChild(tile);}); wrap.appendChild(grid); }); }
+  function renderActions(){ const wrap=$("action-sections");wrap.innerHTML=""; const rows=filteredCorrectiveActions(); const cats=setup?.categories||[]; cats.forEach(c=>{ const items=rows.filter(r=>r.category_code===c.category_code); const title=document.createElement("div");title.className="action-row-title";title.textContent=c.display_name;wrap.appendChild(title); const grid=document.createElement("div");grid.className="tiles"; if(!items.length){grid.innerHTML='<div class="empty">No records in this category.</div>';} items.forEach(a=>{const tile=document.createElement("div");tile.className="tile";tile.innerHTML=`<strong>${esc(a.employee_name)}</strong><small>${esc(a.reason_name)} · ${esc(a.incident_date)}</small><small>Roll off: ${esc(a.roll_off_display)}</small>`;tile.addEventListener("click",()=>openEdit(a));grid.appendChild(tile);}); wrap.appendChild(grid); }); }
   function calcRolloff(){ const cat=(setup?.categories||[]).find(c=>c.category_id===$("action-category").value); const date=$("action-date").value; if(!cat){$("action-rolloff").value="";return;} if(cat.requires_manual_close){$("action-rolloff").value="End of Probationary Period";return;} if(!date){$("action-rolloff").value="";return;} const d=new Date(`${date}T12:00:00`);d.setDate(d.getDate()+Math.max(Number(cat.active_days||0)-1,0));$("action-rolloff").value=d.toLocaleDateString(); }
   function openNew(){
     currentAction=null;
@@ -106,5 +145,5 @@
   async function deactivate(){ if(!currentAction) return; const reason=prompt("Optional reason for marking this Probationary Final inactive:")||null; try{await rpc("deactivate_probationary_final",{p_session_token:token,p_corrective_action_id:currentAction.corrective_action_id,p_reason:reason});$("action-modal").hidden=true;await loadSummary();}catch(e){alert(e.message);} }
   async function enter(){ const role=employee?.employee_role||employee?.role; if(!["Supervisor","Manager","Administrator"].includes(role)){sessionStorage.removeItem(key);token=null;window.location.replace("index.html");return;} $("login").hidden=true;$("app").hidden=false;$("side-name").textContent=employee.employee_name||employee.name||"";$("side-meta").textContent=[role,employee.department].filter(Boolean).join(" · "); await loadSetup(); await loadSummary(); }
   async function init(){try{await listLogin();if(await restore())await enter();}catch(e){msg(e.message,"error");}}
-  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>signOut());$("refresh").addEventListener("click",()=>loadSummary().catch(e=>alert(e.message)));$("filter-employee").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("filter-supervisor").addEventListener("change",()=>{ $("filter-employee").value=""; loadSummary().catch(e=>alert(e.message)); });$("include-inactive").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("new-action").addEventListener("click",openNew);$("close-modal").addEventListener("click",()=>$("action-modal").hidden=true);$("action-category").addEventListener("change",calcRolloff);$("action-date").addEventListener("change",calcRolloff);$("action-form").addEventListener("submit",saveAction);$("delete-action").addEventListener("click",deleteAction);$("deactivate-action").addEventListener("click",deactivate);init();
+  $("login-form").addEventListener("submit",e=>login(e).catch(x=>msg(x.message,"error")));$("sign-out").addEventListener("click",()=>signOut());$("refresh").addEventListener("click",()=>loadSummary().catch(e=>alert(e.message)));$("filter-employee").addEventListener("change",()=>{ renderAttendance(); renderActions(); });$("filter-supervisor").addEventListener("change",()=>{ $("filter-employee").value=""; applySummaryFilters(); });$("include-inactive").addEventListener("change",()=>loadSummary().catch(e=>alert(e.message)));$("new-action").addEventListener("click",openNew);$("close-modal").addEventListener("click",()=>$("action-modal").hidden=true);$("action-category").addEventListener("change",calcRolloff);$("action-date").addEventListener("change",calcRolloff);$("action-form").addEventListener("submit",saveAction);$("delete-action").addEventListener("click",deleteAction);$("deactivate-action").addEventListener("click",deactivate);init();
 })();
