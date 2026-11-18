@@ -179,8 +179,7 @@
         d.querySelector("select").addEventListener("change", applyAttendanceFilter);
       }
       const body = document.getElementById("attendance-body");
-      if (body) new MutationObserver(() => refreshAttendanceMap()).observe(body,{childList:true});
-      document.getElementById("attendance-date")?.addEventListener("change", () => setTimeout(refreshAttendanceMap,80));
+      if (body) new MutationObserver(() => applyAttendanceFilter()).observe(body,{childList:true});
     }
 
     if (!document.getElementById("req-audit-supervisor")) {
@@ -193,42 +192,36 @@
         d.querySelector("select").addEventListener("change", applyAuditFilter);
       }
       const select = document.getElementById("audit-employee");
-      if (select) new MutationObserver(() => refreshAuditMap()).observe(select,{childList:true});
-      document.getElementById("audit-date")?.addEventListener("change", () => setTimeout(refreshAuditMap,80));
+      if (select) new MutationObserver(() => applyAuditFilter()).observe(select,{childList:true});
     }
 
-    refreshAttendanceMap();
-    refreshAuditMap();
+    refreshAttendanceMap(window.TaskTrackerAttendanceData);
+    refreshAuditMap(window.TaskTrackerAuditSetup);
   }
 
-  async function refreshAttendanceMap() {
-    try {
-      const d = await rpc("get_attendance_audit", {
-        p_session_token:token(),
-        p_business_date:document.getElementById("attendance-date")?.value || null
-      });
-      attendanceMap = new Map((d?.employees || []).map((e) => [e.employee_name,e.supervisor_id || ""]));
-      applyAttendanceFilter();
-    } catch {}
+  function refreshAttendanceMap(data = window.TaskTrackerAttendanceData) {
+    if (data?.employees) {
+      attendanceMap = new Map((data.employees || []).map((e) => [String(e.employee_id), String(e.supervisor_id || "")]));
+    }
+    applyAttendanceFilter();
   }
 
   function applyAttendanceFilter() {
-    const sup = document.getElementById("req-att-supervisor")?.value || "";
+    const sup = String(document.getElementById("req-att-supervisor")?.value || "");
     document.querySelectorAll("#attendance-body tr").forEach((tr) => {
-      const name = tr.querySelector("td")?.innerText.trim() || "";
-      tr.hidden = !!sup && attendanceMap.get(name) !== sup;
+      const employeeId =
+        tr.querySelector('select[data-kind="event"]')?.dataset.employee ||
+        tr.querySelector('input[data-kind="hours"]')?.dataset.employee ||
+        "";
+      tr.hidden = !!sup && attendanceMap.size > 0 && String(attendanceMap.get(String(employeeId)) || "") !== sup;
     });
   }
 
-  async function refreshAuditMap() {
-    try {
-      const d = await rpc("get_task_tracker_audit_setup", {
-        p_session_token:token(),
-        p_business_date:document.getElementById("audit-date")?.value || null
-      });
-      auditMap = new Map((d?.employees || []).map((e) => [e.employee_id,e.supervisor_id || ""]));
-      applyAuditFilter();
-    } catch {}
+  function refreshAuditMap(data = window.TaskTrackerAuditSetup) {
+    if (data?.employees) {
+      auditMap = new Map((data.employees || []).map((e) => [String(e.employee_id), String(e.supervisor_id || "")]));
+    }
+    applyAuditFilter();
   }
 
   function applyAuditFilter() {
@@ -237,13 +230,21 @@
     if (!sel) return;
     [...sel.options].forEach((o) => {
       if (!o.value) return;
-      o.hidden = !!sup && auditMap.get(o.value) !== sup;
+      o.hidden = !!sup && auditMap.size > 0 && String(auditMap.get(String(o.value)) || "") !== String(sup);
     });
     if (sel.value && sel.selectedOptions[0]?.hidden) {
       sel.value = "";
       sel.dispatchEvent(new Event("change",{bubbles:true}));
     }
   }
+
+  window.addEventListener("tasktracker:attendance-audit-loaded", (event) => {
+    refreshAttendanceMap(event.detail || window.TaskTrackerAttendanceData);
+  });
+
+  window.addEventListener("tasktracker:audit-setup-loaded", (event) => {
+    refreshAuditMap(event.detail || window.TaskTrackerAuditSetup);
+  });
 
   function replaceWithClone(id,event,handler) {
     const old = document.getElementById(id);
