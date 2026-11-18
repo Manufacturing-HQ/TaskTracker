@@ -1,39 +1,23 @@
 "use strict";
 
 /**
- * Task Tracker Audit message bridge only.
+ * Task Tracker Audit message container only.
  *
- * Phase 1 cleanup: legacy Department/modal patches are no longer loaded from
- * this helper. Employee Master behavior is owned by the Phase 1 master editor.
+ * Errors are now written directly by the Audit workflow so unrelated
+ * Management errors cannot leak into this section.
  */
 (() => {
-  const globalMessage = document.getElementById("message");
-  const auditView = document.getElementById("view-audit");
-  const existingMessage = document.getElementById("audit-existing");
-  if (!globalMessage || !auditView || !existingMessage) return;
+  const auditExisting = document.getElementById("audit-existing");
+  if (!auditExisting) return;
 
-  const auditMessage = document.createElement("div");
-  auditMessage.id = "audit-message";
-  auditMessage.className = "msg";
-  auditMessage.hidden = true;
-  existingMessage.insertAdjacentElement("afterend", auditMessage);
-
-  const syncAuditMessage = () => {
-    if (auditView.hidden) return;
-    const text = globalMessage.textContent || "";
-    if (!text) return;
-    auditMessage.textContent = text;
-    auditMessage.dataset.type = globalMessage.dataset.type || "info";
-    auditMessage.hidden = false;
-  };
-
-  new MutationObserver(syncAuditMessage).observe(globalMessage, {
-    childList: true,
-    characterData: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["data-type", "hidden"]
-  });
+  let auditMessage = document.getElementById("audit-message");
+  if (!auditMessage) {
+    auditMessage = document.createElement("div");
+    auditMessage.id = "audit-message";
+    auditMessage.className = "msg";
+    auditMessage.hidden = true;
+    auditExisting.insertAdjacentElement("afterend", auditMessage);
+  }
 
   document.querySelectorAll('button[data-view="audit"]').forEach((button) => {
     button.addEventListener("click", () => {
