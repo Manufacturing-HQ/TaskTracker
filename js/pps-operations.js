@@ -466,7 +466,7 @@
     }
   }
 
-  function draftFingerprint() {  function draftFingerprint() {
+  function draftFingerprint() {
     return JSON.stringify({
       pick_bin: $("pick-bin").value || "",
       comments: $("pick-comments").value.trim(),
