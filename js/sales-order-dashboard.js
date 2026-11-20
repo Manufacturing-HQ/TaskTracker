@@ -96,13 +96,11 @@
     const canRun=can("sales_order_dashboard.run_review");
     const canStatus=can("sales_order_dashboard.update_status");
     const canManage=can("sales_order_dashboard.manage_lines");
-    const canSelect=canStatus||canManage;
+    const canSelect=canStatus;
 
     $("run-review").hidden=!canRun;
     $("bulk-status").closest(".field").hidden=!canStatus;
     $("apply-status").hidden=!canStatus;
-    $("hide-selected").hidden=!canManage;
-    $("unhide-selected").hidden=!canManage;
     $("clear-selection").hidden=!canSelect;
   }
 
@@ -233,10 +231,8 @@
     const dashboardStatus=$("dashboard-status-filter").value;
     const itemStatus=$("item-status-filter").value;
     const type=$("type-filter").value;
-    const includeHidden=$("include-hidden").checked;
 
     const filtered=rows.filter(row=>{
-      if(!includeHidden&&row.hidden) return false;
       if(dashboardStatus&&row.dashboard_status!==dashboardStatus) return false;
       if(itemStatus&&row.item_status!==itemStatus) return false;
       if(type&&row.effective_sales_order_type!==type) return false;
@@ -347,7 +343,6 @@
     $("order-body").innerHTML=pageRows.length?pageRows.map(row=>{
       const rowClasses=[
         row.is_duplicate_order?"duplicate":"",
-        row.hidden?"hidden-row":"",
         row.pending_status_change?"pending-change":""
       ].filter(Boolean).join(" ");
 
@@ -611,17 +606,14 @@
     $("detail-status").disabled=!canStatus||!reviewed||protectedStatus;
     $("detail-status-save").disabled=!canStatus||!reviewed||protectedStatus;
     $("detail-status-save").hidden=!canStatus;
-    $("detail-hidden").disabled=!canManage||!reviewed;
-    $("detail-hidden").checked=Boolean(workflow?.exclude_review);
-    $("detail-hidden").closest("label").hidden=!canManage;
     $("detail-comment").disabled=!canManage;
     $("comment-add").disabled=!canManage||!reviewed;
     $("comment-add").hidden=!canManage;
 
     if(!canStatus&&!canManage){
-      $("detail-status-note").textContent="Read-only access. Status, visibility, and comment controls are restricted.";
+      $("detail-status-note").textContent="Read-only access. Status and comment controls are restricted.";
     }else if(!reviewed){
-      $("detail-status-note").textContent="Run Sales Order Review before manually updating Item Status, hiding, or commenting on this line.";
+      $("detail-status-note").textContent="Run Sales Order Review before manually updating Item Status or commenting on this line.";
     }else if(protectedStatus){
       $("detail-status-note").textContent=live.calculated_status+" is protected by the current Dashboard Status and cannot be manually overridden.";
     }else if(["SCRP","Cosmetic Rejection"].includes(live.calculated_status)&&payload?.viewer?.employee_role==="Administrator"){
@@ -747,7 +739,7 @@
   }
 
   $("search").addEventListener("input",()=>{page=1;renderTable();});
-  ["dashboard-status-filter","item-status-filter","type-filter","include-hidden"].forEach(id=>{
+  ["dashboard-status-filter","item-status-filter","type-filter"].forEach(id=>{
     $(id).addEventListener("change",()=>{page=1;renderTable();});
   });
 
@@ -760,8 +752,6 @@
   $("run-review").addEventListener("click",()=>runReview().catch(showError));
   $("export-visible").addEventListener("click",()=>{try{exportVisible();}catch(error){showError(error);}});
   $("apply-status").addEventListener("click",()=>applySelectedStatus().catch(showError));
-  $("hide-selected").addEventListener("click",()=>setSelectedHidden(true).catch(showError));
-  $("unhide-selected").addEventListener("click",()=>setSelectedHidden(false).catch(showError));
   $("clear-selection").addEventListener("click",()=>{selected.clear();renderTable();});
 
   $("prev").addEventListener("click",()=>{if(page>1){page--;renderTable();}});
@@ -770,7 +760,6 @@
   $("detail-close").addEventListener("click",closeDetail);
   $("detail-modal").addEventListener("click",event=>{if(event.target===$("detail-modal"))closeDetail();});
   $("detail-status-save").addEventListener("click",()=>saveDetailStatus().catch(showError));
-  $("detail-hidden").addEventListener("change",()=>setDetailHidden().catch(showError));
   $("comment-add").addEventListener("click",()=>addComment().catch(showError));
 
   updateSelectionBar();
