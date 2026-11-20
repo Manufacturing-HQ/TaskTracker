@@ -24,6 +24,7 @@
   let detailKey=null;
   let detailData=null;
   const selected=new Set();
+  const temporarilyHidden=new Set();
 
   const columns=[
     {key:"select",label:"Select",type:"select",sortable:false},
@@ -96,11 +97,13 @@
     const canRun=can("sales_order_dashboard.run_review");
     const canStatus=can("sales_order_dashboard.update_status");
     const canManage=can("sales_order_dashboard.manage_lines");
-    const canSelect=canStatus;
+    const canSelect=canStatus||canManage;
 
     $("run-review").hidden=!canRun;
     $("bulk-status").closest(".field").hidden=!canStatus;
     $("apply-status").hidden=!canStatus;
+    $("hide-selected").hidden=!canManage;
+    $("restore-hidden").hidden=!canManage;
     $("clear-selection").hidden=!canSelect;
   }
 
@@ -233,6 +236,7 @@
     const type=$("type-filter").value;
 
     const filtered=rows.filter(row=>{
+      if(temporarilyHidden.has(keyOf(row))) return false;
       if(dashboardStatus&&row.dashboard_status!==dashboardStatus) return false;
       if(itemStatus&&row.item_status!==itemStatus) return false;
       if(type&&row.effective_sales_order_type!==type) return false;
@@ -319,7 +323,10 @@
     const disabled=selected.size===0;
     $("apply-status").disabled=disabled;
     $("hide-selected").disabled=disabled;
-    $("unhide-selected").disabled=disabled;
+    $("restore-hidden").disabled=temporarilyHidden.size===0;
+    $("restore-hidden").textContent=temporarilyHidden.size
+      ? "Restore Hidden ("+temporarilyHidden.size+")"
+      : "Restore Hidden";
     $("clear-selection").disabled=disabled;
   }
 
@@ -478,22 +485,32 @@
     }
   }
 
-  async function setSelectedHidden(hidden){
+  function hideSelectedForReview(){
     const list=selectedRows();
     if(!list.length) throw new Error("Select at least one Sales Order line.");
-
-    const verb=hidden?"Hide":"Unhide";
-    if(!window.confirm(verb+" "+list.length+" selected line(s)?")) return;
-
-    const result=await rpc("bulk_set_sales_order_lines_hidden",{
-      p_session_token:token,
-      p_lines:linePayload(list),
-      p_hidden:hidden,
-      p_comment:null
-    });
+    list.forEach(row=>temporarilyHidden.add(keyOf(row)));
     selected.clear();
-    setMessage(result.updated_count+" line(s) "+(hidden?"hidden from":"returned to")+" normal review.","success");
-    await loadData();
+    page=1;
+    setMessage(list.length+" line(s) hidden for this review. Refresh the page or click Restore Hidden to bring them back.","success");
+    renderTable();
+  }
+
+  function restoreTemporaryHidden(){
+    const count=temporarilyHidden.size;
+    temporarilyHidden.clear();
+    page=1;
+    if(count) setMessage(count+" temporarily hidden line(s) restored.","success");
+    renderTable();
+  }
+
+  function hideDetailForReview(){
+    if(!detailKey) return;
+    const key=detailKey.id+"|"+detailKey.key;
+    temporarilyHidden.add(key);
+    selected.delete(key);
+    closeDetail();
+    setMessage("Line hidden for this review. It will return automatically when the page is refreshed.","success");
+    renderTable();
   }
 
   async function runReview(){
@@ -607,6 +624,7 @@
     $("detail-status-save").disabled=!canStatus||!reviewed||protectedStatus;
     $("detail-status-save").hidden=!canStatus;
     $("detail-comment").disabled=!canManage;
+    $("detail-hide-review").hidden=!canManage;
     $("comment-add").disabled=!canManage||!reviewed;
     $("comment-add").hidden=!canManage;
 
@@ -669,29 +687,6 @@
     await fetchDetail();
   }
 
-  async function setDetailHidden(){
-    if(!detailKey) return;
-    const row=rowByKey(detailKey.id+"|"+detailKey.key);
-    if(!row) throw new Error("Sales Order line is no longer active.");
-
-    const hidden=$("detail-hidden").checked;
-    try{
-      await rpc("bulk_set_sales_order_lines_hidden",{
-        p_session_token:token,
-        p_lines:linePayload([row]),
-        p_hidden:hidden,
-        p_comment:$("detail-comment").value.trim()||null
-      });
-      $("detail-comment").value="";
-      setMessage(hidden?"Sales Order line hidden from normal review.":"Sales Order line returned to normal review.","success");
-      await loadData();
-      await fetchDetail();
-    }catch(error){
-      $("detail-hidden").checked=!hidden;
-      throw error;
-    }
-  }
-
   async function addComment(){
     if(!detailKey) return;
     const comment=$("detail-comment").value.trim();
@@ -752,6 +747,8 @@
   $("run-review").addEventListener("click",()=>runReview().catch(showError));
   $("export-visible").addEventListener("click",()=>{try{exportVisible();}catch(error){showError(error);}});
   $("apply-status").addEventListener("click",()=>applySelectedStatus().catch(showError));
+  $("hide-selected").addEventListener("click",()=>{try{hideSelectedForReview();}catch(error){showError(error);}});
+  $("restore-hidden").addEventListener("click",restoreTemporaryHidden);
   $("clear-selection").addEventListener("click",()=>{selected.clear();renderTable();});
 
   $("prev").addEventListener("click",()=>{if(page>1){page--;renderTable();}});
@@ -760,6 +757,7 @@
   $("detail-close").addEventListener("click",closeDetail);
   $("detail-modal").addEventListener("click",event=>{if(event.target===$("detail-modal"))closeDetail();});
   $("detail-status-save").addEventListener("click",()=>saveDetailStatus().catch(showError));
+  $("detail-hide-review").addEventListener("click",hideDetailForReview);
   $("comment-add").addEventListener("click",()=>addComment().catch(showError));
 
   updateSelectionBar();
