@@ -200,7 +200,10 @@
     const viewer=dashboard?.viewer||{};
     const counts=dashboard?.counts||{};
     $("viewer-meta").textContent=[viewer.employee_name,viewer.employee_role,viewer.department].filter(Boolean).join(" · ");
-    $("tile-cancel-count").textContent=num(counts.pending_cancellations||0)+" Pending";
+    const pendingCancellationCount=Number(counts.pending_cancellations);
+    $("tile-cancel-count").textContent=Number.isFinite(pendingCancellationCount)
+      ? num(pendingCancellationCount)+" Pending"
+      : "Unavailable";
 
     const todayLabel=dashboard?.today?dateText(dashboard.today):"Today";
     $("activity-subtitle").textContent="Picks and pending PPS QA batches for "+todayLabel+".";
@@ -237,8 +240,14 @@
     renderTasks();
   }
 
+  let dashboardLoadSequence=0;
+
   async function loadDashboard(){
-    dashboard=await rpc("get_shipping_team_dashboard",{p_session_token:token});
+    const sequence=++dashboardLoadSequence;
+    if(!dashboard) $("tile-cancel-count").textContent="Loading...";
+    const next=await rpc("get_shipping_team_dashboard",{p_session_token:token});
+    if(sequence!==dashboardLoadSequence) return;
+    dashboard=next;
     renderDashboard();
   }
 
