@@ -65,7 +65,6 @@
           <div class="field"><label>Dashboard Status</label><select id="dashboard-status-filter"><option value="">All Dashboard Statuses</option></select></div>
           <div class="field"><label>Item Status</label><select id="item-status-filter"><option value="">All Item Statuses</option></select></div>
           <div class="field"><label>Sales Order Type</label><select id="type-filter"><option value="">All Types</option></select></div>
-          <label class="check"><input id="include-hidden" type="checkbox"> Include Hidden</label>
         </div>
         <div class="tool-group">
           <button id="focus-table" class="secondary" type="button">⛶ Focus Table</button>
@@ -92,8 +91,6 @@
           <select id="bulk-status"><option value="">Choose Item Status...</option></select>
         </div>
         <button id="apply-status" class="primary" type="button">Apply to Selected</button>
-        <button id="hide-selected" class="secondary" type="button">Hide Selected</button>
-        <button id="unhide-selected" class="secondary" type="button">Unhide Selected</button>
         <button id="clear-selection" class="secondary" type="button">Clear Selection</button>
       </div>
 
@@ -130,24 +127,23 @@
     <div id="detail-grid" class="detail-grid"></div>
 
     <div class="edit-box">
-      <h3>Item Status / Review Visibility</h3>
+      <h3>Item Status</h3>
       <div id="detail-status-note" class="muted" style="font-size:10px;margin-bottom:8px"></div>
       <div class="actions">
         <div class="field"><label>Item Status</label><select id="detail-status"></select></div>
         <button id="detail-status-save" class="primary" type="button">Update Item Status</button>
-        <label class="check" style="height:auto"><input id="detail-hidden" type="checkbox"> Hidden from normal review</label>
       </div>
     </div>
 
     <div class="field" style="margin-bottom:10px">
       <label>Comment</label>
-      <textarea id="detail-comment" placeholder="Add a note to the permanent Sales Order line history, or use this note with a status/hide update..."></textarea>
+      <textarea id="detail-comment" placeholder="Add a note to the permanent Sales Order line history, or use this note with a status update..."></textarea>
     </div>
     <div class="actions" style="margin-bottom:15px"><button id="comment-add" class="primary" type="button">Add Comment Only</button></div>
 
     <div class="modal-actions">
       <h3 style="margin:0">Line History</h3>
-      <div class="muted">Dashboard Status, Item Status, visibility, and comment history</div>
+      <div class="muted">Dashboard Status, Item Status, and comment history</div>
     </div>
     <div id="event-list" class="timeline" style="margin-top:9px"></div>
   </div>
@@ -157,7 +153,7 @@
 <script src="js/config.js"></script>
 <script src="js/task-tracker-navigation.js?v=shipping-team-main-route-20260928-2"></script>
 <script src="js/csv-export.js?v=sales-order-dashboard-review-20260918-2"></script>
-<script src="js/sales-order-dashboard.js?v=direct-links-20261021-1"></script>
+<script src="js/sales-order-dashboard.js?v=active-orders-visible-20261120-1"></script>
 <script src="js/employee-signout.js?v=trusted-device-20260925-1"></script>
 <script src="js/employee-session-watch.js?v=device-login-20260925-1"></script>
 </body>
