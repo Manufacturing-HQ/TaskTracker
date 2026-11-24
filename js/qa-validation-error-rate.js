@@ -16,7 +16,7 @@
 
   let syncing=false,refreshQueued=false;
   const n=el=>Number.isFinite(Number(el.value))?Number(el.value):0;
-  function jobQty(){const m=(summary.textContent||"").match(/\bQty\s+([0-9]+(?:\.[0-9]+)?)/i);return m?Number(m[1]):null;}
+  function jobQty(){const qty=Number(reviewCard.dataset.jobQuantity);return Number.isFinite(qty)&&qty>=0?qty:null;}
 
   function updateTotals(){
     const qty=jobQty(),total=n(pass)+n(reject),ok=Number.isFinite(qty)&&Math.abs(total-qty)<0.000001;
