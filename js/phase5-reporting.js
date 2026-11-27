@@ -194,6 +194,8 @@
     const isAdmin = setup.viewer?.role === "Administrator";
     $("exclude-non-task-tracker-wrap").hidden = !isAdmin;
     $("exclude-non-task-tracker").checked = isAdmin;
+    window.TaskTrackerReportingSetup = setup;
+    window.dispatchEvent(new CustomEvent("tasktracker:reporting-setup", { detail: setup }));
   }
 
   function setMode(nextMode) {
@@ -205,8 +207,9 @@
     $("item-tab")?.classList.remove("active");
 
     const byDate = mode === "by-date";
-    $("report-supervisor-wrap").hidden = !byDate;
-    $("exclude-non-task-tracker-wrap").hidden = !byDate || setup?.viewer?.role !== "Administrator";
+    $("report-supervisor-wrap").hidden = false;
+    $("exclude-non-task-tracker-wrap").hidden = setup?.viewer?.role !== "Administrator";
+    $("performance-trend").hidden = !byDate;
     $("run-report").textContent = byDate ? "Generate Report" : "Run Report";
 
     if (mode === "daily") {
@@ -370,9 +373,8 @@
     }
 
     const employeeId = $("report-employee").value || null;
-    const supervisorId = mode === "by-date" ? ($("report-supervisor").value || null) : null;
-    const excludeNonTaskTracker = mode === "by-date"
-      && setup?.viewer?.role === "Administrator"
+    const supervisorId = $("report-supervisor").value || null;
+    const excludeNonTaskTracker = setup?.viewer?.role === "Administrator"
       && $("exclude-non-task-tracker").checked;
 
     beginReportState(start, end, employeeId, supervisorId, excludeNonTaskTracker);
@@ -384,14 +386,18 @@
           p_session_token: sessionToken,
           p_start_date: start,
           p_end_date: end,
-          p_employee_id: employeeId
+          p_employee_id: employeeId,
+          p_supervisor_id: supervisorId,
+          p_exclude_non_task_tracker: excludeNonTaskTracker
         });
       } else if (mode === "weekly") {
         rows = await rpc("get_reporting_weekly", {
           p_session_token: sessionToken,
           p_week_ending_start: start,
           p_week_ending_end: end,
-          p_employee_id: employeeId
+          p_employee_id: employeeId,
+          p_supervisor_id: supervisorId,
+          p_exclude_non_task_tracker: excludeNonTaskTracker
         });
       } else {
         rows = await rpc("get_reporting_by_date", {
