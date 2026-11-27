@@ -23,29 +23,43 @@
     start: null,
     end: null,
     employeeId: null,
+    supervisorId: null,
+    excludeNonTaskTracker: false,
     rows: []
   };
+  let byDateSort = { key: "employee_name", direction: "asc" };
 
-  function beginReportState(start, end, employeeId) {
+  function beginReportState(start, end, employeeId, supervisorId = null, excludeNonTaskTracker = false) {
     reportState.loaded = false;
     reportState.loading = true;
     reportState.mode = mode;
     reportState.start = start;
     reportState.end = end;
     reportState.employeeId = employeeId || null;
+    reportState.supervisorId = supervisorId || null;
+    reportState.excludeNonTaskTracker = !!excludeNonTaskTracker;
     reportState.rows = [];
     window.dispatchEvent(new CustomEvent("tasktracker:report-loading", {
-      detail: { mode, start, end, employeeId: employeeId || null }
+      detail: {
+        mode,
+        start,
+        end,
+        employeeId: employeeId || null,
+        supervisorId: supervisorId || null,
+        excludeNonTaskTracker: !!excludeNonTaskTracker
+      }
     }));
   }
 
-  function publishReportState(rows, start, end, employeeId) {
+  function publishReportState(rows, start, end, employeeId, supervisorId = null, excludeNonTaskTracker = false) {
     reportState.loaded = true;
     reportState.loading = false;
     reportState.mode = mode;
     reportState.start = start;
     reportState.end = end;
     reportState.employeeId = employeeId || null;
+    reportState.supervisorId = supervisorId || null;
+    reportState.excludeNonTaskTracker = !!excludeNonTaskTracker;
     reportState.rows = rows;
     window.dispatchEvent(new CustomEvent("tasktracker:report-loaded", {
       detail: reportState
@@ -159,24 +173,52 @@
     $("viewer-meta").textContent = [setup.viewer?.role, setup.viewer?.department].filter(Boolean).join(" · ");
     $("report-note").textContent = `Timezone: ${setup.business_timezone || "America/New_York"} · Week ending day: Saturday`;
 
-    const select = $("report-employee");
-    select.innerHTML = '<option value="">All accessible employees</option>';
+    const employeeSelect = $("report-employee");
+    employeeSelect.innerHTML = '<option value="">All accessible employees</option>';
     (setup.employees || []).forEach((employee) => {
       const option = document.createElement("option");
       option.value = employee.employee_id;
       option.textContent = [employee.employee_name, employee.department].filter(Boolean).join(" · ");
-      select.appendChild(option);
+      employeeSelect.appendChild(option);
     });
+
+    const supervisorSelect = $("report-supervisor");
+    supervisorSelect.innerHTML = '<option value="">All accessible supervisors</option>';
+    (setup.supervisors || []).forEach((supervisor) => {
+      const option = document.createElement("option");
+      option.value = supervisor.supervisor_id;
+      option.textContent = supervisor.supervisor_name;
+      supervisorSelect.appendChild(option);
+    });
+
+    const isAdmin = setup.viewer?.role === "Administrator";
+    $("exclude-non-task-tracker-wrap").hidden = !isAdmin;
+    $("exclude-non-task-tracker").checked = isAdmin;
   }
 
   function setMode(nextMode) {
     mode = nextMode;
     $("daily-tab").classList.toggle("active", mode === "daily");
     $("weekly-tab").classList.toggle("active", mode === "weekly");
-    $("report-title").textContent = mode === "daily" ? "Daily Reporting" : "Weekly Reporting";
-    $("report-note").textContent = mode === "daily"
-      ? `Daily allocation uses ${setup?.business_timezone || "America/New_York"}. Error Rate uses QA reviews completed that business date.`
-      : `Weekly reporting is grouped by Saturday week-ending dates in ${setup?.business_timezone || "America/New_York"}. Error Rate is recomputed from weekly QA totals.`;
+    $("by-date-tab").classList.toggle("active", mode === "by-date");
+    $("transactions-tab")?.classList.remove("active");
+    $("item-tab")?.classList.remove("active");
+
+    const byDate = mode === "by-date";
+    $("report-supervisor-wrap").hidden = !byDate;
+    $("exclude-non-task-tracker-wrap").hidden = !byDate || setup?.viewer?.role !== "Administrator";
+    $("run-report").textContent = byDate ? "Generate Report" : "Run Report";
+
+    if (mode === "daily") {
+      $("report-title").textContent = "Daily Reporting";
+      $("report-note").textContent = `Daily allocation uses ${setup?.business_timezone || "America/New_York"}. Error Rate uses QA reviews completed that business date.`;
+    } else if (mode === "weekly") {
+      $("report-title").textContent = "Weekly Reporting";
+      $("report-note").textContent = `Weekly reporting is grouped by Saturday week-ending dates in ${setup?.business_timezone || "America/New_York"}. Error Rate is recomputed from weekly QA totals.`;
+    } else {
+      $("report-title").textContent = "By Date Reporting";
+      $("report-note").textContent = "One row per employee for the selected date range. Totals are summed; Productivity, Efficiency, Pick Error Rate, and Error Rate are recalculated from the full-range totals.";
+    }
   }
 
   function formatNumber(value, digits = 1) {
@@ -193,6 +235,71 @@
 
   function sum(rows, key) {
     return rows.reduce((total, row) => total + (Number(row[key]) || 0), 0);
+  }
+
+  const byDateColumns = [
+    { label: "Employee", key: "employee_name", type: "text" },
+    { label: "Department", key: "department", type: "text" },
+    { label: "Supervisor", key: "supervisor_name", type: "text" },
+    { label: "Active Days", key: "active_days", type: "number", digits: 0 },
+    { label: "Tracker Min", key: "tracker_minutes", type: "number" },
+    { label: "Productive Min", key: "productive_minutes", type: "number" },
+    { label: "NP Min", key: "non_productive_minutes", type: "number" },
+    { label: "Worked Min", key: "minutes_worked", type: "number" },
+    { label: "Completed Jobs", key: "completed_productive_jobs", type: "number", digits: 0 },
+    { label: "Completed Qty", key: "completed_quantity", type: "number", digits: 2 },
+    { label: "Expected Min", key: "expected_minutes", type: "number" },
+    { label: "Productivity", key: "productivity_percent", type: "percent" },
+    { label: "Efficiency", key: "tracker_coverage_percent", type: "percent" },
+    { label: "Unaccounted Min", key: "unaccounted_minutes", type: "number" },
+    { label: "QA Reviewed", key: "qa_reviewed_pieces", type: "number", digits: 2 },
+    { label: "Errors", key: "qa_error_quantity", type: "number", digits: 2 },
+    { label: "Error Rate", key: "error_rate_percent", type: "percent" }
+  ];
+
+  function byDateValue(row, column) {
+    if (column.type === "percent") return formatPercent(row[column.key]);
+    if (column.type === "number") return formatNumber(row[column.key], column.digits ?? 1);
+    return row[column.key] ?? "—";
+  }
+
+  function sortByDateRows(rows) {
+    const column = byDateColumns.find((item) => item.key === byDateSort.key) || byDateColumns[0];
+    const direction = byDateSort.direction === "desc" ? -1 : 1;
+    return [...rows].sort((a, b) => {
+      const av = a?.[column.key];
+      const bv = b?.[column.key];
+      const aBlank = av === null || av === undefined || av === "";
+      const bBlank = bv === null || bv === undefined || bv === "";
+      if (aBlank && bBlank) return 0;
+      if (aBlank) return 1;
+      if (bBlank) return -1;
+      if (column.type === "text") {
+        return String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: "base" }) * direction;
+      }
+      const an = Number(av);
+      const bn = Number(bv);
+      if (!Number.isFinite(an) && !Number.isFinite(bn)) return 0;
+      if (!Number.isFinite(an)) return 1;
+      if (!Number.isFinite(bn)) return -1;
+      return (an - bn) * direction;
+    });
+  }
+
+  function bindByDateSort() {
+    $("table").querySelectorAll("th[data-sort-key]").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sortKey;
+        if (byDateSort.key === key) {
+          byDateSort.direction = byDateSort.direction === "asc" ? "desc" : "asc";
+        } else {
+          byDateSort = { key, direction: "asc" };
+        }
+        const sorted = sortByDateRows(reportState.rows || []);
+        reportState.rows = sorted;
+        renderTable(sorted);
+      });
+    });
   }
 
   function renderSummary(rows) {
@@ -227,6 +334,18 @@
       return;
     }
 
+    if (mode === "by-date") {
+      const headers = byDateColumns.map((column) => {
+        const active = byDateSort.key === column.key;
+        const indicator = active ? (byDateSort.direction === "asc" ? " ↑" : " ↓") : "";
+        return `<th data-sort-key="${escapeHtml(column.key)}" title="Click to sort">${escapeHtml(column.label + indicator)}</th>`;
+      }).join("");
+      const body = rows.map((row) => `<tr>${byDateColumns.map((column) => `<td>${escapeHtml(byDateValue(row,column))}</td>`).join("")}</tr>`).join("");
+      $("table").innerHTML = `<table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table>`;
+      bindByDateSort();
+      return;
+    }
+
     const daily = mode === "daily";
     const headers = daily
       ? ["Date","Employee","Department","Supervisor","Tracker Min","Productive Min","NP Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity","Efficiency","Unaccounted Min","QA Reviewed","Errors","Error Rate"]
@@ -245,31 +364,53 @@
   async function runReport() {
     const start = $("start-date").value;
     const end = $("end-date").value;
-    if (!start || !end) {
+    if (!start || !end || end < start) {
       setMessage("Select a valid date range.", "error");
       return;
     }
 
     const employeeId = $("report-employee").value || null;
-    beginReportState(start, end, employeeId);
-    setMessage(`Loading ${mode} reporting...`);
+    const supervisorId = mode === "by-date" ? ($("report-supervisor").value || null) : null;
+    const excludeNonTaskTracker = mode === "by-date"
+      && setup?.viewer?.role === "Administrator"
+      && $("exclude-non-task-tracker").checked;
+
+    beginReportState(start, end, employeeId, supervisorId, excludeNonTaskTracker);
+    setMessage(`Loading ${mode === "by-date" ? "By Date" : mode} reporting...`);
     try {
-      const rows = mode === "daily"
-        ? await rpc("get_reporting_daily", {
-            p_session_token: sessionToken,
-            p_start_date: start,
-            p_end_date: end,
-            p_employee_id: employeeId
-          })
-        : await rpc("get_reporting_weekly", {
-            p_session_token: sessionToken,
-            p_week_ending_start: start,
-            p_week_ending_end: end,
-            p_employee_id: employeeId
-          });
-      const normalizedRows = Array.isArray(rows) ? rows : [];
+      let rows;
+      if (mode === "daily") {
+        rows = await rpc("get_reporting_daily", {
+          p_session_token: sessionToken,
+          p_start_date: start,
+          p_end_date: end,
+          p_employee_id: employeeId
+        });
+      } else if (mode === "weekly") {
+        rows = await rpc("get_reporting_weekly", {
+          p_session_token: sessionToken,
+          p_week_ending_start: start,
+          p_week_ending_end: end,
+          p_employee_id: employeeId
+        });
+      } else {
+        rows = await rpc("get_reporting_by_date", {
+          p_session_token: sessionToken,
+          p_start_date: start,
+          p_end_date: end,
+          p_employee_id: employeeId,
+          p_supervisor_id: supervisorId,
+          p_exclude_non_task_tracker: excludeNonTaskTracker
+        });
+      }
+
+      let normalizedRows = Array.isArray(rows) ? rows : [];
+      if (mode === "by-date") {
+        byDateSort = { key: "employee_name", direction: "asc" };
+        normalizedRows = sortByDateRows(normalizedRows);
+      }
+      publishReportState(normalizedRows, start, end, employeeId, supervisorId, excludeNonTaskTracker);
       renderTable(normalizedRows);
-      publishReportState(normalizedRows, start, end, employeeId);
       setMessage("Reporting loaded.", "success");
     } catch (error) {
       reportState.loading = false;
@@ -303,6 +444,7 @@
   $("sign-out").addEventListener("click", () => signOut().catch(() => {}));
   $("daily-tab").addEventListener("click", () => setMode("daily"));
   $("weekly-tab").addEventListener("click", () => setMode("weekly"));
+  $("by-date-tab").addEventListener("click", () => setMode("by-date"));
   $("run-report").addEventListener("click", runReport);
 
   init();
