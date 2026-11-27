@@ -119,7 +119,7 @@
 (() => {
   if (document.querySelector('script[data-reporting-transaction-metrics]')) return;
   const script = document.createElement("script");
-  script.src = "js/reporting-transaction-metrics.js?v=by-date-reporting-20261127-1";
+  script.src = "js/reporting-transaction-metrics.js?v=reporting-trend-20261127-1";
   script.dataset.reportingTransactionMetrics = "1";
   document.body.appendChild(script);
 })();
