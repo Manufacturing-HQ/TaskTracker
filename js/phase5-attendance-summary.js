@@ -289,7 +289,7 @@
   async function terminateEmployee(){
     if(!currentAction || setup?.viewer?.role!=="Administrator" || currentAction.is_terminated) return;
     if(!confirm(`Mark ${currentAction.employee_name} as terminated? This will make the employee inactive in Task Tracker, revoke active Task Tracker sessions, and hide their active Attendance Summary card.`)) return;
-    const defaultDate=new Date().toISOString().slice(0,10);
+    const defaultDate=new Intl.DateTimeFormat("en-CA",{timeZone:"America/New_York",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
     const terminationDate=prompt("Termination date (YYYY-MM-DD):",defaultDate);
     if(terminationDate===null) return;
     if(!/^\d{4}-\d{2}-\d{2}$/.test(terminationDate)){alert("Enter the termination date as YYYY-MM-DD.");return;}
