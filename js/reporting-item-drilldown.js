@@ -401,7 +401,7 @@
       detailCache.clear();
       closeOpenRows();
     }
-    if (event.target.closest?.("#daily-tab,#weekly-tab,#transactions-tab")) closeOpenRows();
+    if (event.target.closest?.("#daily-tab,#weekly-tab,#by-date-tab,#transactions-tab")) closeOpenRows();
   }, true);
 
   ensureModal();
