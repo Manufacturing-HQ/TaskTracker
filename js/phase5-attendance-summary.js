@@ -198,6 +198,8 @@
   function calcRolloff(){ const cat=(setup?.categories||[]).find(c=>c.category_id===$("action-category").value); const date=$("action-date").value; if(!cat){$("action-rolloff").value="";return;} if(cat.requires_manual_close){$("action-rolloff").value="End of Probationary Period";return;} if(!date){$("action-rolloff").value="";return;} const d=new Date(`${date}T12:00:00`);d.setDate(d.getDate()+Math.max(Number(cat.active_days||0)-1,0));$("action-rolloff").value=d.toLocaleDateString(); }
   function openNew(){
     currentAction=null;
+    currentActionTimeline=[];
+    $("action-employee").querySelectorAll('option[data-terminated-historical="1"]').forEach(option=>option.remove());
     $("modal-title").textContent="Enter Coaching / Corrective Action";
     $("action-detail").hidden=true;
     $("action-form").reset();
@@ -240,7 +242,15 @@
     currentAction=a;
     $("modal-title").textContent="Employee Corrective Action Status";
     $("action-id").value=a.corrective_action_id;
-    $("action-employee").value=a.employee_id;
+    const employeeSelect=$("action-employee");
+    if(![...employeeSelect.options].some(option=>String(option.value)===String(a.employee_id))){
+      const option=document.createElement("option");
+      option.value=a.employee_id;
+      option.textContent=`${a.employee_name} · Terminated`;
+      option.dataset.terminatedHistorical="1";
+      employeeSelect.appendChild(option);
+    }
+    employeeSelect.value=a.employee_id;
     $("action-employee").disabled=true;
     $("action-category").value=a.category_id;
     $("action-reason").value=a.reason_id;
