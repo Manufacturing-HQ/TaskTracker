@@ -219,11 +219,19 @@
   }
   function renderActionTimeline(a,timeline){
     const rows=Array.isArray(timeline)?timeline:[];
-    const history=rows.map(item=>`<div class="action-history-row ${isActiveAction(item)?"active":"inactive"}"><div><strong>${esc(item.category_name)}</strong> · ${esc(item.reason_name)}</div><div class="muted">${esc(item.incident_date)} · Roll off: ${esc(item.roll_off_display||"—")} · ${isActiveAction(item)?"Active":"Inactive"}</div>${item.description?`<div class="action-history-description">${esc(item.description)}</div>`:""}</div>`).join("");
+    const history=rows.map(item=>`<div class="action-history-row ${isActiveAction(item)?"active":"inactive"}"><div class="action-history-head"><div><strong>${esc(item.category_name)}</strong> · ${esc(item.reason_name)}</div>${a.is_terminated?"":`<button type="button" class="ghost action-history-edit" data-edit-action-id="${esc(item.corrective_action_id)}">${String(item.corrective_action_id)===String(a.corrective_action_id)?"Editing":"Edit Record"}</button>`}</div><div class="muted">${esc(item.incident_date)} · Roll off: ${esc(item.roll_off_display||"—")} · ${isActiveAction(item)?"Active":"Inactive"}</div>${item.description?`<div class="action-history-description">${esc(item.description)}</div>`:""}</div>`).join("");
     const termination=a.is_terminated
       ? `<div class="termination-summary"><strong>Terminated ${esc(a.termination_date||"")}</strong>${a.termination_reason?`<div>${esc(a.termination_reason)}</div>`:""}${a.termination_recorded_by?`<div class="muted">Recorded by ${esc(a.termination_recorded_by)}</div>`:""}</div>`
       : "";
     $("action-detail").innerHTML=`${termination}<div><strong>Current displayed step:</strong> ${esc(a.category_name)} · ${esc(a.reason_name)}</div><div class="muted">Incident: ${esc(a.incident_date)} · Roll off: ${esc(a.roll_off_display||"—")}</div><div class="action-history-title">Corrective Action History</div><div class="action-history-list">${history||'<div class="muted">No history found.</div>'}</div>`;
+    if(!a.is_terminated){
+      $("action-detail").querySelectorAll("[data-edit-action-id]").forEach(button=>{
+        button.addEventListener("click",()=>{
+          const item=rows.find(row=>String(row.corrective_action_id)===String(button.dataset.editActionId));
+          if(item) openEdit(item,rows);
+        });
+      });
+    }
   }
   async function openEmployeeActionCard(group){
     const a=group.current;
