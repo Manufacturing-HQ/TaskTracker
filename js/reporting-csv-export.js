@@ -41,8 +41,8 @@
     try {
       const employeeId = $("report-employee")?.value || null;
       const mode = activeMode();
-      const supervisorId = mode === "by-date" ? ($("report-supervisor")?.value || null) : null;
-      const excludeNonTaskTracker = mode === "by-date" && !!$("exclude-non-task-tracker")?.checked;
+      const supervisorId = $("report-supervisor")?.value || null;
+      const excludeNonTaskTracker = !!$("exclude-non-task-tracker")?.checked;
       const state = window.TaskTrackerReportingState;
       if (
         !state?.loaded ||
