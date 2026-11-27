@@ -204,6 +204,9 @@
       $("weekly-tab")?.classList.remove("active");
       $("by-date-tab")?.classList.remove("active");
       button.classList.add("active");
+      $("report-supervisor-wrap") && ($("report-supervisor-wrap").hidden = true);
+      $("exclude-non-task-tracker-wrap") && ($("exclude-non-task-tracker-wrap").hidden = true);
+      $("run-report").textContent = "Run Report";
       $("report-title").textContent = "Transaction Reporting";
       $("report-note").textContent = "Only employees with transaction activity in the selected date range are shown. Columns appear only when that transaction type has activity.";
       runTransactions();
