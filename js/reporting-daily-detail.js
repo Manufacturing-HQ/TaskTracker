@@ -150,9 +150,11 @@
     if (detailWrap) detailWrap.hidden = true;
   });
   dailyTab.addEventListener("click", () => setTimeout(syncAfterRender, 0));
-  document.getElementById("weekly-tab")?.addEventListener("click", () => {
-    latestRows = [];
-    if (detailWrap) detailWrap.hidden = true;
+  ["weekly-tab","by-date-tab"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      latestRows = [];
+      if (detailWrap) detailWrap.hidden = true;
+    });
   });
 
   window.addEventListener("pageshow", () => setTimeout(syncAfterRender, 100));
