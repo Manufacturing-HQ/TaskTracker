@@ -206,6 +206,7 @@
       button.classList.add("active");
       $("report-supervisor-wrap") && ($("report-supervisor-wrap").hidden = true);
       $("exclude-non-task-tracker-wrap") && ($("exclude-non-task-tracker-wrap").hidden = true);
+      $("performance-trend") && ($("performance-trend").hidden = true);
       $("run-report").textContent = "Run Report";
       $("report-title").textContent = "Transaction Reporting";
       $("report-note").textContent = "Only employees with transaction activity in the selected date range are shown. Columns appear only when that transaction type has activity.";
@@ -281,7 +282,9 @@
         p_session_token: token,
         p_start_date: start,
         p_end_date: end,
-        p_employee_id: $("report-employee")?.value || null
+        p_employee_id: $("report-employee")?.value || null,
+        p_supervisor_id: $("report-supervisor")?.value || null,
+        p_exclude_non_task_tracker: !!$("exclude-non-task-tracker")?.checked
       });
       const data = Array.isArray(rows) ? rows : [];
       const renderedRows = Array.from(tableWrap.querySelectorAll("tbody tr"));
