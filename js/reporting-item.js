@@ -240,6 +240,7 @@
   function activateItemMode() {
     $("daily-tab")?.classList.remove("active");
     $("weekly-tab")?.classList.remove("active");
+    $("by-date-tab")?.classList.remove("active");
     $("transactions-tab")?.classList.remove("active");
     $("item-tab")?.classList.add("active");
     $("item-report-filters").hidden = false;
@@ -302,6 +303,7 @@
 
     $("daily-tab")?.addEventListener("click", leaveItemMode);
     $("weekly-tab")?.addEventListener("click", leaveItemMode);
+    $("by-date-tab")?.addEventListener("click", leaveItemMode);
     bindTransactionTab();
 
     new MutationObserver(bindTransactionTab).observe(tabsWrap, { childList: true });
