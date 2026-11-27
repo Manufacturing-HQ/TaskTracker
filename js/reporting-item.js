@@ -244,6 +244,9 @@
     $("transactions-tab")?.classList.remove("active");
     $("item-tab")?.classList.add("active");
     $("item-report-filters").hidden = false;
+    $("report-supervisor-wrap") && ($("report-supervisor-wrap").hidden = true);
+    $("exclude-non-task-tracker-wrap") && ($("exclude-non-task-tracker-wrap").hidden = true);
+    $("run-report").textContent = "Run Report";
     if ($("item-export-all-jobs")) $("item-export-all-jobs").hidden = false;
     $("report-title").textContent = "Item Reporting";
     $("report-note").textContent = "Uses job completion date, Assigned Quantity, historical cycle-time snapshots, and all productive session minutes. Quality uses the latest terminal QA outcome; Programming and Shell Assembly operations intentionally bypass QA.";
