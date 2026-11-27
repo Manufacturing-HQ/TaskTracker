@@ -246,6 +246,7 @@
     $("item-report-filters").hidden = false;
     $("report-supervisor-wrap") && ($("report-supervisor-wrap").hidden = true);
     $("exclude-non-task-tracker-wrap") && ($("exclude-non-task-tracker-wrap").hidden = true);
+    $("performance-trend") && ($("performance-trend").hidden = true);
     $("run-report").textContent = "Run Report";
     if ($("item-export-all-jobs")) $("item-export-all-jobs").hidden = false;
     $("report-title").textContent = "Item Reporting";
