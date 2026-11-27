@@ -202,6 +202,7 @@
     button.addEventListener("click", () => {
       $("daily-tab")?.classList.remove("active");
       $("weekly-tab")?.classList.remove("active");
+      $("by-date-tab")?.classList.remove("active");
       button.classList.add("active");
       $("report-title").textContent = "Transaction Reporting";
       $("report-note").textContent = "Only employees with transaction activity in the selected date range are shown. Columns appear only when that transaction type has activity.";
@@ -209,6 +210,7 @@
     });
     $("daily-tab")?.addEventListener("click", () => button.classList.remove("active"));
     $("weekly-tab")?.addEventListener("click", () => button.classList.remove("active"));
+    $("by-date-tab")?.addEventListener("click", () => button.classList.remove("active"));
   }
 
   runButton.addEventListener("click", (event) => {
