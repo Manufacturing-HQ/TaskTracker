@@ -20,6 +20,7 @@
   }
 
   function activeMode() {
+    if ($("by-date-tab")?.classList.contains("active")) return "by-date";
     return $("weekly-tab")?.classList.contains("active") ? "weekly" : "daily";
   }
 
@@ -40,6 +41,8 @@
     try {
       const employeeId = $("report-employee")?.value || null;
       const mode = activeMode();
+      const supervisorId = mode === "by-date" ? ($("report-supervisor")?.value || null) : null;
+      const excludeNonTaskTracker = mode === "by-date" && !!$("exclude-non-task-tracker")?.checked;
       const state = window.TaskTrackerReportingState;
       if (
         !state?.loaded ||
@@ -47,19 +50,26 @@
         state.mode !== mode ||
         state.start !== start ||
         state.end !== end ||
-        (state.employeeId || null) !== employeeId
+        (state.employeeId || null) !== employeeId ||
+        (state.supervisorId || null) !== supervisorId ||
+        !!state.excludeNonTaskTracker !== excludeNonTaskTracker
       ) {
         throw new Error("Run the report for the current filters before exporting.");
       }
 
       const data = Array.isArray(state.rows) ? state.rows : [];
-      const headers = mode === "daily"
-        ? ["Date","Employee","Department","Supervisor","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"]
-        : ["Week Ending","Employee","Department","Supervisor","First Activity","Last Activity","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"];
-
-      const out = data.map((r) => mode === "daily"
-        ? [r.work_date,r.employee_name,r.department,r.supervisor_name,r.tracker_minutes,r.productive_minutes,r.non_productive_minutes,r.minutes_worked,r.completed_productive_jobs,r.completed_quantity,r.expected_minutes,r.productivity_percent,r.tracker_coverage_percent,r.unaccounted_minutes,r.qa_reviewed_pieces,r.qa_error_quantity,r.error_rate_percent]
-        : [r.week_ending_date,r.employee_name,r.department,r.supervisor_name,r.first_activity_date,r.last_activity_date,r.tracker_minutes,r.productive_minutes,r.non_productive_minutes,r.minutes_worked,r.completed_productive_jobs,r.completed_quantity,r.expected_minutes,r.productivity_percent,r.tracker_coverage_percent,r.unaccounted_minutes,r.qa_reviewed_pieces,r.qa_error_quantity,r.error_rate_percent]);
+      let headers;
+      let out;
+      if (mode === "daily") {
+        headers = ["Date","Employee","Department","Supervisor","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"];
+        out = data.map((r) => [r.work_date,r.employee_name,r.department,r.supervisor_name,r.tracker_minutes,r.productive_minutes,r.non_productive_minutes,r.minutes_worked,r.completed_productive_jobs,r.completed_quantity,r.expected_minutes,r.productivity_percent,r.tracker_coverage_percent,r.unaccounted_minutes,r.qa_reviewed_pieces,r.qa_error_quantity,r.error_rate_percent]);
+      } else if (mode === "weekly") {
+        headers = ["Week Ending","Employee","Department","Supervisor","First Activity","Last Activity","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"];
+        out = data.map((r) => [r.week_ending_date,r.employee_name,r.department,r.supervisor_name,r.first_activity_date,r.last_activity_date,r.tracker_minutes,r.productive_minutes,r.non_productive_minutes,r.minutes_worked,r.completed_productive_jobs,r.completed_quantity,r.expected_minutes,r.productivity_percent,r.tracker_coverage_percent,r.unaccounted_minutes,r.qa_reviewed_pieces,r.qa_error_quantity,r.error_rate_percent]);
+      } else {
+        headers = ["Employee","Department","Supervisor","Active Days","Tracker Min","Productive Min","Non-Productive Min","Worked Min","Completed Jobs","Completed Qty","Expected Min","Productivity %","Efficiency %","Unaccounted Min","QA Reviewed","Errors","Error Rate %"];
+        out = data.map((r) => [r.employee_name,r.department,r.supervisor_name,r.active_days,r.tracker_minutes,r.productive_minutes,r.non_productive_minutes,r.minutes_worked,r.completed_productive_jobs,r.completed_quantity,r.expected_minutes,r.productivity_percent,r.tracker_coverage_percent,r.unaccounted_minutes,r.qa_reviewed_pieces,r.qa_error_quantity,r.error_rate_percent]);
+      }
 
       const employee = csv.slug(selectedEmployeeLabel());
       csv.download(`task-tracker-${mode}-report-${start}-to-${end}-${employee}.csv`, headers, out);
